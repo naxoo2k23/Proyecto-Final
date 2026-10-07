@@ -9,19 +9,26 @@ public class Usuario {
     private String passwordHash;
     private String rol;
     private String avatarUrl;
+    private String telefono;
 
     public Usuario() {
         this.id = UUID.randomUUID().toString();
         this.rol = "GAMER";
+        this.telefono = "";
     }
 
     public Usuario(String id, String username, String email, String passwordHash, String rol, String avatarUrl) {
+        this(id, username, email, passwordHash, rol, avatarUrl, "");
+    }
+
+    public Usuario(String id, String username, String email, String passwordHash, String rol, String avatarUrl, String telefono) {
         this.id = id;
         this.username = username;
         this.email = email;
         this.passwordHash = passwordHash;
         this.rol = rol != null ? rol : "GAMER";
         this.avatarUrl = avatarUrl != null ? avatarUrl : "https://api.dicebear.com/7.x/bottts/svg?seed=" + username;
+        this.telefono = telefono != null ? telefono : "";
     }
 
     public String getId() { return id; }
@@ -41,4 +48,7 @@ public class Usuario {
 
     public String getAvatarUrl() { return avatarUrl; }
     public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
+
+    public String getTelefono() { return telefono; }
+    public void setTelefono(String telefono) { this.telefono = telefono; }
 }

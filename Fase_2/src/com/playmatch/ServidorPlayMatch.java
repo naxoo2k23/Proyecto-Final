@@ -164,6 +164,9 @@ public class ServidorPlayMatch {
                     String username = datos.get("username");
                     String email = datos.get("email");
                     String password = datos.get("password");
+                    String telefono = datos.get("telefono");
+                    if (telefono == null) telefono = datos.get("phone");
+                    if (telefono == null) telefono = "";
 
                     if (username == null || email == null || password == null) {
                         enviarRespuestaJson(exchange, 400, "{\"error\":\"Campos incompletos\"}");
@@ -173,7 +176,7 @@ public class ServidorPlayMatch {
                         enviarRespuestaJson(exchange, 409, "{\"error\":\"El nombre de usuario ya existe\"}");
                         return;
                     }
-                    Usuario u = db.crearUsuario(username, email, password);
+                    Usuario u = db.crearUsuario(username, email, password, telefono);
                     PerfilJugador p = db.buscarPerfilPorUsername(username);
                     enviarRespuestaJson(exchange, 201, "{\"message\":\"Usuario registrado\",\"user\":" + usuarioAJson(u) + ",\"profile\":" + (p != null ? perfilAJson(p) : "null") + "}");
 
@@ -328,8 +331,8 @@ public class ServidorPlayMatch {
                 SolicitudEmparejamiento req = new SolicitudEmparejamiento(null, sender, receiver, game, message, "PENDING");
                 db.agregarSolicitudEmparejamiento(req);
 
-                MensajeChat alert = new MensajeChat(null, "PlayMatch Bot", "https://api.dicebear.com/7.x/bottts/svg?seed=SystemBot", "global",
-                        "⚔️ ¡Solicitud de Match! @" + sender + " invito a @" + receiver + " para jugar " + game + ": \"" + message + "\"", null);
+                MensajeChat alert = new MensajeChat(null, "PlayMatch Sistema", "https://api.dicebear.com/7.x/bottts/svg?seed=SystemBot", "global",
+                        "[Notificacion] @" + sender + " envio una invitacion a @" + receiver + " para jugar " + game + ": \"" + message + "\"", null);
                 db.agregarMensajeChat(alert);
 
                 enviarRespuestaJson(exchange, 201, "{\"message\":\"Solicitud de emparejamiento enviada exitosamente\",\"requestId\":\"" + req.getId() + "\"}");
@@ -408,6 +411,7 @@ public class ServidorPlayMatch {
                 "\"id\":\"" + u.getId() + "\"," +
                 "\"username\":\"" + JsonUtils.escape(u.getUsername()) + "\"," +
                 "\"email\":\"" + JsonUtils.escape(u.getEmail()) + "\"," +
+                "\"telefono\":\"" + JsonUtils.escape(u.getTelefono() != null ? u.getTelefono() : "") + "\"," +
                 "\"role\":\"" + u.getRol() + "\"," +
                 "\"avatarUrl\":\"" + JsonUtils.escape(u.getAvatarUrl()) + "\"" +
                 "}";

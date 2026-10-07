@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PlayMatch - Crear Cuenta</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body style="background-color: var(--bg-main); margin: 0;">
+
+  <div class="auth-page-wrapper">
+    <div class="auth-card">
+
+      <!-- BRAND -->
+      <div class="auth-brand">
+        <div class="auth-brand-logo">
+          <div class="brand-icon-box">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="6" width="20" height="12" rx="2"></rect>
+              <path d="M6 12h4m-2-2v4m7-2h.01m3 0h.01"></path>
+            </svg>
+          </div>
+          <span>PlayMatch</span>
+        </div>
+        <div class="auth-brand-subtitle">Plataforma de emparejamiento competitivo y torneos</div>
+      </div>
+
+      <!-- ENCABEZADO FORMULARIO -->
+      <h2 class="auth-title">Crear Cuenta</h2>
+      <p class="auth-subtitle">Regístrate para encontrar escuadra y competir en torneos</p>
+
+      <!-- ALERTA DE ESTADO -->
+      <div id="reg-alert" class="auth-alert"></div>
+
+      <!-- FORMULARIO DE REGISTRO -->
+      <form id="register-form">
+        <div class="form-group">
+          <label class="form-label" for="reg-username">Nombre de Usuario</label>
+          <input type="text" id="reg-username" class="form-control" placeholder="Ej: Datrikk o jaeliug" required autocomplete="username" autofocus>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="reg-email">Correo Electrónico</label>
+          <input type="email" id="reg-email" class="form-control" placeholder="nombre@correo.com" required autocomplete="email">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="reg-password">Contraseña</label>
+          <input type="password" id="reg-password" class="form-control" placeholder="Mínimo 6 caracteres" required autocomplete="new-password">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1.5rem;">
+          <label class="form-label" for="reg-phone">Número de Teléfono</label>
+          <input type="tel" id="reg-phone" class="form-control" placeholder="+56 9 1234 5678" required autocomplete="tel">
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="btn-submit-reg" style="width: 100%;">
+          Crear Cuenta
+        </button>
+      </form>
+
+      <!-- ENLACE A LOGIN -->
+      <div class="auth-footer">
+        ¿Ya tienes una cuenta creada?
+        <a href="login.html">Iniciar Sesión</a>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const form = document.getElementById('register-form');
+      const alertBox = document.getElementById('reg-alert');
+      const submitBtn = document.getElementById('btn-submit-reg');
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('reg-username').value.trim();
+        const email = document.getElementById('reg-email').value.trim();
+        const password = document.getElementById('reg-password').value;
+        const phone = document.getElementById('reg-phone').value.trim();
+
+        if (!username || !email || !password || !phone) {
+          alertBox.className = 'auth-alert error';
+          alertBox.innerText = 'Por favor completa todos los campos requeridos.';
+          return;
+        }
+
+        alertBox.className = 'auth-alert';
+        alertBox.style.display = 'none';
+
+        submitBtn.disabled = true;
+        submitBtn.innerText = 'Registrando cuenta...';
+
+        try {
+          const res = await API.registerUser(username, email, password, phone);
+          if (res && res.user) {
+            const userSession = {
+              username: res.user.username,
+              email: res.user.email,
+              avatar: res.user.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${res.user.username}`,
+              reputation: (res.profile && res.profile.reputationScore) || 100,
+              toxicLevel: (res.profile && res.profile.toxicStatus) || 'ZERO_TOXIC'
+            };
+
+            // Guardar usuario en localStorage
+            localStorage.setItem('playmatch_user', JSON.stringify(userSession));
+            localStorage.setItem('playmatch_remember_user', username);
+            localStorage.setItem('playmatch_remember', 'true');
+
+            alertBox.className = 'auth-alert success';
+            alertBox.innerText = `¡Cuenta registrada con éxito, @${res.user.username}! Redirigiendo a PlayMatch...`;
+
+            setTimeout(() => {
+              window.location.href = 'index.html';
+            }, 600);
+          } else if (res && res.error) {
+            alertBox.className = 'auth-alert error';
+            alertBox.innerText = res.error;
+            submitBtn.disabled = false;
+            submitBtn.innerText = 'Crear Cuenta';
+          } else {
+            alertBox.className = 'auth-alert error';
+            alertBox.innerText = 'Error al registrar la cuenta. Verifica que el usuario no exista.';
+            submitBtn.disabled = false;
+            submitBtn.innerText = 'Crear Cuenta';
+          }
+        } catch (err) {
+          alertBox.className = 'auth-alert error';
+          alertBox.innerText = 'Error al comunicarse con el servidor Java. Verifica que esté activo en el puerto 8080.';
+          submitBtn.disabled = false;
+          submitBtn.innerText = 'Crear Cuenta';
+        }
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PlayMatch - Iniciar Sesión</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body style="background-color: var(--bg-main); margin: 0;">
+
+  <div class="auth-page-wrapper">
+    <div class="auth-card">
+
+      <!-- BRAND -->
+      <div class="auth-brand">
+        <div class="auth-brand-logo">
+          <div class="brand-icon-box">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="6" width="20" height="12" rx="2"></rect>
+              <path d="M6 12h4m-2-2v4m7-2h.01m3 0h.01"></path>
+            </svg>
+          </div>
+          <span>PlayMatch</span>
+        </div>
+        <div class="auth-brand-subtitle">Plataforma de emparejamiento competitivo y torneos</div>
+      </div>
+
+      <!-- ENCABEZADO FORMULARIO -->
+      <h2 class="auth-title">Iniciar Sesión</h2>
+      <p class="auth-subtitle">Ingresa tus credenciales para acceder a la plataforma</p>
+
+      <!-- ALERTA DE ESTADO -->
+      <div id="login-alert" class="auth-alert"></div>
+
+      <!-- FORMULARIO -->
+      <form id="login-form">
+        <div class="form-group">
+          <label class="form-label" for="login-username">Usuario o Gamertag</label>
+          <input type="text" id="login-username" class="form-control" placeholder="Ej: Jesus_Villasanti o Datrikk" required autocomplete="username" autofocus>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="login-password">Contraseña</label>
+          <input type="password" id="login-password" class="form-control" placeholder="••••••••" required autocomplete="current-password">
+        </div>
+
+        <!-- RECUADRO RECORDAR CONTRASEÑA -->
+        <div class="form-remember-row">
+          <label class="checkbox-label" for="remember-me">
+            <input type="checkbox" id="remember-me" checked>
+            <span>Recordar contraseña</span>
+          </label>
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="btn-submit-login" style="width: 100%;">
+          Iniciar Sesión
+        </button>
+      </form>
+
+      <!-- ENLACE A REGISTRO -->
+      <div class="auth-footer">
+        ¿No tienes una cuenta aún?
+        <a href="registro.html">Regístrate aquí</a>
+      </div>
+
+      <!-- NOTA DE CUENTAS LOCALES -->
+      <div class="auth-seed-hint">
+        Cuentas precargadas: <code>Jesus_Villasanti</code>, <code>Datrikk</code>, <code>dididong</code>, <code>luchi</code>, <code>jaeliug</code>, <code>pepitogamer67</code>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Si ya hay usuario recordado, rellenar el campo de usuario
+      const rememberedUser = localStorage.getItem('playmatch_remember_user');
+      const isRemembered = localStorage.getItem('playmatch_remember') === 'true';
+      if (rememberedUser && isRemembered) {
+        const userInput = document.getElementById('login-username');
+        if (userInput) userInput.value = rememberedUser;
+        document.getElementById('remember-me').checked = true;
+      }
+
+      const form = document.getElementById('login-form');
+      const alertBox = document.getElementById('login-alert');
+      const submitBtn = document.getElementById('btn-submit-login');
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('login-username').value.trim();
+        const password = document.getElementById('login-password').value;
+        const remember = document.getElementById('remember-me').checked;
+
+        if (!username || !password) return;
+
+        alertBox.className = 'auth-alert';
+        alertBox.style.display = 'none';
+
+        submitBtn.disabled = true;
+        submitBtn.innerText = 'Validando credenciales...';
+
+        try {
+          const res = await API.loginUser(username, password);
+          if (res && res.user) {
+            const userSession = {
+              username: res.user.username,
+              email: res.user.email,
+              avatar: res.user.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${res.user.username}`,
+              reputation: (res.profile && res.profile.reputationScore) || 100,
+              toxicLevel: (res.profile && res.profile.toxicStatus) || 'ZERO_TOXIC'
+            };
+
+            // Guardar sesión según preferencia de recordar
+            localStorage.setItem('playmatch_user', JSON.stringify(userSession));
+            if (remember) {
+              localStorage.setItem('playmatch_remember_user', username);
+              localStorage.setItem('playmatch_remember', 'true');
+            } else {
+              localStorage.removeItem('playmatch_remember_user');
+              localStorage.removeItem('playmatch_remember');
+            }
+
+            alertBox.className = 'auth-alert success';
+            alertBox.innerText = `¡Bienvenido, @${res.user.username}! Accediendo a PlayMatch...`;
+
+            setTimeout(() => {
+              window.location.href = 'index.html';
+            }, 500);
+          } else {
+            alertBox.className = 'auth-alert error';
+            alertBox.innerText = 'Usuario o contraseña no encontrados. Verifica tus datos o crea una cuenta nueva.';
+            submitBtn.disabled = false;
+            submitBtn.innerText = 'Iniciar Sesión';
+          }
+        } catch (err) {
+          alertBox.className = 'auth-alert error';
+          alertBox.innerText = 'Error al comunicarse con el servidor Java. Verifica que esté activo en el puerto 8080.';
+          submitBtn.disabled = false;
+          submitBtn.innerText = 'Iniciar Sesión';
+        }
+      });
+    });
+  </script>
+</body>
+</html>

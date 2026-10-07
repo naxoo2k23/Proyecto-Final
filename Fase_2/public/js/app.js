@@ -1,16 +1,23 @@
 /**
  * PlayMatch Frontend Application Logic
+ * Interfaz limpia y funcional orientada a proyecto de Ingeniería en Informática.
  */
 
-// Estado global de la aplicación
+// Comprobación de acceso previo: Si no hay usuario autenticado, redirigir a login independiente
+let storedUser = null;
+try {
+  const saved = localStorage.getItem('playmatch_user') || sessionStorage.getItem('playmatch_user');
+  if (saved) storedUser = JSON.parse(saved);
+} catch (e) {
+  storedUser = null;
+}
+
+if (!storedUser) {
+  window.location.replace('login.html');
+}
+
 const state = {
-  currentUser: {
-    username: 'Naxoo_Viper',
-    email: 'jesus.villasanti@playmatch.cl',
-    avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=Naxoo_Viper',
-    reputation: 100,
-    toxicLevel: 'ZERO_TOXIC'
-  },
+  currentUser: storedUser,
   currentTab: 'lfg',
   selectedGameFilter: 'all',
   selectedToxicFilter: '',
@@ -18,31 +25,41 @@ const state = {
   chatInterval: null
 };
 
-// Inicialización al cargar la ventana
 document.addEventListener('DOMContentLoaded', () => {
+  updateAuthUI();
   setupNavigation();
   loadLfgPlayers();
   loadTournaments();
   setupChat();
   setupModals();
+  setupProfileForm();
   loadProfileData();
 
-  // Polling para mensajes de chat cada 3.5 segundos
-  state.chatInterval = setInterval(fetchAndRenderChat, 3500);
+  // Consulta periódica del chat cada 3 segundos
+  state.chatInterval = setInterval(fetchAndRenderChat, 3000);
 });
 
-// 1. NAVEGACIÓN ENTRE SECCIONES
+function updateAuthUI() {
+  const navName = document.getElementById('nav-user-name');
+  const navAvatar = document.getElementById('nav-user-avatar');
+
+  if (state.currentUser) {
+    if (navName) navName.innerText = state.currentUser.username;
+    if (navAvatar) navAvatar.src = state.currentUser.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${state.currentUser.username}`;
+  }
+}
+
+// 1. NAVEGACIÓN
 function setupNavigation() {
-  const navLinks = document.querySelectorAll('.nav-link');
-  navLinks.forEach(link => {
-    link.addEventListener('click', (e) => {
+  const tabBtns = document.querySelectorAll('.nav-tab-btn');
+  tabBtns.forEach(btn => {
+    btn.addEventListener('click', (e) => {
       e.preventDefault();
-      const targetTab = link.dataset.tab;
+      const targetTab = btn.dataset.tab;
       switchTab(targetTab);
     });
   });
 
-  // Filtros de juegos en LFG
   document.getElementById('game-filter')?.addEventListener('change', (e) => {
     state.selectedGameFilter = e.target.value;
     loadLfgPlayers();
@@ -56,8 +73,8 @@ function setupNavigation() {
 
 function switchTab(tabId) {
   state.currentTab = tabId;
-  document.querySelectorAll('.nav-link').forEach(l => {
-    l.classList.toggle('active', l.dataset.tab === tabId);
+  document.querySelectorAll('.nav-tab-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tabId);
   });
 
   document.querySelectorAll('.app-section').forEach(sec => {
@@ -69,19 +86,19 @@ function switchTab(tabId) {
   }
 }
 
-// 2. MÓDULO DE EMPAREJAMIENTO SOCIAL (LFG)
+// 2. BUSCADOR DE JUGADORES (LFG)
 async function loadLfgPlayers() {
   const container = document.getElementById('players-grid');
   if (!container) return;
 
-  container.innerHTML = '<div style="color:var(--text-muted);grid-column:1/-1;text-align:center;padding:2rem;">Cargando jugadores compatibles...</div>';
+  container.innerHTML = '<div style="color:var(--text-secondary);grid-column:1/-1;text-align:center;padding:2rem;">Cargando lista de jugadores...</div>';
 
   try {
     const players = await API.getPlayers(state.selectedGameFilter, state.selectedToxicFilter);
     container.innerHTML = '';
 
     if (!players || players.length === 0) {
-      container.innerHTML = '<div style="color:var(--text-muted);grid-column:1/-1;text-align:center;padding:2rem;">No se encontraron jugadores con los filtros seleccionados.</div>';
+      container.innerHTML = '<div style="color:var(--text-secondary);grid-column:1/-1;text-align:center;padding:2rem;">No se encontraron jugadores con los filtros seleccionados.</div>';
       return;
     }
 
@@ -91,7 +108,7 @@ async function loadLfgPlayers() {
     });
   } catch (err) {
     console.error('Error cargando jugadores:', err);
-    container.innerHTML = '<div style="color:var(--accent-rose);grid-column:1/-1;text-align:center;padding:2rem;">Error al conectar con el servidor Java.</div>';
+    container.innerHTML = '<div style="color:var(--color-danger);grid-column:1/-1;text-align:center;padding:2rem;">No se pudo conectar con el servidor Java.</div>';
   }
 }
 
@@ -99,59 +116,59 @@ function createPlayerCard(player) {
   const div = document.createElement('div');
   div.className = 'player-card';
 
-  const isCurrentUser = player.username.toLowerCase() === state.currentUser.username.toLowerCase();
+  const isCurrentUser = Boolean(state.currentUser && player.username.toLowerCase() === state.currentUser.username.toLowerCase());
 
   div.innerHTML = `
     <div class="player-card-header">
       <img src="${player.avatarUrl}" class="player-avatar" alt="${player.username}">
-      <div class="player-identity">
+      <div>
         <h3>${player.username}</h3>
-        <p class="player-region">📍 ${player.region || 'Chile'}</p>
-        <span class="game-badge ${player.game}">${player.gameName || player.game}</span>
+        <p class="player-meta-text">Ubicación: ${player.region || 'Chile'}</p>
+        <span class="badge-game ${player.game}">${player.gameName || player.game}</span>
       </div>
     </div>
 
-    <div class="player-stats-row">
-      <div>
-        <span>Rango Oficial</span>
+    <div class="player-data-table">
+      <div class="player-data-cell">
+        <span>Rango</span>
         <strong>${player.rank}</strong>
       </div>
-      <div>
-        <span>Rol Favorito</span>
+      <div class="player-data-cell">
+        <span>Rol</span>
         <strong>${player.role}</strong>
       </div>
-      <div>
+      <div class="player-data-cell">
         <span>Horario</span>
         <strong>${player.preferredSchedule || 'Noches'}</strong>
       </div>
-      <div>
-        <span>Reputación</span>
-        <strong style="color:var(--accent-green);">🛡️ ${player.toxicLevel === 'ZERO_TOXIC' ? 'Zero Toxic (100%)' : 'Friendly'}</strong>
+      <div class="player-data-cell">
+        <span>Conducta</span>
+        <strong style="color:var(--color-success);">${player.toxicLevel === 'ZERO_TOXIC' ? 'Zero-Toxic (100)' : 'Amigable'}</strong>
       </div>
     </div>
 
-    <p class="player-bio">"${player.bio || 'Jugador competitivo buscando coordinar equipo.'}"</p>
+    <p class="player-bio-snippet">"${player.bio || 'Jugador activo buscando formar equipo.'}"</p>
 
-    <div class="platform-tags">
-      ${player.riotId ? `<span class="tag-plat">🎯 Riot: ${player.riotId}</span>` : ''}
-      ${player.discordTag ? `<span class="tag-plat">💬 Discord: ${player.discordTag}</span>` : ''}
-      ${player.steamId ? `<span class="tag-plat">🎮 Steam</span>` : ''}
+    <div class="player-chips-row">
+      ${player.riotId ? `<span class="chip-plat">Riot: ${player.riotId}</span>` : ''}
+      ${player.discordTag ? `<span class="chip-plat">Discord: ${player.discordTag}</span>` : ''}
+      ${player.steamId ? `<span class="chip-plat">Steam</span>` : ''}
     </div>
 
     ${!isCurrentUser ? `
-      <button class="btn-primary" onclick="openMatchModal('${player.username}', '${player.gameName || player.game}')">
-        ⚔️ Invitar a Dúo / Escuadra
+      <button class="btn btn-primary btn-sm" onclick="openMatchModal('${player.username}', '${player.gameName || player.game}')">
+        Invitar a Partida
       </button>
     ` : `
-      <button class="btn-secondary" onclick="switchTab('profile')">
-        ✏️ Editar mi Perfil
+      <button class="btn btn-secondary btn-sm" onclick="switchTab('profile')">
+        Editar mi Perfil
       </button>
     `}
   `;
   return div;
 }
 
-// 3. MÓDULO DE GESTIÓN DE TORNEOS Y BRACKET
+// 3. TORNEOS Y BRACKET
 async function loadTournaments() {
   const container = document.getElementById('tournaments-grid');
   if (!container) return;
@@ -164,31 +181,29 @@ async function loadTournaments() {
       const card = document.createElement('div');
       card.className = 'tournament-card';
       card.innerHTML = `
-        <div class="tournament-banner" style="background-image:url('${t.bannerUrl}')">
-          <span class="game-badge ${t.game}">${t.gameName}</span>
+        <div class="tournament-card-header">
+          <span class="badge-game ${t.game}">${t.gameName}</span>
+          <span style="font-size:0.75rem;color:var(--text-secondary);">${t.status === 'IN_PROGRESS' ? 'En Curso' : 'Inscripción Abierta'}</span>
         </div>
-        <div class="tournament-info">
-          <h3 class="tournament-title">${t.title}</h3>
-          <div class="tournament-meta">
-            <span>🏆 Premio: <strong class="prize-badge">${t.prizePool}</strong></span>
-            <span>📅 Fecha: <strong>${t.startDate}</strong></span>
-            <span>👥 Equipos: <strong>${t.registeredTeamsCount} / ${t.maxTeams} inscritos</strong></span>
-            <span>🏢 Organiza: <strong>${t.organizer}</strong></span>
-          </div>
-          <div style="display:flex;gap:0.5rem;">
-            <button class="btn-primary" style="flex:1;" onclick="openJoinTournamentModal('${t.id}', '${t.title}')">
-              📝 Inscribir Equipo
-            </button>
-            <button class="btn-secondary" onclick="renderTournamentBracket('${t.id}')">
-              📊 Ver Llaves
-            </button>
-          </div>
+        <h3>${t.title}</h3>
+        <div class="tournament-table-info">
+          <div>Premio: <strong>${t.prizePool}</strong></div>
+          <div>Fecha: <strong>${t.startDate}</strong></div>
+          <div>Equipos inscritos: <strong>${t.registeredTeamsCount} / ${t.maxTeams}</strong></div>
+          <div>Organizador: <strong>${t.organizer}</strong></div>
+        </div>
+        <div style="display:flex;gap:0.5rem;margin-top:auto;">
+          <button class="btn btn-primary btn-sm" style="flex:1;" onclick="openJoinTournamentModal('${t.id}', '${t.title}')">
+            Inscribir Equipo
+          </button>
+          <button class="btn btn-secondary btn-sm" onclick="renderTournamentBracket('${t.id}')">
+            Ver Llaves
+          </button>
         </div>
       `;
       container.appendChild(card);
     });
 
-    // Renderizar las llaves del torneo CS2 por defecto
     renderTournamentBracket(state.selectedTournamentId);
 
   } catch (err) {
@@ -205,42 +220,42 @@ async function renderTournamentBracket(tournamentId) {
     const t = await API.getTournament(tournamentId);
     if (!t) return;
 
-    document.getElementById('bracket-tournament-title').innerText = `Llaves de Eliminación Directa: ${t.title}`;
+    document.getElementById('bracket-tournament-title').innerText = `Llaves de Eliminación: ${t.title}`;
 
     if (!t.matches || t.matches.length === 0) {
       bracketContainer.innerHTML = `
-        <div style="padding:2rem;text-align:center;color:var(--text-muted);">
-          Las llaves de este torneo se generarán automáticamente una vez completadas las inscripciones (${t.registeredTeamsCount}/${t.maxTeams} equipos inscritos).
+        <div style="padding:1.5rem;text-align:center;color:var(--text-muted);font-size:0.85rem;">
+          Las llaves de este torneo se generarán al completar los cupos (${t.registeredTeamsCount} de ${t.maxTeams} registrados).
         </div>
       `;
       return;
     }
 
-    // Dividir matches por rondas
     const semis = t.matches.filter(m => m.roundName.includes('Semifinal'));
     const finals = t.matches.filter(m => m.roundName.includes('Final') && !m.roundName.includes('Semi'));
 
     let html = `
-      <div class="bracket-tree">
-        <div class="bracket-round">
-          <div class="round-header">SEMIFINALES (Bo1)</div>
+      <div class="bracket-container">
+        <div class="bracket-round-column">
+          <div class="round-name-tag">Semifinales (Bo1)</div>
           ${semis.map(m => createMatchBoxHtml(m)).join('')}
         </div>
 
-        <div style="font-size:2rem;color:var(--neon-purple);font-weight:bold;">➔</div>
+        <div style="color:var(--text-muted);font-weight:bold;">➔</div>
 
-        <div class="bracket-round">
-          <div class="round-header">GRAN FINAL (Bo3)</div>
+        <div class="bracket-round-column">
+          <div class="round-name-tag">Gran Final (Bo3)</div>
           ${finals.map(m => createMatchBoxHtml(m)).join('')}
         </div>
 
-        <div style="font-size:2rem;color:var(--neon-cyan);font-weight:bold;">🏆</div>
+        <div style="color:var(--text-muted);font-weight:bold;">➔</div>
 
-        <div class="bracket-round" style="max-width:180px;text-align:center;">
-          <div class="round-header">CAMPEÓN</div>
-          <div class="match-box" style="padding:1rem;background:linear-gradient(135deg,rgba(16,185,129,0.2),rgba(6,182,212,0.2));border-color:var(--accent-green);">
-            <div style="font-size:1.5rem;">👑</div>
-            <strong style="color:#fff;display:block;margin-top:0.4rem;">${finals[0]?.winner || 'Por Definir'}</strong>
+        <div class="bracket-round-column" style="max-width:180px;text-align:center;">
+          <div class="round-name-tag">Campeón</div>
+          <div class="match-box-item" style="padding:1rem;background-color:rgba(16,185,129,0.1);border-color:var(--color-success);">
+            <strong style="color:var(--text-primary);display:block;">
+              ${finals[0]?.winner || 'Por Definir'}
+            </strong>
           </div>
         </div>
       </div>
@@ -256,20 +271,20 @@ async function renderTournamentBracket(tournamentId) {
 function createMatchBoxHtml(m) {
   const isFinished = m.status === 'FINISHED';
   return `
-    <div class="match-box">
-      <div class="team-entry ${isFinished && m.winner === m.team1 ? 'winner' : ''}">
-        <span>${m.team1 || 'TBD'}</span>
-        <span class="team-score">${m.scoreTeam1}</span>
+    <div class="match-box-item">
+      <div class="match-row-team ${isFinished && m.winner === m.team1 ? 'winner' : ''}">
+        <span>${m.team1 || 'Por definir'}</span>
+        <span class="score">${m.scoreTeam1}</span>
       </div>
-      <div class="team-entry ${isFinished && m.winner === m.team2 ? 'winner' : ''}">
-        <span>${m.team2 || 'TBD'}</span>
-        <span class="team-score">${m.scoreTeam2}</span>
+      <div class="match-row-team ${isFinished && m.winner === m.team2 ? 'winner' : ''}">
+        <span>${m.team2 || 'Por definir'}</span>
+        <span class="score">${m.scoreTeam2}</span>
       </div>
     </div>
   `;
 }
 
-// 4. MÓDULO DE CHAT INTERNO EN TIEMPO REAL
+// 4. SALA DE COORDINACIÓN (CHAT)
 function setupChat() {
   const input = document.getElementById('chat-message-input');
   const btn = document.getElementById('chat-send-btn');
@@ -285,12 +300,19 @@ async function handleSendMessage() {
   const content = input?.value?.trim();
   if (!content) return;
 
+  if (!state.currentUser) {
+    openLoginModal();
+    showToast('Debes iniciar sesión para enviar mensajes al chat.', true);
+    return;
+  }
+
   try {
     await API.sendChatMessage(state.currentUser.username, content, 'global');
     input.value = '';
     fetchAndRenderChat();
   } catch (err) {
     console.error('Error enviando mensaje:', err);
+    showToast('Error al enviar el mensaje al servidor.', true);
   }
 }
 
@@ -302,29 +324,34 @@ async function fetchAndRenderChat() {
     const messages = await API.getChatMessages();
     msgContainer.innerHTML = '';
 
-    messages.forEach(m => {
-      const isMe = m.sender === state.currentUser.username;
-      const bubble = document.createElement('div');
-      bubble.className = 'message-bubble';
-      if (isMe) {
-        bubble.style.alignSelf = 'flex-end';
-        bubble.style.flexDirection = 'row-reverse';
-      }
-
-      bubble.innerHTML = `
-        <img src="${m.avatar}" class="msg-avatar" alt="${m.sender}">
-        <div class="msg-content-wrapper" style="${isMe ? 'background:rgba(139,92,246,0.25);border-color:var(--neon-purple);' : ''}">
-          <div class="msg-author" style="${isMe ? 'justify-content:flex-end;' : ''}">
-            <span>${m.sender}</span>
-            <span class="msg-time">${m.timestamp}</span>
-          </div>
-          <div class="msg-text">${escapeHtml(m.content)}</div>
+    if (!messages || messages.length === 0) {
+      msgContainer.innerHTML = `
+        <div class="chat-empty-state">
+          No hay mensajes en este canal todavía.<br>
+          Escribe a continuación para iniciar la coordinación.
         </div>
       `;
-      msgContainer.appendChild(bubble);
+      return;
+    }
+
+    messages.forEach(m => {
+      const isMe = Boolean(state.currentUser && m.sender.toLowerCase() === state.currentUser.username.toLowerCase());
+      const item = document.createElement('div');
+      item.className = `message-card ${isMe ? 'own' : ''}`;
+
+      item.innerHTML = `
+        <img src="${m.avatar}" class="msg-avatar-img" alt="${m.sender}">
+        <div class="msg-body-wrapper">
+          <div class="msg-meta-line">
+            <strong>${m.sender}</strong>
+            <span>${m.timestamp}</span>
+          </div>
+          <div class="msg-text-content">${escapeHtml(m.content)}</div>
+        </div>
+      `;
+      msgContainer.appendChild(item);
     });
 
-    // Auto scroll al fondo
     msgContainer.scrollTop = msgContainer.scrollHeight;
   } catch (err) {
     console.error('Error actualizando chat:', err);
@@ -332,26 +359,63 @@ async function fetchAndRenderChat() {
 }
 
 // 5. PERFIL DE USUARIO
+function populateProfileFields(profile) {
+  if (!profile) return;
+  const setVal = (id, val) => {
+    const el = document.getElementById(id);
+    if (el && val !== undefined && val !== null) el.value = val;
+  };
+  setVal('prof-bio', profile.bio || '');
+  setVal('prof-region', profile.region || '');
+  setVal('prof-game', profile.game || 'valorant');
+  setVal('prof-rank', profile.rank || '');
+  setVal('prof-role', profile.role || '');
+  setVal('prof-riot', profile.riotId || '');
+  setVal('prof-discord', profile.discordTag || '');
+  setVal('prof-schedule', profile.preferredSchedule || '');
+}
+
+function clearProfileFields() {
+  const setVal = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.value = val;
+  };
+  setVal('prof-bio', '');
+  setVal('prof-region', '');
+  setVal('prof-game', 'valorant');
+  setVal('prof-rank', '');
+  setVal('prof-role', '');
+  setVal('prof-riot', '');
+  setVal('prof-discord', '');
+  setVal('prof-schedule', '');
+}
+
 async function loadProfileData() {
+  if (!state.currentUser) {
+    clearProfileFields();
+    return;
+  }
   try {
-    const profile = await API.getPlayers('all');
-    const myProfile = profile.find(p => p.username.toLowerCase() === state.currentUser.username.toLowerCase());
-    if (myProfile) {
-      document.getElementById('prof-bio').value = myProfile.bio || '';
-      document.getElementById('prof-region').value = myProfile.region || '';
-      document.getElementById('prof-game').value = myProfile.game || 'valorant';
-      document.getElementById('prof-rank').value = myProfile.rank || '';
-      document.getElementById('prof-role').value = myProfile.role || '';
-      document.getElementById('prof-riot').value = myProfile.riotId || '';
-      document.getElementById('prof-discord').value = myProfile.discordTag || '';
-      document.getElementById('prof-schedule').value = myProfile.preferredSchedule || '';
+    const players = await API.getPlayers('all');
+    if (Array.isArray(players)) {
+      const myProfile = players.find(p => p.username.toLowerCase() === state.currentUser.username.toLowerCase());
+      if (myProfile) {
+        populateProfileFields(myProfile);
+      }
     }
   } catch (err) {
     console.error('Error cargando perfil:', err);
   }
+}
 
+function setupProfileForm() {
   document.getElementById('profile-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (!state.currentUser) {
+      openLoginModal();
+      showToast('Debes iniciar sesión para guardar cambios en tu perfil.', true);
+      return;
+    }
     const data = {
       username: state.currentUser.username,
       bio: document.getElementById('prof-bio').value,
@@ -366,21 +430,41 @@ async function loadProfileData() {
 
     try {
       await API.updateProfile(data);
-      showToast('✅ ¡Perfil de jugador guardado exitosamente!');
+      showToast('Perfil actualizado correctamente.');
       loadLfgPlayers();
     } catch (err) {
-      showToast('❌ Error al actualizar el perfil');
+      showToast('Error al actualizar el perfil.', true);
     }
   });
 }
 
-// 6. MODALES Y SOLICITUDES DE MATCH
+// 6. MODALES Y NAVEGACIÓN
 function setupModals() {
+  // Cierres de modales
   document.getElementById('modal-close-btn')?.addEventListener('click', closeModal);
   document.getElementById('tournament-modal-close-btn')?.addEventListener('click', closeTournamentModal);
 
+  // Cerrar sesión y volver a la ventana independiente de login
+  document.getElementById('btn-logout')?.addEventListener('click', () => {
+    localStorage.removeItem('playmatch_user');
+    sessionStorage.removeItem('playmatch_user');
+    window.location.href = 'login.html';
+  });
+
+  // Cerrar al hacer clic en el backdrop oscuro
+  window.addEventListener('click', (e) => {
+    if (e.target.classList.contains('modal-overlay')) {
+      e.target.style.display = 'none';
+    }
+  });
+
+  // Modal: Invitar a jugar
   document.getElementById('match-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (!state.currentUser) {
+      window.location.href = 'login.html';
+      return;
+    }
     const receiver = document.getElementById('match-target-user').value;
     const game = document.getElementById('match-target-game').value;
     const msg = document.getElementById('match-message-input').value;
@@ -388,30 +472,39 @@ function setupModals() {
     try {
       await API.sendMatchRequest(state.currentUser.username, receiver, game, msg);
       closeModal();
-      showToast(`⚔️ Solicitud de match enviada a @${receiver}`);
+      showToast(`Invitación enviada a @${receiver}.`);
       fetchAndRenderChat();
     } catch (err) {
-      showToast('❌ Error al enviar solicitud');
+      showToast('Error al enviar la invitación.', true);
     }
   });
 
+  // Modal: Registrar equipo en torneo
   document.getElementById('join-tournament-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (!state.currentUser) {
+      window.location.href = 'login.html';
+      return;
+    }
     const tId = document.getElementById('join-t-id').value;
     const teamName = document.getElementById('join-team-name').value;
 
     try {
       const res = await API.joinTournament(tId, teamName);
       closeTournamentModal();
-      showToast(`🏆 ${res.message || 'Equipo inscrito con éxito'}`);
+      showToast(res.message || 'Equipo inscrito con éxito.');
       loadTournaments();
     } catch (err) {
-      showToast('❌ Error al inscribir equipo');
+      showToast('Error al procesar la inscripción.', true);
     }
   });
 }
 
 function openMatchModal(username, game) {
+  if (!state.currentUser) {
+    window.location.href = 'login.html';
+    return;
+  }
   document.getElementById('match-target-user').value = username;
   document.getElementById('match-target-game').value = game;
   document.getElementById('modal-title').innerText = `Invitar a @${username} (${game})`;
@@ -423,6 +516,10 @@ function closeModal() {
 }
 
 function openJoinTournamentModal(tournamentId, tournamentTitle) {
+  if (!state.currentUser) {
+    window.location.href = 'login.html';
+    return;
+  }
   document.getElementById('join-t-id').value = tournamentId;
   document.getElementById('join-modal-title').innerText = `Inscripción: ${tournamentTitle}`;
   document.getElementById('join-tournament-modal').style.display = 'flex';
@@ -432,12 +529,25 @@ function closeTournamentModal() {
   document.getElementById('join-tournament-modal').style.display = 'none';
 }
 
-function showToast(message) {
+let toastTimeout = null;
+function showToast(message, isError = false) {
   const toast = document.getElementById('app-toast');
   if (!toast) return;
   toast.innerText = message;
   toast.style.display = 'block';
-  setTimeout(() => { toast.style.display = 'none'; }, 3500);
+
+  if (isError) {
+    toast.style.borderColor = 'rgba(239, 68, 68, 0.6)';
+    toast.style.color = '#fca5a5';
+    toast.style.backgroundColor = '#181124';
+  } else {
+    toast.style.borderColor = 'var(--color-primary)';
+    toast.style.color = 'var(--text-primary)';
+    toast.style.backgroundColor = 'var(--bg-card)';
+  }
+
+  if (toastTimeout) clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => { toast.style.display = 'none'; }, 4000);
 }
 
 function escapeHtml(str) {

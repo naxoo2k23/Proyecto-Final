@@ -3,134 +3,163 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PlayMatch · Plataforma Web de Emparejamiento Social y Gestión de Torneos</title>
+  <title>PlayMatch · Plataforma de Emparejamiento y Torneos</title>
   <link rel="stylesheet" href="css/style.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 </head>
 <body>
 
   <!-- BARRA DE NAVEGACIÓN -->
-  <nav class="navbar">
-    <div class="brand">
-      <div class="brand-icon">⚔️</div>
-      <span class="brand-gradient">PLAYMATCH</span>
-    </div>
+  <header class="navbar">
+    <a href="#" class="nav-brand">
+      <div class="nav-brand-symbol">
+        <svg class="icon" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+      </div>
+      <span>PlayMatch</span>
+      <span class="nav-brand-badge">Gaming</span>
+    </a>
 
-    <ul class="nav-links">
-      <li><a href="#" class="nav-link active" data-tab="lfg">🎯 Matchmaking (LFG)</a></li>
-      <li><a href="#" class="nav-link" data-tab="tournaments">🏆 Torneos & Brackets</a></li>
-      <li><a href="#" class="nav-link" data-tab="chat">💬 Chat en Vivo</a></li>
-      <li><a href="#" class="nav-link" data-tab="profile">👤 Mi Perfil</a></li>
+    <!-- PESTAÑAS PRINCIPALES -->
+    <ul class="nav-tabs">
+      <li>
+        <button class="nav-tab-btn active" data-tab="lfg">
+          <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="22" y1="12" x2="18" y2="12"></line><line x1="6" y1="12" x2="2" y2="12"></line><line x1="12" y1="6" x2="12" y2="2"></line><line x1="12" y1="22" x2="12" y2="18"></line></svg>
+          Jugadores (LFG)
+        </button>
+      </li>
+      <li>
+        <button class="nav-tab-btn" data-tab="tournaments">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg>
+          Torneos y Brackets
+        </button>
+      </li>
+      <li>
+        <button class="nav-tab-btn" data-tab="chat">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"></path></svg>
+          Sala de Coordinación
+        </button>
+      </li>
+      <li>
+        <button class="nav-tab-btn" data-tab="profile">
+          <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"></circle><path d="M20 21a8 8 0 1 0-16 0"></path></svg>
+          Mi Perfil
+        </button>
+      </li>
     </ul>
 
-    <div class="user-pill">
-      <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Naxoo_Viper" alt="Avatar" class="user-avatar-sm">
-      <div>
-        <div class="user-name">Naxoo_Viper</div>
-        <div class="karma-badge">🛡️ Zero Toxic 100%</div>
+    <!-- USUARIO ACTIVO Y ACCESO -->
+    <div class="nav-user-cluster">
+      <div class="nav-user" id="nav-user">
+        <img src="" alt="Avatar" class="user-avatar-mini" id="nav-user-avatar">
+        <div>
+          <span class="user-status-dot"></span>
+          <strong id="nav-user-name"></strong>
+        </div>
       </div>
+      <button class="btn btn-secondary btn-sm" id="btn-logout" style="padding:0.35rem 0.65rem;">
+        Cerrar Sesión
+      </button>
     </div>
-  </nav>
+  </header>
 
-  <!-- CONTENIDO PRINCIPAL -->
+  <!-- CONTENEDOR CENTRAL -->
   <main class="container">
 
-    <!-- HERO BANNER -->
-    <header class="hero-banner">
-      <span class="hero-tag">Beta Pública · Chile 2026</span>
-      <h1 class="hero-title">Conecta sin toxicidad.<br>Compite como profesional.</h1>
-      <p class="hero-subtitle">
-        La primera plataforma chilena que une el emparejamiento social libre de toxicidad con la organización automatizada de torneos de esports amateur.
-      </p>
-      <div class="hero-stats">
-        <div class="stat-item">
-          <span class="stat-value">520+</span>
-          <span class="stat-label">Gamers en Línea</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-value">99.4%</span>
-          <span class="stat-label">Partidas Sin Toxicidad</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-value">$650.000</span>
-          <span class="stat-label">En Premios Activos</span>
+    <!-- HERO SECTION CON IMAGEN LLAMATIVA (SIN TEXTOS ACADÉMICOS) -->
+    <section class="hero-banner">
+      <div class="hero-content">
+        <span class="hero-tag">Comunidad Competitiva</span>
+        <h1 class="hero-title">Conecta. Compite. Sube de rango.</h1>
+        <p class="hero-subtitle">
+          Encuentra compañeros afines para Valorant, League of Legends y Counter-Strike 2. Coordina partidas y participa en torneos con seguimiento directo de llaves.
+        </p>
+        <div class="hero-actions">
+          <button class="btn btn-primary" onclick="switchTab('lfg')">Explorar Jugadores</button>
+          <button class="btn btn-secondary" onclick="switchTab('tournaments')">Ver Torneos</button>
         </div>
       </div>
-    </header>
 
-    <!-- SECCIÓN 1: MATCHMAKING (LFG) -->
+      <div class="hero-image-wrapper">
+        <img src="https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80" alt="PlayMatch Arena" class="hero-image">
+        <div class="hero-image-overlay"></div>
+      </div>
+    </section>
+
+    <!-- SECCIÓN 1: BUSCADOR DE JUGADORES (LFG) -->
     <section id="section-lfg" class="app-section">
-      <div class="section-header">
-        <div>
-          <h2 class="section-title">👥 Jugadores Buscando Equipo (LFG)</h2>
-          <p style="color:var(--text-muted);font-size:0.9rem;">Encuentra dúos y escuadras afines a tu nivel, rol y horario en Chile.</p>
+      <div class="section-toolbar">
+        <div class="section-title">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          Jugadores Disponibles
         </div>
-        <div class="filters-bar">
-          <select id="game-filter" class="select-filter">
-            <option value="all">🎮 Todos los Juegos</option>
+
+        <div class="filter-group">
+          <select id="game-filter" class="form-select" style="width:auto;min-width:160px;">
+            <option value="all">Todos los Juegos</option>
             <option value="valorant">Valorant</option>
             <option value="lol">League of Legends</option>
             <option value="cs2">Counter-Strike 2</option>
           </select>
-          <select id="toxic-filter" class="select-filter">
-            <option value="">🛡️ Todos los Comportamientos</option>
-            <option value="ZERO_TOXIC">Solo Zero-Toxic (100% Karma)</option>
+
+          <select id="toxic-filter" class="form-select" style="width:auto;min-width:180px;">
+            <option value="">Filtro de Conducta</option>
+            <option value="ZERO_TOXIC">Solo Zero-Toxic (100 Karma)</option>
             <option value="FRIENDLY">Comunidad Amigable</option>
           </select>
         </div>
       </div>
 
-      <!-- Tarjetas de Jugadores -->
       <div id="players-grid" class="players-grid"></div>
     </section>
 
-    <!-- SECCIÓN 2: TORNEOS & BRACKETS -->
+    <!-- SECCIÓN 2: TORNEOS Y BRACKETS -->
     <section id="section-tournaments" class="app-section" style="display:none;">
-      <div class="section-header">
-        <div>
-          <h2 class="section-title">🏆 Torneos Activos y Próximos</h2>
-          <p style="color:var(--text-muted);font-size:0.9rem;">Competencias amateur estructuradas con llaves de eliminación directa y premios.</p>
+      <div class="section-toolbar">
+        <div class="section-title">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg>
+          Torneos Comunitarios
         </div>
       </div>
 
-      <!-- Lista de Torneos -->
       <div id="tournaments-grid" class="tournaments-grid"></div>
 
-      <!-- Visualizador de Bracket Interactivo -->
-      <div class="bracket-wrapper">
-        <h3 id="bracket-tournament-title" class="bracket-title">Llaves de Eliminación Directa</h3>
+      <!-- PANEL DE BRACKET -->
+      <div class="bracket-panel">
+        <div class="bracket-panel-header">
+          <h3 id="bracket-tournament-title">Llaves de Eliminación Directa</h3>
+        </div>
         <div id="bracket-view"></div>
       </div>
     </section>
 
-    <!-- SECCIÓN 3: CHAT EN VIVO -->
+    <!-- SECCIÓN 3: SALA DE COORDINACIÓN (CHAT) -->
     <section id="section-chat" class="app-section" style="display:none;">
-      <div class="section-header">
-        <h2 class="section-title">💬 Chat de Coordinación en Tiempo Real</h2>
+      <div class="section-toolbar">
+        <div class="section-title">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"></path></svg>
+          Sala de Coordinación
+        </div>
       </div>
 
-      <div class="chat-container">
-        <aside class="chat-channels">
-          <div style="font-size:0.75rem;font-weight:800;color:var(--text-muted);margin-bottom:0.8rem;text-transform:uppercase;">Canales Disponibles</div>
-          <div class="channel-item active">🌐 # General Chile</div>
-          <div class="channel-item">🎯 # Scrims-Valorant</div>
-          <div class="channel-item">⚔️ # Dúo-LoL-LAS</div>
-          <div class="channel-item">💣 # Faceit-CS2</div>
+      <div class="chat-layout">
+        <aside class="chat-sidebar">
+          <div class="chat-sidebar-header">Canales</div>
+          <button class="channel-list-item active"># General Nacional</button>
+          <button class="channel-list-item"># Scrims Valorant</button>
+          <button class="channel-list-item"># Duo LoL LAS</button>
+          <button class="channel-list-item"># Competitivo CS2</button>
         </aside>
 
-        <div class="chat-main">
-          <div class="chat-header">
-            <span>Canal Activo: <strong># General Chile</strong></span>
-            <span style="font-size:0.8rem;color:var(--accent-green);">● En vivo</span>
+        <div class="chat-main-area">
+          <div class="chat-top-header">
+            <span>Canal Activo: # General Nacional</span>
+            <span style="font-size:0.75rem;color:var(--text-secondary);">En tiempo real</span>
           </div>
 
-          <div id="chat-messages-container" class="chat-messages"></div>
+          <div id="chat-messages-container" class="chat-scroll-messages"></div>
 
           <div class="chat-input-bar">
-            <input type="text" id="chat-message-input" class="chat-input" placeholder="Escribe un mensaje o comparte tu Discord...">
-            <button id="chat-send-btn" class="btn-primary">Enviar ➔</button>
+            <input type="text" id="chat-message-input" class="form-control" placeholder="Escribe un mensaje para coordinar una partida...">
+            <button id="chat-send-btn" class="btn btn-primary">Enviar</button>
           </div>
         </div>
       </div>
@@ -138,30 +167,33 @@
 
     <!-- SECCIÓN 4: MI PERFIL -->
     <section id="section-profile" class="app-section" style="display:none;">
-      <div class="section-header">
-        <h2 class="section-title">👤 Configuración de Perfil Gamer</h2>
+      <div class="section-toolbar">
+        <div class="section-title">
+          <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"></circle><path d="M20 21a8 8 0 1 0-16 0"></path></svg>
+          Configuración de Perfil
+        </div>
       </div>
 
-      <div class="profile-card">
+      <div class="profile-panel">
         <form id="profile-form">
           <div class="form-group">
-            <label class="form-label">Biografía y Objetivos de Juego</label>
-            <textarea id="prof-bio" class="form-textarea" rows="3" placeholder="Describe tu experiencia y qué buscas..."></textarea>
+            <label class="form-label">Biografía</label>
+            <textarea id="prof-bio" class="form-textarea" rows="2" placeholder="Breve descripción o qué buscas en tu equipo..."></textarea>
           </div>
 
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
-            <div class="form-group">
-              <label class="form-label">Región / Ciudad</label>
-              <input type="text" id="prof-region" class="form-input" placeholder="ej. RM (San Joaquín)">
+          <div class="form-grid-2">
+            <div>
+              <label class="form-label">Ciudad / Región</label>
+              <input type="text" id="prof-region" class="form-control" placeholder="Región Metropolitana">
             </div>
-            <div class="form-group">
+            <div>
               <label class="form-label">Horario Habitual</label>
-              <input type="text" id="prof-schedule" class="form-input" placeholder="ej. Noches (21:00 a 01:00)">
+              <input type="text" id="prof-schedule" class="form-control" placeholder="Noches (21:00 a 01:00)">
             </div>
           </div>
 
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;">
-            <div class="form-group">
+          <div class="form-grid-3">
+            <div>
               <label class="form-label">Juego Principal</label>
               <select id="prof-game" class="form-select">
                 <option value="valorant">Valorant</option>
@@ -169,29 +201,29 @@
                 <option value="cs2">Counter-Strike 2</option>
               </select>
             </div>
-            <div class="form-group">
+            <div>
               <label class="form-label">Rango Oficial</label>
-              <input type="text" id="prof-rank" class="form-input" placeholder="ej. Diamante II">
+              <input type="text" id="prof-rank" class="form-control" placeholder="Inmortal 1">
             </div>
-            <div class="form-group">
+            <div>
               <label class="form-label">Rol Preferido</label>
-              <input type="text" id="prof-role" class="form-input" placeholder="ej. Controlador / Infiltrador">
+              <input type="text" id="prof-role" class="form-control" placeholder="Controlador">
             </div>
           </div>
 
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
-            <div class="form-group">
+          <div class="form-grid-2">
+            <div>
               <label class="form-label">Riot ID / In-Game Nick</label>
-              <input type="text" id="prof-riot" class="form-input" placeholder="Naxoo#CHI">
+              <input type="text" id="prof-riot" class="form-control" placeholder="Jesus#CHI">
             </div>
-            <div class="form-group">
+            <div>
               <label class="form-label">Discord Tag</label>
-              <input type="text" id="prof-discord" class="form-input" placeholder="usuario#0000">
+              <input type="text" id="prof-discord" class="form-control" placeholder="usuario#0001">
             </div>
           </div>
 
           <div style="margin-top:1.5rem;display:flex;justify-content:flex-end;">
-            <button type="submit" class="btn-primary">💾 Guardar Cambios de Perfil</button>
+            <button type="submit" class="btn btn-primary">Guardar Perfil</button>
           </div>
         </form>
       </div>
@@ -199,48 +231,45 @@
 
   </main>
 
-  <!-- MODAL: INVITAR A MATCH -->
+  <!-- MODAL: INVITAR JUGADOR -->
   <div id="match-modal" class="modal-overlay">
-    <div class="modal-content">
+    <div class="modal-card">
       <div class="modal-header">
-        <h3 id="modal-title" style="font-weight:800;">Invitar a Jugar</h3>
-        <button id="modal-close-btn" class="close-btn">&times;</button>
+        <h3 id="modal-title">Invitar Jugador</h3>
+        <button id="modal-close-btn" class="btn-close">&times;</button>
       </div>
       <form id="match-form">
         <input type="hidden" id="match-target-user">
         <input type="hidden" id="match-target-game">
         <div class="form-group">
           <label class="form-label">Mensaje de Coordinación</label>
-          <textarea id="match-message-input" class="form-textarea" rows="3" placeholder="Hola bro! Vi tu perfil de PlayMatch, ¿armamos dúo para subir rango ahora?"></textarea>
+          <textarea id="match-message-input" class="form-textarea" rows="3" placeholder="Hola, vi tu perfil en PlayMatch. ¿Jugamos unas partidas clasificatorias hoy?"></textarea>
         </div>
-        <button type="submit" class="btn-primary" style="width:100%;">🚀 Enviar Invitación Oficial</button>
+        <button type="submit" class="btn btn-primary" style="width:100%;">Enviar Invitación</button>
       </form>
     </div>
   </div>
 
-  <!-- MODAL: INSCRIBIR EQUIPO EN TORNEO -->
+  <!-- MODAL: REGISTRAR EQUIPO EN TORNEO -->
   <div id="join-tournament-modal" class="modal-overlay">
-    <div class="modal-content">
+    <div class="modal-card">
       <div class="modal-header">
-        <h3 id="join-modal-title" style="font-weight:800;">Inscripción de Equipo</h3>
-        <button id="tournament-modal-close-btn" class="close-btn">&times;</button>
+        <h3 id="join-modal-title">Inscripción en Torneo</h3>
+        <button id="tournament-modal-close-btn" class="btn-close">&times;</button>
       </div>
       <form id="join-tournament-form">
         <input type="hidden" id="join-t-id">
         <div class="form-group">
-          <label class="form-label">Nombre del Equipo o Roster</label>
-          <input type="text" id="join-team-name" class="form-input" placeholder="ej. Santiago Knights Esports" required>
+          <label class="form-label">Nombre del Equipo</label>
+          <input type="text" id="join-team-name" class="form-control" placeholder="Nombre de tu escuadra" required>
         </div>
-        <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:1rem;">
-          Al inscribirte, aceptas las reglas del torneo y el compromiso de conducta Zero-Toxic.
-        </p>
-        <button type="submit" class="btn-primary" style="width:100%;">🏆 Confirmar Registro</button>
+        <button type="submit" class="btn btn-primary" style="width:100%;">Confirmar Inscripción</button>
       </form>
     </div>
   </div>
 
-  <!-- NOTIFICACIÓN TOAST -->
-  <div id="app-toast" class="toast"></div>
+  <!-- AVISO TOAST -->
+  <div id="app-toast" class="toast-notice"></div>
 
   <!-- SCRIPTS -->
   <script src="js/api.js"></script>
