@@ -1,0 +1,12 @@
+{
+  "java.jdt.ls.java.home": "C:\\Users\\igvil\\.vscode\\extensions\\redhat.java-1.56.0-win32-x64\\jre\\21.0.12.1-win32-x86_64",
+  "java.configuration.runtimes": [
+    {
+      "name": "JavaSE-21",
+      "path": "C:\\Users\\igvil\\.vscode\\extensions\\redhat.java-1.56.0-win32-x64\\jre\\21.0.12.1-win32-x86_64",
+      "default": true
+    }
+  ],
+  "java.project.sourcePaths": ["Fase_2/src"],
+  "java.project.outputPath": "Fase_2/bin"
+}

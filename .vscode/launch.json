@@ -1,0 +1,14 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "PlayMatch - Iniciar Servidor (Java 21)",
+      "request": "launch",
+      "mainClass": "com.playmatch.PlayMatchServer",
+      "projectName": "ProyectoFinal",
+      "args": ["8080"],
+      "cwd": "${workspaceFolder}/Fase_2"
+    }
+  ]
+}
