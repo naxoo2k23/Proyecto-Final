@@ -1,0 +1,11 @@
+# Binarios y compilados
+Fase_2/bin/
+*.class
+
+# Datos locales temporales
+data/
+*.log
+
+# Archivos de sistema operativo
+.DS_Store
+Thumbs.db
