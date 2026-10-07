@@ -4,7 +4,7 @@
     {
       "label": "Compilar PlayMatch (Java)",
       "type": "shell",
-      "command": "& 'C:\\Users\\igvil\\.vscode\\extensions\\redhat.java-1.56.0-win32-x64\\jre\\21.0.12.1-win32-x86_64\\bin\\javac.exe' -d 'Fase_2/bin' -sourcepath 'Fase_2/src' 'Fase_2/src/com/playmatch/PlayMatchServer.java'",
+      "command": "& 'C:\\Users\\igvil\\.vscode\\extensions\\redhat.java-1.56.0-win32-x64\\jre\\21.0.12.1-win32-x86_64\\bin\\javac.exe' -d 'Fase_2/bin' -sourcepath 'Fase_2/src' 'Fase_2/src/com/playmatch/ServidorPlayMatch.java'",
       "group": {
         "kind": "build",
         "isDefault": true

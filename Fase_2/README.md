@@ -33,10 +33,10 @@ Fase_2/
 │   └── seed_data.sql        # Datos iniciales para pruebas (gamers, torneos y brackets de CS2/Valorant)
 ├── src/
 │   └── com/playmatch/
-│       ├── PlayMatchServer.java   # Servidor HTTP nativo y controladores REST
-│       ├── model/                 # Entidades: User, PlayerProfile, Tournament, Match, ChatMessage
-│       ├── repository/            # Gestor de base de datos en memoria y persistencia
-│       └── util/                  # Utilitarios JSON y sanitización
+│       ├── ServidorPlayMatch.java     # Servidor HTTP nativo y controladores REST
+│       ├── modelo/                    # Entidades: Usuario, PerfilJugador, Torneo, PartidaTorneo, MensajeChat
+│       ├── repositorio/               # GestorBaseDatos: Almacén relacional simulado y persistencia
+│       └── util/                      # Utilitarios JSON y sanitización
 ├── public/
 │   ├── index.html           # SPA con vistas de Matchmaking LFG, Torneos & Brackets, Chat y Perfil
 │   ├── css/style.css        # Diseño moderno Dark Esports Cyberpunk

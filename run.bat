@@ -12,7 +12,7 @@ cd /d "%~dp0Fase_2"
 
 echo [1/3] Compilando codigo Java...
 if not exist "bin" mkdir "bin"
-%JAVAC_EXE% -d bin -sourcepath src src/com/playmatch/PlayMatchServer.java
+%JAVAC_EXE% -d bin -sourcepath src src/com/playmatch/ServidorPlayMatch.java
 if %errorlevel% neq 0 (
     echo [ERROR] La compilacion ha fallado.
     pause
@@ -22,5 +22,5 @@ if %errorlevel% neq 0 (
 echo [2/3] Compilacion completada con exito.
 echo [3/3] Iniciando servidor web en http://localhost:8080 ...
 start http://localhost:8080
-%JAVA_EXE% -cp bin com.playmatch.PlayMatchServer 8080
+%JAVA_EXE% -cp bin com.playmatch.ServidorPlayMatch 8080
 pause

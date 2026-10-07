@@ -1,26 +1,26 @@
-package com.playmatch.model;
+package com.playmatch.modelo;
 
 import java.util.UUID;
 
-public class User {
+public class Usuario {
     private String id;
     private String username;
     private String email;
     private String passwordHash;
-    private String role;
+    private String rol;
     private String avatarUrl;
 
-    public User() {
+    public Usuario() {
         this.id = UUID.randomUUID().toString();
-        this.role = "GAMER";
+        this.rol = "GAMER";
     }
 
-    public User(String id, String username, String email, String passwordHash, String role, String avatarUrl) {
+    public Usuario(String id, String username, String email, String passwordHash, String rol, String avatarUrl) {
         this.id = id;
         this.username = username;
         this.email = email;
         this.passwordHash = passwordHash;
-        this.role = role != null ? role : "GAMER";
+        this.rol = rol != null ? rol : "GAMER";
         this.avatarUrl = avatarUrl != null ? avatarUrl : "https://api.dicebear.com/7.x/bottts/svg?seed=" + username;
     }
 
@@ -36,8 +36,8 @@ public class User {
     public String getPasswordHash() { return passwordHash; }
     public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
 
-    public String getRole() { return role; }
-    public void setRole(String role) { this.role = role; }
+    public String getRol() { return rol; }
+    public void setRol(String rol) { this.rol = rol; }
 
     public String getAvatarUrl() { return avatarUrl; }
     public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
