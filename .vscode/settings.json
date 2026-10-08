@@ -7,6 +7,6 @@
       "default": true
     }
   ],
-  "java.project.sourcePaths": ["Fase_2/src"],
-  "java.project.outputPath": "Fase_2/bin"
+  "java.project.sourcePaths": ["src"],
+  "java.project.outputPath": "bin"
 }

@@ -9,8 +9,7 @@ $javaBin = "C:\Users\igvil\.vscode\extensions\redhat.java-1.56.0-win32-x64\jre\2
 $javac = Join-Path $javaBin "javac.exe"
 $java = Join-Path $javaBin "java.exe"
 
-$fase2Dir = Join-Path $PSScriptRoot "Fase_2"
-Set-Location $fase2Dir
+Set-Location $PSScriptRoot
 
 Write-Host "[1/3] Compilando código fuente Java..." -ForegroundColor Yellow
 if (-not (Test-Path "bin")) { New-Item -ItemType Directory -Path "bin" | Out-Null }

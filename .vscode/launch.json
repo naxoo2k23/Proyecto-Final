@@ -8,7 +8,7 @@
       "mainClass": "com.playmatch.ServidorPlayMatch",
       "projectName": "ProyectoFinal",
       "args": ["8080"],
-      "cwd": "${workspaceFolder}/Fase_2"
+      "cwd": "${workspaceFolder}"
     }
   ]
 }

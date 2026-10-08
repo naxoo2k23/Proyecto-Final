@@ -8,7 +8,7 @@ set JAVA_BIN=C:\Users\igvil\.vscode\extensions\redhat.java-1.56.0-win32-x64\jre\
 set JAVAC_EXE="%JAVA_BIN%\javac.exe"
 set JAVA_EXE="%JAVA_BIN%\java.exe"
 
-cd /d "%~dp0Fase_2"
+cd /d "%~dp0"
 
 echo [1/3] Compilando codigo Java...
 if not exist "bin" mkdir "bin"
