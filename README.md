@@ -5,7 +5,7 @@ Desarrollada para la asignatura **Portafolio de Título / Proyecto APT**, Duoc U
 
 ---
 
-## 🚀 Cómo Ejecutar la Plataforma
+##  Cómo Ejecutar la Plataforma
 
 El proyecto está configurado para ejecutarse sin requerir instalaciones complejas externas.
 
@@ -27,11 +27,11 @@ GitHub detectará el puerto 8080 y habilitará el botón **"Open in Browser"**.
 ### Opción 3: Desde VS Code con F5
 1. Abre esta carpeta (`ProyectoFinal`) en **VS Code**.
 2. Presiona la tecla **F5** o ve a **Ejecutar y Depurar** y selecciona `PlayMatch - Iniciar Servidor (Java 21)`.
-3. Abre en tu navegador `http://localhost:8080`.
+3. Abre en tu navegador `http://localhost:`.
 
 ---
 
-## 📂 Estructura General del Repositorio
+##  Estructura General del Repositorio
 
 ```text
 ProyectoFinal/
