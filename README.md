@@ -55,6 +55,5 @@ ProyectoFinal/
 └── Fase_2/                  # Documentación y entregables formales de Fase 2
     ├── Informe_Avance_Proyecto_APT_Fase_2.docx
     ├── INFORME_AVANCE_PROYECTO_APT_FASE_2.md
-    ├── Pauta_Monitoreo_Reflexion_Fase_2.docx
-    └── PAUTA_MONITOREO_REFLEXION_FASE_2.md
+    └── PlayMatch_Presentacion_Fase_2.pptx
 ```
