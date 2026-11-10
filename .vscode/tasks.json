@@ -2,9 +2,9 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Compilar PlayMatch (Java)",
+      "label": "Compilar PlayMatch (Java + SQLite)",
       "type": "shell",
-      "command": "& 'C:\\Users\\igvil\\.vscode\\extensions\\redhat.java-1.56.0-win32-x64\\jre\\21.0.12.1-win32-x86_64\\bin\\javac.exe' -d 'bin' -sourcepath 'src' 'src/com/playmatch/ServidorPlayMatch.java'",
+      "command": "& 'C:\\Users\\igvil\\.vscode\\extensions\\redhat.java-1.56.0-win32-x64\\jre\\21.0.12.1-win32-x86_64\\bin\\javac.exe' -encoding UTF-8 -cp 'lib/*' -d 'bin' -sourcepath 'src' 'src/com/playmatch/ServidorPlayMatch.java'",
       "group": {
         "kind": "build",
         "isDefault": true

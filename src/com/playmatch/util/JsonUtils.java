@@ -5,6 +5,7 @@ import java.util.Map;
 
 /**
  * Utilidad ligera y sin dependencias externas para parseo y serialización de JSON simple.
+ * Soporta comillas escapadas, barras invertidas, números, booleanos y cadenas con comas o dos puntos.
  */
 public class JsonUtils {
 
@@ -27,8 +28,8 @@ public class JsonUtils {
         if (clean.startsWith("{")) clean = clean.substring(1);
         if (clean.endsWith("}")) clean = clean.substring(0, clean.length() - 1);
 
-        // Parse key-value pairs (basic JSON reader)
         boolean inQuotes = false;
+        boolean escaped = false;
         StringBuilder currentKey = new StringBuilder();
         StringBuilder currentValue = new StringBuilder();
         boolean parsingKey = true;
@@ -36,8 +37,31 @@ public class JsonUtils {
         for (int i = 0; i < clean.length(); i++) {
             char c = clean.charAt(i);
 
-            if (c == '\"' && (i == 0 || clean.charAt(i - 1) != '\\')) {
+            if (escaped) {
+                if (parsingKey) {
+                    currentKey.append(c);
+                } else {
+                    currentValue.append(c);
+                }
+                escaped = false;
+                continue;
+            }
+
+            if (c == '\\') {
+                escaped = true;
+                if (parsingKey) {
+                    currentKey.append(c);
+                } else {
+                    currentValue.append(c);
+                }
+                continue;
+            }
+
+            if (c == '\"') {
                 inQuotes = !inQuotes;
+                if (!parsingKey) {
+                    currentValue.append(c);
+                }
                 continue;
             }
 
@@ -47,11 +71,7 @@ public class JsonUtils {
             }
 
             if (!inQuotes && c == ',') {
-                String k = currentKey.toString().trim();
-                String v = currentValue.toString().trim();
-                if (!k.isEmpty()) {
-                    map.put(k, unescape(v));
-                }
+                storeEntry(map, currentKey.toString(), currentValue.toString());
                 currentKey.setLength(0);
                 currentValue.setLength(0);
                 parsingKey = true;
@@ -65,13 +85,20 @@ public class JsonUtils {
             }
         }
 
-        String k = currentKey.toString().trim();
-        String v = currentValue.toString().trim();
-        if (!k.isEmpty()) {
-            map.put(k, unescape(v));
-        }
-
+        storeEntry(map, currentKey.toString(), currentValue.toString());
         return map;
+    }
+
+    private static void storeEntry(Map<String, String> map, String rawKey, String rawVal) {
+        String k = unescape(rawKey.trim());
+        String v = rawVal.trim();
+        if (!k.isEmpty()) {
+            if ("null".equals(v)) {
+                map.put(k, null);
+            } else {
+                map.put(k, unescape(v));
+            }
+        }
     }
 
     private static String unescape(String s) {
@@ -80,10 +107,26 @@ public class JsonUtils {
         if (res.startsWith("\"") && res.endsWith("\"") && res.length() >= 2) {
             res = res.substring(1, res.length() - 1);
         }
-        return res.replace("\\\"", "\"")
-                  .replace("\\\\", "\\")
-                  .replace("\\n", "\n")
-                  .replace("\\r", "\r")
-                  .replace("\\t", "\t");
+        StringBuilder out = new StringBuilder(res.length());
+        for (int i = 0; i < res.length(); i++) {
+            char c = res.charAt(i);
+            if (c == '\\' && i + 1 < res.length()) {
+                char next = res.charAt(i + 1);
+                switch (next) {
+                    case '"': out.append('"'); i++; break;
+                    case '\\': out.append('\\'); i++; break;
+                    case '/': out.append('/'); i++; break;
+                    case 'n': out.append('\n'); i++; break;
+                    case 'r': out.append('\r'); i++; break;
+                    case 't': out.append('\t'); i++; break;
+                    case 'b': out.append('\b'); i++; break;
+                    case 'f': out.append('\f'); i++; break;
+                    default: out.append(c); break;
+                }
+            } else {
+                out.append(c);
+            }
+        }
+        return out.toString();
     }
 }

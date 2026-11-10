@@ -3,72 +3,141 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PlayMatch - Iniciar Sesión</title>
+  <title>PlayMatch · Iniciar Sesión</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="stylesheet" href="css/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
 </head>
-<body style="background-color: var(--bg-main); margin: 0;">
+<body style="margin:0;">
 
-  <div class="auth-page-wrapper">
-    <div class="auth-card">
+  <div class="auth-split-wrapper">
+    <div class="auth-split-shell">
 
-      <!-- BRAND -->
-      <div class="auth-brand">
-        <div class="auth-brand-logo">
-          <div class="brand-icon-box">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="2" y="6" width="20" height="12" rx="2"></rect>
-              <path d="M6 12h4m-2-2v4m7-2h.01m3 0h.01"></path>
-            </svg>
+      <!-- PANEL IZQUIERDO: SHOWCASE DE MARCA Y NUEVO LOGO -->
+      <div class="auth-showcase">
+        <div class="auth-showcase-content">
+          <a href="#" class="pm-logo-link">
+            <div class="pm-logo-crest" style="width:46px;height:46px;">
+              <svg viewBox="0 0 64 64" fill="none" width="46" height="46">
+                <defs>
+                  <linearGradient id="pmS1" x1="8" y1="4" x2="56" y2="60" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stop-color="#8b5cf6"/>
+                    <stop offset="50%" stop-color="#a855f7"/>
+                    <stop offset="100%" stop-color="#22d3ee"/>
+                  </linearGradient>
+                  <linearGradient id="pmC1" x1="12" y1="8" x2="52" y2="56" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stop-color="#1f1442"/>
+                    <stop offset="100%" stop-color="#090612"/>
+                  </linearGradient>
+                </defs>
+                <path d="M32 3L57 16V41L32 61L7 41V16L32 3Z" fill="url(#pmC1)" stroke="url(#pmS1)" stroke-width="3" stroke-linejoin="round"/>
+                <path d="M32 11.5L36 15.5L32 19.5L28 15.5L32 11.5Z" fill="#22d3ee"/>
+                <path d="M25.5 21.5L46 32L25.5 42.5L30.8 32L25.5 21.5Z" fill="#ffffff"/>
+                <path d="M18 24.5L23 22L20.2 32L23 42L18 39.5L20.4 32L18 24.5Z" fill="#c4b5fd"/>
+              </svg>
+            </div>
+            <div class="pm-logo-text-wrap">
+              <span class="pm-wordmark" style="font-size:1.45rem;">PLAY<span class="pm-wordmark-accent">MATCH</span></span>
+              <span class="pm-wordmark-sub">Esports Network</span>
+            </div>
+          </a>
+
+          <h1 class="auth-showcase-title">Compite en escuadra.<br>Cero toxicidad.</h1>
+          <p class="auth-showcase-desc">
+            Encuentra compañeros afines, regístrate en torneos locales y coordina tus partidas con persistencia real en base de datos SQLite.
+          </p>
+
+          <div class="auth-feature-list">
+            <div class="auth-feature-item">
+              <div class="auth-feature-icon">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="m9 12 2 2 4-4"></path></svg>
+              </div>
+              <div>
+                <strong>Emparejamiento Zero-Toxic</strong>
+                <span>Filtra jugadores por karma conductual, rango competitivo y horario real.</span>
+              </div>
+            </div>
+            <div class="auth-feature-item">
+              <div class="auth-feature-icon">
+                <svg class="icon" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"></path></svg>
+              </div>
+              <div>
+                <strong>Base de Datos SQLite Persistente</strong>
+                <span>Cuentas, correos, teléfonos, catálogo de juegos y torneos guardados con PBKDF2.</span>
+              </div>
+            </div>
+            <div class="auth-feature-item">
+              <div class="auth-feature-icon">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg>
+              </div>
+              <div>
+                <strong>Torneos y Brackets en Vivo</strong>
+                <span>Inscribe tu escuadra y sigue el progreso oficial hacia la Gran Final.</span>
+              </div>
+            </div>
           </div>
-          <span>PlayMatch</span>
         </div>
-        <div class="auth-brand-subtitle">Plataforma de emparejamiento competitivo y torneos</div>
+
+        <div class="auth-showcase-footer">
+          <span class="pulse-dot"></span>
+          <span>Motor Activo · Java 21 SE + SQLite JDBC</span>
+        </div>
       </div>
 
-      <!-- ENCABEZADO FORMULARIO -->
-      <h2 class="auth-title">Iniciar Sesión</h2>
-      <p class="auth-subtitle">Ingresa tus credenciales para acceder a la plataforma</p>
+      <!-- PANEL DERECHO: FORMULARIO DE ACCESO -->
+      <div class="auth-form-panel">
+        <h2 class="auth-title">Iniciar Sesión</h2>
+        <p class="auth-subtitle">Ingresa tu usuario, gamertag o correo para acceder a la arena</p>
 
-      <!-- ALERTA DE ESTADO -->
-      <div id="login-alert" class="auth-alert"></div>
+        <div id="login-alert" class="auth-alert"></div>
 
-      <!-- FORMULARIO -->
-      <form id="login-form">
-        <div class="form-group">
-          <label class="form-label" for="login-username">Usuario o Gamertag</label>
-          <input type="text" id="login-username" class="form-control" placeholder="Ej: Jesus_Villasanti o Datrikk" required autocomplete="username" autofocus>
+        <form id="login-form">
+          <div class="form-group">
+            <label class="form-label" for="login-username">Usuario, Gamertag o Correo</label>
+            <input type="text" id="login-username" class="form-control" placeholder="Ej: Jesus_Villasanti o usuario@playmatch.cl" required autocomplete="username" autofocus>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="login-password">Contraseña</label>
+            <div class="password-input-wrap">
+              <input type="password" id="login-password" class="form-control" placeholder="••••••••" required autocomplete="current-password">
+              <button type="button" class="toggle-pw-btn" id="toggle-login-pw" aria-label="Mostrar u ocultar contraseña">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="form-remember-row">
+            <label class="checkbox-label" for="remember-me">
+              <input type="checkbox" id="remember-me" checked>
+              <span>Recordar contraseña</span>
+            </label>
+          </div>
+
+          <button type="submit" class="btn btn-primary" id="btn-submit-login" style="width:100%;padding:0.7rem;">
+            Acceder a PlayMatch
+          </button>
+        </form>
+
+        <div class="auth-footer">
+          ¿No tienes una cuenta aún?
+          <a href="registro.html">Regístrate aquí</a>
         </div>
 
-        <div class="form-group">
-          <label class="form-label" for="login-password">Contraseña</label>
-          <input type="password" id="login-password" class="form-control" placeholder="••••••••" required autocomplete="current-password">
+        <div class="auth-seed-hint">
+          <div>Acceso rápido cuentas registradas (clic para autocompletar):</div>
+          <div class="demo-user-pills">
+            <span class="demo-user-pill" onclick="fillDemoLogin('Jesus_Villasanti', 'admin123')">Jesus_Villasanti</span>
+            <span class="demo-user-pill" onclick="fillDemoLogin('Datrikk', 'password123')">Datrikk</span>
+            <span class="demo-user-pill" onclick="fillDemoLogin('dididong', 'password123')">dididong</span>
+            <span class="demo-user-pill" onclick="fillDemoLogin('luchi', 'password123')">luchi</span>
+            <span class="demo-user-pill" onclick="fillDemoLogin('jaeliug', 'password123')">jaeliug</span>
+            <span class="demo-user-pill" onclick="fillDemoLogin('pepitogamer67', 'password123')">pepitogamer67</span>
+          </div>
+          <div style="margin-top:0.4rem;font-size:0.7rem;">Claves iniciales: <code>admin123</code> (admin) · <code>password123</code> (jugadores)</div>
         </div>
-
-        <!-- RECUADRO RECORDAR CONTRASEÑA -->
-        <div class="form-remember-row">
-          <label class="checkbox-label" for="remember-me">
-            <input type="checkbox" id="remember-me" checked>
-            <span>Recordar contraseña</span>
-          </label>
-        </div>
-
-        <button type="submit" class="btn btn-primary" id="btn-submit-login" style="width: 100%;">
-          Iniciar Sesión
-        </button>
-      </form>
-
-      <!-- ENLACE A REGISTRO -->
-      <div class="auth-footer">
-        ¿No tienes una cuenta aún?
-        <a href="registro.html">Regístrate aquí</a>
-      </div>
-
-      <!-- NOTA DE CUENTAS LOCALES -->
-      <div class="auth-seed-hint">
-        Cuentas precargadas: <code>Jesus_Villasanti</code>, <code>Datrikk</code>, <code>dididong</code>, <code>luchi</code>, <code>jaeliug</code>, <code>pepitogamer67</code>
       </div>
 
     </div>
@@ -76,8 +145,19 @@
 
   <script src="js/api.js"></script>
   <script>
+    function fillDemoLogin(user, pass) {
+      document.getElementById('login-username').value = user;
+      document.getElementById('login-password').value = pass;
+      document.getElementById('login-username').focus();
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
-      // Si ya hay usuario recordado, rellenar el campo de usuario
+      // Toggle visibilidad de contraseña
+      document.getElementById('toggle-login-pw')?.addEventListener('click', () => {
+        const inp = document.getElementById('login-password');
+        inp.type = inp.type === 'password' ? 'text' : 'password';
+      });
+
       const rememberedUser = localStorage.getItem('playmatch_remember_user');
       const isRemembered = localStorage.getItem('playmatch_remember') === 'true';
       if (rememberedUser && isRemembered) {
@@ -100,48 +180,52 @@
 
         alertBox.className = 'auth-alert';
         alertBox.style.display = 'none';
-
         submitBtn.disabled = true;
-        submitBtn.innerText = 'Validando credenciales...';
+        submitBtn.innerText = 'Verificando en SQLite...';
 
         try {
           const res = await API.loginUser(username, password);
           if (res && res.user) {
             const userSession = {
+              id: res.user.id,
               username: res.user.username,
               email: res.user.email,
+              telefono: res.user.telefono || '',
+              role: res.user.role || 'GAMER',
               avatar: res.user.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${res.user.username}`,
               reputation: (res.profile && res.profile.reputationScore) || 100,
-              toxicLevel: (res.profile && res.profile.toxicStatus) || 'ZERO_TOXIC'
+              toxicLevel: (res.profile && res.profile.toxicLevel) || 'ZERO_TOXIC'
             };
 
-            // Guardar sesión según preferencia de recordar
-            localStorage.setItem('playmatch_user', JSON.stringify(userSession));
             if (remember) {
-              localStorage.setItem('playmatch_remember_user', username);
+              localStorage.setItem('playmatch_user', JSON.stringify(userSession));
+              localStorage.setItem('playmatch_remember_user', res.user.username);
               localStorage.setItem('playmatch_remember', 'true');
+              sessionStorage.removeItem('playmatch_user');
             } else {
+              sessionStorage.setItem('playmatch_user', JSON.stringify(userSession));
+              localStorage.removeItem('playmatch_user');
               localStorage.removeItem('playmatch_remember_user');
               localStorage.removeItem('playmatch_remember');
             }
 
             alertBox.className = 'auth-alert success';
-            alertBox.innerText = `¡Bienvenido, @${res.user.username}! Accediendo a PlayMatch...`;
+            alertBox.innerText = `¡Bienvenido de vuelta, @${res.user.username}! Ingresando...`;
 
             setTimeout(() => {
               window.location.href = 'index.html';
-            }, 500);
+            }, 450);
           } else {
             alertBox.className = 'auth-alert error';
-            alertBox.innerText = 'Usuario o contraseña no encontrados. Verifica tus datos o crea una cuenta nueva.';
+            alertBox.innerText = (res && res.error) ? res.error : 'Usuario o contraseña incorrectos.';
             submitBtn.disabled = false;
-            submitBtn.innerText = 'Iniciar Sesión';
+            submitBtn.innerText = 'Acceder a PlayMatch';
           }
         } catch (err) {
           alertBox.className = 'auth-alert error';
           alertBox.innerText = 'Error al comunicarse con el servidor Java. Verifica que esté activo en el puerto 8080.';
           submitBtn.disabled = false;
-          submitBtn.innerText = 'Iniciar Sesión';
+          submitBtn.innerText = 'Acceder a PlayMatch';
         }
       });
     });

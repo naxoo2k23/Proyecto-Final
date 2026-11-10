@@ -10,6 +10,7 @@ public class Usuario {
     private String rol;
     private String avatarUrl;
     private String telefono;
+    private String fechaCreacion;
 
     public Usuario() {
         this.id = UUID.randomUUID().toString();
@@ -18,17 +19,22 @@ public class Usuario {
     }
 
     public Usuario(String id, String username, String email, String passwordHash, String rol, String avatarUrl) {
-        this(id, username, email, passwordHash, rol, avatarUrl, "");
+        this(id, username, email, passwordHash, rol, avatarUrl, "", "");
     }
 
     public Usuario(String id, String username, String email, String passwordHash, String rol, String avatarUrl, String telefono) {
-        this.id = id;
+        this(id, username, email, passwordHash, rol, avatarUrl, telefono, "");
+    }
+
+    public Usuario(String id, String username, String email, String passwordHash, String rol, String avatarUrl, String telefono, String fechaCreacion) {
+        this.id = id != null ? id : UUID.randomUUID().toString();
         this.username = username;
         this.email = email;
         this.passwordHash = passwordHash;
         this.rol = rol != null ? rol : "GAMER";
         this.avatarUrl = avatarUrl != null ? avatarUrl : "https://api.dicebear.com/7.x/bottts/svg?seed=" + username;
         this.telefono = telefono != null ? telefono : "";
+        this.fechaCreacion = fechaCreacion != null ? fechaCreacion : "";
     }
 
     public String getId() { return id; }
@@ -51,4 +57,7 @@ public class Usuario {
 
     public String getTelefono() { return telefono; }
     public void setTelefono(String telefono) { this.telefono = telefono; }
+
+    public String getFechaCreacion() { return fechaCreacion; }
+    public void setFechaCreacion(String fechaCreacion) { this.fechaCreacion = fechaCreacion; }
 }

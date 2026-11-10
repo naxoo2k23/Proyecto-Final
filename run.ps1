@@ -1,8 +1,8 @@
-# Script de ejecución en PowerShell para PlayMatch
+# Script de ejecución en PowerShell para PlayMatch (Java + SQLite)
 $ErrorActionPreference = "Stop"
 
 Write-Host "=========================================================" -ForegroundColor Cyan
-Write-Host "      INICIANDO PLATAFORMA PLAYMATCH (FASE 2 - MVP)      " -ForegroundColor Magenta
+Write-Host "    INICIANDO PLATAFORMA PLAYMATCH (JAVA 21 + SQLITE)    " -ForegroundColor Magenta
 Write-Host "=========================================================" -ForegroundColor Cyan
 
 $javaBin = "C:\Users\igvil\.vscode\extensions\redhat.java-1.56.0-win32-x64\jre\21.0.12.1-win32-x86_64\bin"
@@ -11,12 +11,12 @@ $java = Join-Path $javaBin "java.exe"
 
 Set-Location $PSScriptRoot
 
-Write-Host "[1/3] Compilando código fuente Java..." -ForegroundColor Yellow
+Write-Host "[1/3] Compilando código fuente Java + SQLite JDBC..." -ForegroundColor Yellow
 if (-not (Test-Path "bin")) { New-Item -ItemType Directory -Path "bin" | Out-Null }
-& $javac -d "bin" -sourcepath "src" "src/com/playmatch/ServidorPlayMatch.java"
+& $javac -encoding UTF-8 -cp "lib/*" -d "bin" -sourcepath "src" "src/com/playmatch/ServidorPlayMatch.java"
 
 Write-Host "[2/3] Compilación exitosa." -ForegroundColor Green
-Write-Host "[3/3] Abriendo navegador en http://localhost:8080 ..." -ForegroundColor Cyan
-Start-Process "http://localhost:8080"
+Write-Host "[3/3] Abriendo navegador en http://localhost:8080/login.html ..." -ForegroundColor Cyan
+Start-Process "http://localhost:8080/login.html"
 
-& $java -cp "bin" com.playmatch.ServidorPlayMatch 8080
+& $java -cp "bin;lib/*" com.playmatch.ServidorPlayMatch 8080

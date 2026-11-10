@@ -3,233 +3,492 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PlayMatch · Plataforma de Emparejamiento y Torneos</title>
+  <title>PlayMatch · Arena Competitiva y Torneos</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
 
-  <!-- BARRA DE NAVEGACIÓN -->
-  <header class="navbar">
-    <a href="#" class="nav-brand">
-      <div class="nav-brand-symbol">
-        <svg class="icon" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+  <div class="app-shell">
+
+    <!-- SIDEBAR PERSISTENTE DE NAVEGACIÓN -->
+    <aside class="app-sidebar" id="app-sidebar">
+      <div class="sidebar-brand-box">
+        <a href="#" class="pm-logo-link" onclick="switchTab('lfg'); return false;">
+          <div class="pm-logo-crest">
+            <svg viewBox="0 0 64 64" fill="none" width="40" height="40">
+              <defs>
+                <linearGradient id="pmShieldNav" x1="8" y1="4" x2="56" y2="60" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stop-color="#8b5cf6"/>
+                  <stop offset="50%" stop-color="#a855f7"/>
+                  <stop offset="100%" stop-color="#22d3ee"/>
+                </linearGradient>
+                <linearGradient id="pmCoreNav" x1="12" y1="8" x2="52" y2="56" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stop-color="#1f1442"/>
+                  <stop offset="100%" stop-color="#090612"/>
+                </linearGradient>
+              </defs>
+              <path d="M32 3L57 16V41L32 61L7 41V16L32 3Z" fill="url(#pmCoreNav)" stroke="url(#pmShieldNav)" stroke-width="3" stroke-linejoin="round"/>
+              <path d="M32 11.5L36 15.5L32 19.5L28 15.5L32 11.5Z" fill="#22d3ee"/>
+              <path d="M25.5 21.5L46 32L25.5 42.5L30.8 32L25.5 21.5Z" fill="#ffffff"/>
+              <path d="M18 24.5L23 22L20.2 32L23 42L18 39.5L20.4 32L18 24.5Z" fill="#c4b5fd"/>
+            </svg>
+          </div>
+          <div class="pm-logo-text-wrap">
+            <span class="pm-wordmark">PLAY<span class="pm-wordmark-accent">MATCH</span></span>
+            <span class="pm-wordmark-sub">Esports Network</span>
+          </div>
+        </a>
+
+        <div class="db-live-pill" id="db-live-pill">
+          <span class="pulse-dot"></span>
+          <span>SQLite JDBC · Activa</span>
+        </div>
       </div>
-      <span>PlayMatch</span>
-      <span class="nav-brand-badge">Gaming</span>
-    </a>
 
-    <!-- PESTAÑAS PRINCIPALES -->
-    <ul class="nav-tabs">
-      <li>
-        <button class="nav-tab-btn active" data-tab="lfg">
-          <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="22" y1="12" x2="18" y2="12"></line><line x1="6" y1="12" x2="2" y2="12"></line><line x1="12" y1="6" x2="12" y2="2"></line><line x1="12" y1="22" x2="12" y2="18"></line></svg>
-          Jugadores (LFG)
-        </button>
-      </li>
-      <li>
-        <button class="nav-tab-btn" data-tab="tournaments">
-          <svg class="icon" viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg>
-          Torneos y Brackets
-        </button>
-      </li>
-      <li>
-        <button class="nav-tab-btn" data-tab="chat">
-          <svg class="icon" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"></path></svg>
-          Sala de Coordinación
-        </button>
-      </li>
-      <li>
-        <button class="nav-tab-btn" data-tab="profile">
-          <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"></circle><path d="M20 21a8 8 0 1 0-16 0"></path></svg>
-          Mi Perfil
-        </button>
-      </li>
-    </ul>
-
-    <!-- USUARIO ACTIVO Y ACCESO -->
-    <div class="nav-user-cluster">
-      <div class="nav-user" id="nav-user">
-        <img src="" alt="Avatar" class="user-avatar-mini" id="nav-user-avatar">
+      <nav class="sidebar-nav-scroll">
         <div>
-          <span class="user-status-dot"></span>
-          <strong id="nav-user-name"></strong>
+          <div class="nav-group-label">Arena Competitiva</div>
+          <ul class="nav-tabs">
+            <li>
+              <button class="nav-tab-btn active" data-tab="lfg">
+                <span class="nav-tab-btn-inner">
+                  <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="22" y1="12" x2="18" y2="12"></line><line x1="6" y1="12" x2="2" y2="12"></line><line x1="12" y1="6" x2="12" y2="2"></line><line x1="12" y1="22" x2="12" y2="18"></line></svg>
+                  Jugadores (LFG)
+                </span>
+                <span class="nav-count-badge" id="badge-players-count">0</span>
+              </button>
+            </li>
+            <li>
+              <button class="nav-tab-btn" data-tab="games">
+                <span class="nav-tab-btn-inner">
+                  <svg class="icon" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"></rect><path d="M6 12h4m-2-2v4m7-2h.01m3 0h.01"></path></svg>
+                  Juegos Disponibles
+                </span>
+                <span class="nav-count-badge" id="badge-games-count">0</span>
+              </button>
+            </li>
+            <li>
+              <button class="nav-tab-btn" data-tab="tournaments">
+                <span class="nav-tab-btn-inner">
+                  <svg class="icon" viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg>
+                  Torneos y Brackets
+                </span>
+                <span class="nav-count-badge" id="badge-tournaments-count">0</span>
+              </button>
+            </li>
+            <li>
+              <button class="nav-tab-btn" data-tab="chat">
+                <span class="nav-tab-btn-inner">
+                  <svg class="icon" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"></path></svg>
+                  Sala de Coordinación
+                </span>
+                <span class="nav-count-badge" id="badge-invites-count">0</span>
+              </button>
+            </li>
+          </ul>
         </div>
-      </div>
-      <button class="btn btn-secondary btn-sm" id="btn-logout" style="padding:0.35rem 0.65rem;">
-        Cerrar Sesión
-      </button>
-    </div>
-  </header>
 
-  <!-- CONTENEDOR CENTRAL -->
-  <main class="container">
-
-    <!-- HERO SECTION CON IMAGEN LLAMATIVA (SIN TEXTOS ACADÉMICOS) -->
-    <section class="hero-banner">
-      <div class="hero-content">
-        <span class="hero-tag">Comunidad Competitiva</span>
-        <h1 class="hero-title">Conecta. Compite. Sube de rango.</h1>
-        <p class="hero-subtitle">
-          Encuentra compañeros afines para Valorant, League of Legends y Counter-Strike 2. Coordina partidas y participa en torneos con seguimiento directo de llaves.
-        </p>
-        <div class="hero-actions">
-          <button class="btn btn-primary" onclick="switchTab('lfg')">Explorar Jugadores</button>
-          <button class="btn btn-secondary" onclick="switchTab('tournaments')">Ver Torneos</button>
+        <div>
+          <div class="nav-group-label">Cuenta y Persistencia</div>
+          <ul class="nav-tabs">
+            <li>
+              <button class="nav-tab-btn" data-tab="profile">
+                <span class="nav-tab-btn-inner">
+                  <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"></circle><path d="M20 21a8 8 0 1 0-16 0"></path></svg>
+                  Mi Perfil y Cuenta
+                </span>
+              </button>
+            </li>
+            <li>
+              <button class="nav-tab-btn" data-tab="database">
+                <span class="nav-tab-btn-inner">
+                  <svg class="icon" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"></path></svg>
+                  Base de Datos (SQLite)
+                </span>
+              </button>
+            </li>
+          </ul>
         </div>
-      </div>
+      </nav>
 
-      <div class="hero-image-wrapper">
-        <img src="https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80" alt="PlayMatch Arena" class="hero-image">
-        <div class="hero-image-overlay"></div>
-      </div>
-    </section>
-
-    <!-- SECCIÓN 1: BUSCADOR DE JUGADORES (LFG) -->
-    <section id="section-lfg" class="app-section">
-      <div class="section-toolbar">
-        <div class="section-title">
-          <svg class="icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-          Jugadores Disponibles
-        </div>
-
-        <div class="filter-group">
-          <select id="game-filter" class="form-select" style="width:auto;min-width:160px;">
-            <option value="all">Todos los Juegos</option>
-            <option value="valorant">Valorant</option>
-            <option value="lol">League of Legends</option>
-            <option value="cs2">Counter-Strike 2</option>
-          </select>
-
-          <select id="toxic-filter" class="form-select" style="width:auto;min-width:180px;">
-            <option value="">Filtro de Conducta</option>
-            <option value="ZERO_TOXIC">Solo Zero-Toxic (100 Karma)</option>
-            <option value="FRIENDLY">Comunidad Amigable</option>
-          </select>
-        </div>
-      </div>
-
-      <div id="players-grid" class="players-grid"></div>
-    </section>
-
-    <!-- SECCIÓN 2: TORNEOS Y BRACKETS -->
-    <section id="section-tournaments" class="app-section" style="display:none;">
-      <div class="section-toolbar">
-        <div class="section-title">
-          <svg class="icon" viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg>
-          Torneos Comunitarios
-        </div>
-      </div>
-
-      <div id="tournaments-grid" class="tournaments-grid"></div>
-
-      <!-- PANEL DE BRACKET -->
-      <div class="bracket-panel">
-        <div class="bracket-panel-header">
-          <h3 id="bracket-tournament-title">Llaves de Eliminación Directa</h3>
-        </div>
-        <div id="bracket-view"></div>
-      </div>
-    </section>
-
-    <!-- SECCIÓN 3: SALA DE COORDINACIÓN (CHAT) -->
-    <section id="section-chat" class="app-section" style="display:none;">
-      <div class="section-toolbar">
-        <div class="section-title">
-          <svg class="icon" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"></path></svg>
-          Sala de Coordinación
-        </div>
-      </div>
-
-      <div class="chat-layout">
-        <aside class="chat-sidebar">
-          <div class="chat-sidebar-header">Canales</div>
-          <button class="channel-list-item active"># General Nacional</button>
-          <button class="channel-list-item"># Scrims Valorant</button>
-          <button class="channel-list-item"># Duo LoL LAS</button>
-          <button class="channel-list-item"># Competitivo CS2</button>
-        </aside>
-
-        <div class="chat-main-area">
-          <div class="chat-top-header">
-            <span>Canal Activo: # General Nacional</span>
-            <span style="font-size:0.75rem;color:var(--text-secondary);">En tiempo real</span>
-          </div>
-
-          <div id="chat-messages-container" class="chat-scroll-messages"></div>
-
-          <div class="chat-input-bar">
-            <input type="text" id="chat-message-input" class="form-control" placeholder="Escribe un mensaje para coordinar una partida...">
-            <button id="chat-send-btn" class="btn btn-primary">Enviar</button>
+      <!-- DOCK DE USUARIO ACTIVO -->
+      <div class="sidebar-user-dock">
+        <div class="nav-user" id="nav-user">
+          <img src="" alt="Avatar" class="user-avatar-mini" id="nav-user-avatar">
+          <div class="nav-user-meta">
+            <span class="nav-user-name" id="nav-user-name"></span>
+            <span class="nav-user-sub">
+              <span class="user-status-dot"></span>
+              <span id="nav-user-role">En línea</span>
+            </span>
           </div>
         </div>
+        <button class="btn btn-secondary btn-sm" id="btn-logout" style="width:100%;">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+          Cerrar Sesión
+        </button>
       </div>
-    </section>
+    </aside>
 
-    <!-- SECCIÓN 4: MI PERFIL -->
-    <section id="section-profile" class="app-section" style="display:none;">
-      <div class="section-toolbar">
-        <div class="section-title">
-          <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"></circle><path d="M20 21a8 8 0 1 0-16 0"></path></svg>
-          Configuración de Perfil
-        </div>
-      </div>
+    <!-- COLUMNA PRINCIPAL -->
+    <div class="app-main-column">
 
-      <div class="profile-panel">
-        <form id="profile-form">
-          <div class="form-group">
-            <label class="form-label">Biografía</label>
-            <textarea id="prof-bio" class="form-textarea" rows="2" placeholder="Breve descripción o qué buscas en tu equipo..."></textarea>
+      <!-- TOPBAR DE COMANDO -->
+      <header class="app-topbar">
+        <div class="topbar-left">
+          <button class="mobile-menu-btn" id="btn-mobile-menu" aria-label="Abrir menú">
+            <svg class="icon" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+          </button>
+          <div class="topbar-breadcrumb">
+            <span class="topbar-kicker" id="topbar-kicker">Arena Competitiva</span>
+            <h1 class="topbar-title" id="topbar-title">Buscador de Jugadores (LFG)</h1>
           </div>
+        </div>
 
-          <div class="form-grid-2">
-            <div>
-              <label class="form-label">Ciudad / Región</label>
-              <input type="text" id="prof-region" class="form-control" placeholder="Región Metropolitana">
+        <div class="topbar-right">
+          <div class="topbar-search">
+            <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="text" id="global-search-input" placeholder="Buscar jugador, juego o correo...">
+          </div>
+          <button class="btn btn-secondary btn-sm" id="btn-quick-invites" title="Ver invitaciones y chat">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg>
+            <span id="topbar-invites-text">Invitaciones</span>
+          </button>
+          <button class="btn btn-primary btn-sm" id="btn-quick-add-game">
+            + Nuevo Juego
+          </button>
+        </div>
+      </header>
+
+      <main class="container">
+
+        <!-- BENTO HEADER: HERO ARENA + TELEMETRÍA SQLITE -->
+        <section class="bento-hero-grid" id="bento-overview">
+          <div class="hero-banner">
+            <div class="hero-content">
+              <span class="hero-tag">
+                <svg class="icon" style="width:13px;height:13px;" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                Ecosistema Zero-Toxic
+              </span>
+              <h2 class="hero-title">Conecta. Compite. Sube de rango.</h2>
+              <p class="hero-subtitle">
+                Encuentra escuadras verificadas, explora el catálogo dinámico de juegos e inscríbete en torneos con respaldo relacional en tiempo real.
+              </p>
+              <div class="hero-actions">
+                <button class="btn btn-primary btn-sm" onclick="switchTab('games')">Ver Catálogo de Juegos</button>
+                <button class="btn btn-secondary btn-sm" onclick="switchTab('tournaments')">Torneos y Llaves</button>
+              </div>
             </div>
-            <div>
-              <label class="form-label">Horario Habitual</label>
-              <input type="text" id="prof-schedule" class="form-control" placeholder="Noches (21:00 a 01:00)">
+
+            <div class="hero-image-wrapper">
+              <img src="https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1000&q=80" alt="PlayMatch Arena" class="hero-image">
+              <div class="hero-image-overlay"></div>
             </div>
           </div>
 
-          <div class="form-grid-3">
+          <div class="telemetry-bento">
             <div>
-              <label class="form-label">Juego Principal</label>
-              <select id="prof-game" class="form-select">
-                <option value="valorant">Valorant</option>
-                <option value="lol">League of Legends</option>
-                <option value="cs2">Counter-Strike 2</option>
+              <div class="telemetry-header">
+                <h3>
+                  <svg class="icon" style="color:var(--color-cyan);" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"></path></svg>
+                  Telemetría SQLite
+                </h3>
+                <span class="telemetry-engine-tag">3NF · JDBC</span>
+              </div>
+
+              <div class="telemetry-grid">
+                <div class="telemetry-tile">
+                  <div class="telemetry-tile-val" id="stat-users">-</div>
+                  <div class="telemetry-tile-label">Usuarios Registrados</div>
+                </div>
+                <div class="telemetry-tile">
+                  <div class="telemetry-tile-val" id="stat-games">-</div>
+                  <div class="telemetry-tile-label">Juegos Disponibles</div>
+                </div>
+                <div class="telemetry-tile">
+                  <div class="telemetry-tile-val" id="stat-tournaments">-</div>
+                  <div class="telemetry-tile-label">Torneos Activos</div>
+                </div>
+                <div class="telemetry-tile">
+                  <div class="telemetry-tile-val" id="stat-messages">-</div>
+                  <div class="telemetry-tile-label">Mensajes Guardados</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="telemetry-footer">
+              <span id="stat-db-meta">Archivo: data/playmatch.db</span>
+              <a href="#" style="color:var(--color-cyan);text-decoration:none;font-weight:600;" onclick="switchTab('database'); return false;">Explorar BD →</a>
+            </div>
+          </div>
+        </section>
+
+        <!-- SECCIÓN 1: BUSCADOR DE JUGADORES (LFG) -->
+        <section id="section-lfg" class="app-section">
+          <div class="section-toolbar">
+            <div class="section-title">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+              Jugadores Disponibles
+            </div>
+
+            <div class="filter-group">
+              <select id="game-filter" class="form-select" style="width:auto;min-width:170px;">
+                <option value="all">Todos los Juegos</option>
+              </select>
+
+              <select id="toxic-filter" class="form-select" style="width:auto;min-width:190px;">
+                <option value="">Todas las Conductas</option>
+                <option value="ZERO_TOXIC">Solo Zero-Toxic (97-100 Karma)</option>
+                <option value="FRIENDLY">Comunidad Amigable</option>
               </select>
             </div>
-            <div>
-              <label class="form-label">Rango Oficial</label>
-              <input type="text" id="prof-rank" class="form-control" placeholder="Inmortal 1">
+          </div>
+
+          <div id="players-grid" class="players-grid"></div>
+        </section>
+
+        <!-- SECCIÓN 2: JUEGOS DISPONIBLES (CATÁLOGO SQLITE) -->
+        <section id="section-games" class="app-section" style="display:none;">
+          <div class="section-toolbar">
+            <div class="section-title">
+              <svg class="icon" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"></rect><path d="M6 12h4m-2-2v4m7-2h.01m3 0h.01"></path></svg>
+              Catálogo de Juegos Disponibles (SQLite)
             </div>
-            <div>
-              <label class="form-label">Rol Preferido</label>
-              <input type="text" id="prof-role" class="form-control" placeholder="Controlador">
+            <button class="btn btn-primary btn-sm" id="btn-open-add-game">
+              + Registrar Nuevo Juego
+            </button>
+          </div>
+
+          <div id="games-grid" class="games-grid"></div>
+        </section>
+
+        <!-- SECCIÓN 3: TORNEOS Y BRACKETS -->
+        <section id="section-tournaments" class="app-section" style="display:none;">
+          <div class="section-toolbar">
+            <div class="section-title">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg>
+              Torneos Comunitarios
+            </div>
+            <button class="btn btn-primary btn-sm" id="btn-open-add-tournament">
+              + Crear Torneo
+            </button>
+          </div>
+
+          <div id="tournaments-grid" class="tournaments-grid"></div>
+
+          <div class="bracket-panel">
+            <div class="bracket-panel-header">
+              <h3 id="bracket-tournament-title">Llaves de Eliminación Directa</h3>
+            </div>
+            <div id="bracket-view"></div>
+          </div>
+        </section>
+
+        <!-- SECCIÓN 4: SALA DE COORDINACIÓN Y BUZÓN DE INVITACIONES -->
+        <section id="section-chat" class="app-section" style="display:none;">
+          <div class="section-toolbar">
+            <div class="section-title">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"></path></svg>
+              Sala de Coordinación en Vivo
             </div>
           </div>
 
-          <div class="form-grid-2">
-            <div>
-              <label class="form-label">Riot ID / In-Game Nick</label>
-              <input type="text" id="prof-riot" class="form-control" placeholder="Jesus#CHI">
+          <div class="chat-split-wrapper">
+            <div class="chat-layout">
+              <aside class="chat-sidebar">
+                <div class="chat-sidebar-header">Canales Persistentes</div>
+                <button class="channel-list-item active" data-channel="global"># General Nacional</button>
+                <button class="channel-list-item" data-channel="scrims-valorant"># Scrims Valorant</button>
+                <button class="channel-list-item" data-channel="duo-lol"># Duo LoL LAS</button>
+                <button class="channel-list-item" data-channel="competitivo-cs2"># Competitivo CS2</button>
+              </aside>
+
+              <div class="chat-main-area">
+                <div class="chat-top-header">
+                  <span id="active-channel-title">Canal Activo: # General Nacional</span>
+                  <span style="font-size:0.74rem;color:var(--color-cyan);">Persistido en SQLite</span>
+                </div>
+
+                <div id="chat-messages-container" class="chat-scroll-messages"></div>
+
+                <div class="chat-input-bar">
+                  <input type="text" id="chat-message-input" class="form-control" placeholder="Escribe un mensaje...">
+                  <button id="chat-send-btn" class="btn btn-primary">Enviar</button>
+                </div>
+              </div>
             </div>
-            <div>
-              <label class="form-label">Discord Tag</label>
-              <input type="text" id="prof-discord" class="form-control" placeholder="usuario#0001">
+
+            <!-- PANEL INVITACIONES LFG -->
+            <div class="invites-panel">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <h3 style="font-family:var(--font-display);font-size:1rem;">Invitaciones LFG</h3>
+                <button class="btn btn-secondary btn-sm" id="btn-refresh-invites" style="padding:0.25rem 0.6rem;">Actualizar</button>
+              </div>
+              <p style="font-size:0.75rem;color:var(--text-muted);margin-top:0.25rem;">
+                Solicitudes guardadas en <code>match_requests</code>.
+              </p>
+              <div id="invites-list" class="invites-list-scroll"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SECCIÓN 5: MI PERFIL Y DATOS DE CUENTA -->
+        <section id="section-profile" class="app-section" style="display:none;">
+          <div class="section-toolbar">
+            <div class="section-title">
+              <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"></circle><path d="M20 21a8 8 0 1 0-16 0"></path></svg>
+              Configuración de Cuenta y Perfil Gamer
             </div>
           </div>
 
-          <div style="margin-top:1.5rem;display:flex;justify-content:flex-end;">
-            <button type="submit" class="btn btn-primary">Guardar Perfil</button>
-          </div>
-        </form>
-      </div>
-    </section>
+          <form id="profile-form">
+            <div class="profile-two-col">
+              <!-- TARJETA CUENTA (TABLA USERS) -->
+              <div class="profile-panel">
+                <h3 style="font-family:var(--font-display);font-size:1rem;margin-bottom:0.25rem;">Datos de Cuenta (SQLite <code>users</code>)</h3>
+                <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:1.25rem;">
+                  Información de contacto y credenciales verificadas.
+                </p>
 
-  </main>
+                <div class="form-group">
+                  <label class="form-label">Usuario / Gamertag</label>
+                  <input type="text" id="prof-username-readonly" class="form-control" readonly style="opacity:0.75;cursor:not-allowed;">
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="prof-email">Correo Electrónico Registrado</label>
+                  <input type="email" id="prof-email" class="form-control" placeholder="correo@playmatch.cl" required>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="prof-phone">Número de Teléfono</label>
+                  <input type="tel" id="prof-phone" class="form-control" placeholder="+56 9 1234 5678">
+                </div>
+
+                <div class="form-group" style="margin-bottom:0;">
+                  <label class="form-label">Rol en Plataforma</label>
+                  <input type="text" id="prof-account-role" class="form-control" readonly style="opacity:0.75;cursor:not-allowed;">
+                </div>
+              </div>
+
+              <!-- TARJETA PERFIL GAMER (TABLA PLAYER_PROFILES) -->
+              <div class="profile-panel">
+                <h3 style="font-family:var(--font-display);font-size:1rem;margin-bottom:0.25rem;">Perfil Competitivo (<code>player_profiles</code>)</h3>
+                <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:1.25rem;">
+                  Visible en el buscador LFG para formar escuadras.
+                </p>
+
+                <div class="form-group">
+                  <label class="form-label" for="prof-bio">Biografía</label>
+                  <textarea id="prof-bio" class="form-textarea" rows="2" placeholder="Describe tu estilo de juego o qué buscas en tu escuadra..."></textarea>
+                </div>
+
+                <div class="form-grid-2">
+                  <div>
+                    <label class="form-label" for="prof-region">Ciudad / Región</label>
+                    <input type="text" id="prof-region" class="form-control" placeholder="Región Metropolitana">
+                  </div>
+                  <div>
+                    <label class="form-label" for="prof-schedule">Horario Habitual</label>
+                    <input type="text" id="prof-schedule" class="form-control" placeholder="Noches (21:00 - 01:00)">
+                  </div>
+                </div>
+
+                <div class="form-grid-3">
+                  <div>
+                    <label class="form-label" for="prof-game">Juego Principal</label>
+                    <select id="prof-game" class="form-select"></select>
+                  </div>
+                  <div>
+                    <label class="form-label" for="prof-rank">Rango Oficial</label>
+                    <input type="text" id="prof-rank" class="form-control" placeholder="Inmortal 1">
+                  </div>
+                  <div>
+                    <label class="form-label" for="prof-role">Rol Preferido</label>
+                    <input type="text" id="prof-role" class="form-control" placeholder="Controlador">
+                  </div>
+                </div>
+
+                <div class="form-grid-2">
+                  <div>
+                    <label class="form-label" for="prof-riot">Riot / In-Game ID</label>
+                    <input type="text" id="prof-riot" class="form-control" placeholder="Jesus#CHI">
+                  </div>
+                  <div>
+                    <label class="form-label" for="prof-discord">Discord Tag</label>
+                    <input type="text" id="prof-discord" class="form-control" placeholder="usuario#0001">
+                  </div>
+                </div>
+
+                <div style="margin-top:1.35rem;display:flex;justify-content:flex-end;">
+                  <button type="submit" class="btn btn-primary">Guardar Cambios en SQLite</button>
+                </div>
+              </div>
+            </div>
+          </form>
+        </section>
+
+        <!-- SECCIÓN 6: MONITOR DE BASE DE DATOS (SQLITE) -->
+        <section id="section-database" class="app-section" style="display:none;">
+          <div class="section-toolbar">
+            <div class="section-title">
+              <svg class="icon" style="color:var(--color-cyan);" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"></path></svg>
+              Explorador de Datos Persistidos (SQLite)
+            </div>
+            <div class="filter-group">
+              <input type="text" id="db-search-input" class="form-control" style="width:240px;" placeholder="Filtrar usuario, correo o teléfono...">
+              <button class="btn btn-secondary btn-sm" id="btn-refresh-db">Recargar Tablas</button>
+            </div>
+          </div>
+
+          <div class="db-table-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.85rem;">
+              <h3 style="font-family:var(--font-display);font-size:1rem;">Tabla <code>users</code> · Usuarios, Correos y Teléfonos Registrados</h3>
+              <span class="game-code-pill" id="db-users-count-label">0 registros</span>
+            </div>
+            <table class="db-data-table">
+              <thead>
+                <tr>
+                  <th>Usuario</th>
+                  <th>Correo Electrónico</th>
+                  <th>Teléfono</th>
+                  <th>Rol</th>
+                  <th>Registro</th>
+                </tr>
+              </thead>
+              <tbody id="db-users-tbody"></tbody>
+            </table>
+          </div>
+
+          <div class="db-table-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.85rem;">
+              <h3 style="font-family:var(--font-display);font-size:1rem;">Tabla <code>games</code> · Catálogo de Juegos Disponibles</h3>
+              <span class="game-code-pill" id="db-games-count-label">0 registros</span>
+            </div>
+            <table class="db-data-table">
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Nombre del Juego</th>
+                  <th>Categoría</th>
+                  <th>Plataforma</th>
+                  <th>Equipo Máx.</th>
+                  <th>Jugadores</th>
+                  <th>Torneos</th>
+                </tr>
+              </thead>
+              <tbody id="db-games-tbody"></tbody>
+            </table>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
 
   <!-- MODAL: INVITAR JUGADOR -->
   <div id="match-modal" class="modal-overlay">
@@ -242,15 +501,15 @@
         <input type="hidden" id="match-target-user">
         <input type="hidden" id="match-target-game">
         <div class="form-group">
-          <label class="form-label">Mensaje de Coordinación</label>
+          <label class="form-label" for="match-message-input">Mensaje de Coordinación</label>
           <textarea id="match-message-input" class="form-textarea" rows="3" placeholder="Hola, vi tu perfil en PlayMatch. ¿Jugamos unas partidas clasificatorias hoy?"></textarea>
         </div>
-        <button type="submit" class="btn btn-primary" style="width:100%;">Enviar Invitación</button>
+        <button type="submit" class="btn btn-primary" style="width:100%;">Enviar y Guardar Invitación</button>
       </form>
     </div>
   </div>
 
-  <!-- MODAL: REGISTRAR EQUIPO EN TORNEO -->
+  <!-- MODAL: INSCRIBIR EQUIPO EN TORNEO -->
   <div id="join-tournament-modal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
@@ -260,10 +519,88 @@
       <form id="join-tournament-form">
         <input type="hidden" id="join-t-id">
         <div class="form-group">
-          <label class="form-label">Nombre del Equipo</label>
-          <input type="text" id="join-team-name" class="form-control" placeholder="Nombre de tu escuadra" required>
+          <label class="form-label" for="join-team-name">Nombre de tu Escuadra</label>
+          <input type="text" id="join-team-name" class="form-control" placeholder="Ej: Santiago Vipers" required>
         </div>
         <button type="submit" class="btn btn-primary" style="width:100%;">Confirmar Inscripción</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: REGISTRAR NUEVO JUEGO DISPONIBLE EN SQLITE -->
+  <div id="add-game-modal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Registrar Nuevo Juego en SQLite</h3>
+        <button id="add-game-close-btn" class="btn-close">&times;</button>
+      </div>
+      <form id="add-game-form">
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label" for="new-game-name">Nombre del Juego</label>
+            <input type="text" id="new-game-name" class="form-control" placeholder="Ej: Apex Legends" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="new-game-category">Categoría</label>
+            <input type="text" id="new-game-category" class="form-control" placeholder="Battle Royale / FPS" required>
+          </div>
+        </div>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label" for="new-game-platform">Plataforma</label>
+            <input type="text" id="new-game-platform" class="form-control" value="PC / Multiplataforma">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="new-game-teamsize">Jugadores por Equipo</label>
+            <input type="number" id="new-game-teamsize" class="form-control" value="3" min="1" max="10" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="new-game-desc">Descripción</label>
+          <textarea id="new-game-desc" class="form-textarea" rows="2" placeholder="Breve descripción del modo competitivo..."></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;">Guardar Juego en Base de Datos</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: CREAR TORNEO EN SQLITE -->
+  <div id="add-tournament-modal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Crear Nuevo Torneo</h3>
+        <button id="add-tournament-close-btn" class="btn-close">&times;</button>
+      </div>
+      <form id="add-tournament-form">
+        <div class="form-group">
+          <label class="form-label" for="new-t-title">Nombre del Torneo</label>
+          <input type="text" id="new-t-title" class="form-control" placeholder="Ej: Copa Primavera PlayMatch 2026" required>
+        </div>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label" for="new-t-game">Juego</label>
+            <select id="new-t-game" class="form-select"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="new-t-max">Cupo Equipos</label>
+            <input type="number" id="new-t-max" class="form-control" value="8" min="2" max="32">
+          </div>
+        </div>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label" for="new-t-prize">Premio / Pozo</label>
+            <input type="text" id="new-t-prize" class="form-control" placeholder="$100.000 CLP">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="new-t-date">Fecha de Inicio</label>
+            <input type="text" id="new-t-date" class="form-control" placeholder="30 de Noviembre, 20:00 hrs">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="new-t-rules">Reglas</label>
+          <textarea id="new-t-rules" class="form-textarea" rows="2" placeholder="Formato Bo1/Bo3, tolerancia y reglamento..."></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;">Publicar Torneo en SQLite</button>
       </form>
     </div>
   </div>
@@ -271,7 +608,6 @@
   <!-- AVISO TOAST -->
   <div id="app-toast" class="toast-notice"></div>
 
-  <!-- SCRIPTS -->
   <script src="js/api.js"></script>
   <script src="js/app.js"></script>
 </body>
