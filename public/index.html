@@ -300,23 +300,45 @@
           <div class="chat-split-wrapper">
             <div class="chat-layout">
               <aside class="chat-sidebar">
-                <div class="chat-sidebar-header">Canales Persistentes</div>
-                <button class="channel-list-item active" data-channel="global"># General Nacional</button>
-                <button class="channel-list-item" data-channel="scrims-valorant"># Scrims Valorant</button>
-                <button class="channel-list-item" data-channel="duo-lol"># Duo LoL LAS</button>
-                <button class="channel-list-item" data-channel="competitivo-cs2"># Competitivo CS2</button>
+                <div class="chat-sidebar-header">Chat General (Todos)</div>
+                <button class="channel-list-item active" data-channel="global" data-label="# General Comunidad" data-desc="Sala abierta para conversar con toda la comunidad PlayMatch y coordinar partidas.">
+                  <span># General Comunidad</span>
+                  <span class="channel-tag">Abierto</span>
+                </button>
+                <button class="channel-list-item" data-channel="general-duo" data-label="# Busco Dúo" data-desc="Publica tu juego, rango y horario para encontrar compañero de dúo al instante.">
+                  <span># Busco Dúo</span>
+                  <span class="channel-tag lfg">Dúo</span>
+                </button>
+                <button class="channel-list-item" data-channel="general-escuadra" data-label="# Armar Escuadra" data-desc="Arma grupos completos, tríos, squads o salas privadas en cualquier juego.">
+                  <span># Armar Escuadra</span>
+                  <span class="channel-tag squad">Squad</span>
+                </button>
+
+                <div class="chat-sidebar-header" style="margin-top:0.9rem;">Salas por Juego</div>
+                <button class="channel-list-item" data-channel="scrims-valorant" data-label="# Scrims Valorant" data-desc="Coordinación de scrims y equipos competitivos 5v5 en Valorant.">
+                  <span># Scrims Valorant</span>
+                </button>
+                <button class="channel-list-item" data-channel="duo-lol" data-label="# Duo LoL LAS" data-desc="Compañeros de SoloQ / DuoQ para League of Legends en servidor LAS.">
+                  <span># Duo LoL LAS</span>
+                </button>
+                <button class="channel-list-item" data-channel="competitivo-cs2" data-label="# Competitivo CS2" data-desc="Salas de Premier, FACEIT y equipos competitivos de Counter-Strike 2.">
+                  <span># Competitivo CS2</span>
+                </button>
               </aside>
 
               <div class="chat-main-area">
                 <div class="chat-top-header">
-                  <span id="active-channel-title">Canal Activo: # General Nacional</span>
-                  <span style="font-size:0.74rem;color:var(--color-cyan);">Persistido en BD</span>
+                  <div>
+                    <span id="active-channel-title">Canal Activo: # General Comunidad</span>
+                    <div id="active-channel-desc" class="chat-channel-desc">Sala abierta para conversar con toda la comunidad PlayMatch y coordinar partidas.</div>
+                  </div>
+                  <span style="font-size:0.74rem;color:var(--color-cyan);white-space:nowrap;">Persistido en BD</span>
                 </div>
 
                 <div id="chat-messages-container" class="chat-scroll-messages"></div>
 
                 <div class="chat-input-bar">
-                  <input type="text" id="chat-message-input" class="form-control" placeholder="Escribe un mensaje...">
+                  <input type="text" id="chat-message-input" class="form-control" placeholder="Escribe en # General Comunidad para charlar o buscar gente...">
                   <button id="chat-send-btn" class="btn btn-primary">Enviar</button>
                 </div>
               </div>
@@ -499,7 +521,10 @@
       </div>
       <form id="match-form">
         <input type="hidden" id="match-target-user">
-        <input type="hidden" id="match-target-game">
+        <div class="form-group">
+          <label class="form-label" for="match-target-game">Juego para la Partida</label>
+          <select id="match-target-game" class="form-select" required></select>
+        </div>
         <div class="form-group">
           <label class="form-label" for="match-message-input">Mensaje de Coordinación</label>
           <textarea id="match-message-input" class="form-textarea" rows="3" placeholder="Hola, vi tu perfil en PlayMatch. ¿Jugamos unas partidas clasificatorias hoy?"></textarea>

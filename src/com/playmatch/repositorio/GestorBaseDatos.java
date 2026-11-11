@@ -195,6 +195,7 @@ public class GestorBaseDatos {
             ejecutarEsquema(conn);
             migrarColumnasSiFaltan(conn);
             sembrarDatosInicialesSiVacio(conn);
+            asegurarCatalogoYChatGeneral(conn);
         }
     }
 
@@ -242,16 +243,6 @@ public class GestorBaseDatos {
                 }
             }
         }
-        // Asegurar orden base de juegos iniciales
-        try (PreparedStatement ps = conn.prepareStatement("UPDATE games SET sort_order = ? WHERE id = ? AND sort_order = 100")) {
-            String[][] orden = {{"1", "g-val"}, {"2", "g-lol"}, {"3", "g-cs2"}, {"4", "g-rl"}};
-            for (String[] item : orden) {
-                ps.setInt(1, Integer.parseInt(item[0]));
-                ps.setString(2, item[1]);
-                ps.addBatch();
-            }
-            ps.executeBatch();
-        } catch (SQLException ignored) {}
     }
 
     private boolean existeColumnaSqlite(Connection conn, String tabla, String columna) throws SQLException {
@@ -374,24 +365,57 @@ public class GestorBaseDatos {
         }
     }
 
+    private static final Object[][] JUEGOS_CATALOGO_BASE = {
+        {"g-val", "valorant", "Valorant", "Tactical FPS", "PC / Consola", 5,
+         "Shooter táctico 5v5 basado en precisión de disparo y habilidades estratégicas de agentes.",
+         "#ff4655", "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=900&q=80", 1},
+        {"g-lol", "lol", "League of Legends", "MOBA", "PC (LAS)", 5,
+         "Arena de batalla multijugador por equipos 5v5 con enfoque en macrogame y objetivos.",
+         "#8b5cf6", "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=900&q=80", 2},
+        {"g-cs2", "cs2", "Counter-Strike 2", "Tactical FPS", "PC (Steam)", 5,
+         "Competitivo clásico por rondas de ataque y defensa táctica con economía de equipo.",
+         "#f59e0b", "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=900&q=80", 3},
+        {"g-rl", "rocket-league", "Rocket League", "Deportes / Arcade", "Multiplataforma", 3,
+         "Fútbol vehicular competitivo 3v3 de alta velocidad, rotaciones y mecánicas aéreas.",
+         "#06b6d4", "https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&w=900&q=80", 4},
+        {"g-mr", "marvel-rivals", "Marvel Rivals", "Hero Shooter", "PC / Consola", 6,
+         "Hero shooter competitivo 6v6 por equipos con sinergias de habilidades entre superhéroes y villanos.",
+         "#e11d48", "/assets/games/marvel-rivals.svg", 5},
+        {"g-ow", "overwatch", "Overwatch 2", "Hero Shooter", "Multiplataforma", 5,
+         "Combate por objetivos 5v5 con roles de Tanque, Daño y Apoyo enfocado en coordinación de equipo.",
+         "#f97316", "/assets/games/overwatch.svg", 6},
+        {"g-apex", "apex-legends", "Apex Legends", "Battle Royale", "Multiplataforma", 3,
+         "Battle Royale táctico en tríos y dúos con leyendas de movilidad rápida y juego en escuadra.",
+         "#dc2626", "/assets/games/apex-legends.svg", 7},
+        {"g-fn", "fortnite", "Fortnite", "Battle Royale", "Multiplataforma", 4,
+         "Dúos, tríos y escuadrones competitivos en Batalla Campal, Cero Construcción y torneos Arena.",
+         "#3b82f6", "/assets/games/fortnite.svg", 8},
+        {"g-rbx", "roblox", "Roblox", "Sandbox / Multijuego", "Multiplataforma", 4,
+         "Plataforma social multijuego para coordinar partidas competitivas, experiencias y salas privadas.",
+         "#0ea5e9", "/assets/games/roblox.svg", 9},
+        {"g-mc", "minecraft", "Minecraft", "Supervivencia / PvP", "Multiplataforma", 4,
+         "Supervivencia cooperativa, Realms, SkyWars, BedWars y servidores competitivos en equipo.",
+         "#22c55e", "/assets/games/minecraft.svg", 10}
+    };
+
+    private static final String[][] MENSAJES_CANALES_INICIALES = {
+        {"msg-1", "u-1", "Jesus_Villasanti", "https://api.dicebear.com/7.x/bottts/svg?seed=Jesus_Villasanti", "global",
+         "Bienvenidos a PlayMatch. Todas las partidas, registros y torneos quedan persistidos en base de datos.", "19:00"},
+        {"msg-4", "u-5", "jaeliug", "https://api.dicebear.com/7.x/bottts/svg?seed=jaeliug", "general-duo",
+         "¡Chat abierto para encontrar dúo! Deja tu juego (Valorant, Marvel Rivals, Fortnite, Apex, etc.), rango y horario.", "19:08"},
+        {"msg-5", "u-2", "Datrikk", "https://api.dicebear.com/7.x/bottts/svg?seed=Datrikk", "general-escuadra",
+         "¿Buscas armar squad o grupo completo? Coordina aquí escuadras para Marvel Rivals, Overwatch 2, Roblox, Minecraft o CS2.", "19:12"},
+        {"msg-2", "u-2", "Datrikk", "https://api.dicebear.com/7.x/bottts/svg?seed=Datrikk", "scrims-valorant",
+         "Buscamos 1 Duelista o Iniciador rango Ascendente+ para scrim hoy a las 21:00.", "19:15"},
+        {"msg-3", "u-3", "dididong", "https://api.dicebear.com/7.x/bottts/svg?seed=dididong", "duo-lol",
+         "Disponible para ranked Duo en servidor LAS como Support.", "19:22"}
+    };
+
     private void sembrarJuegos(Connection conn) throws SQLException {
-        String sql = "INSERT INTO games (id, code, name, category, platform, max_team_size, description, accent_color, banner_url, is_active, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)";
-        Object[][] juegos = {
-            {"g-val", "valorant", "Valorant", "Tactical FPS", "PC / Consola", 5,
-             "Shooter táctico 5v5 basado en precisión de disparo y habilidades estratégicas de agentes.",
-             "#ff4655", "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=900&q=80", 1},
-            {"g-lol", "lol", "League of Legends", "MOBA", "PC (LAS)", 5,
-             "Arena de batalla multijugador por equipos 5v5 con enfoque en macrogame y objetivos.",
-             "#8b5cf6", "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=900&q=80", 2},
-            {"g-cs2", "cs2", "Counter-Strike 2", "Tactical FPS", "PC (Steam)", 5,
-             "Competitivo clásico por rondas de ataque y defensa táctica con economía de equipo.",
-             "#f59e0b", "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=900&q=80", 3},
-            {"g-rl", "rocket-league", "Rocket League", "Deportes / Arcade", "Multiplataforma", 3,
-             "Fútbol vehicular competitivo 3v3 de alta velocidad, rotaciones y mecánicas aéreas.",
-             "#06b6d4", "https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&w=900&q=80", 4}
-        };
+        String sql = "INSERT INTO games (id, code, name, category, platform, max_team_size, description, accent_color, banner_url, is_active, sort_order) " +
+                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?) ON CONFLICT DO NOTHING";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            for (Object[] j : juegos) {
+            for (Object[] j : JUEGOS_CATALOGO_BASE) {
                 ps.setString(1, (String) j[0]);
                 ps.setString(2, (String) j[1]);
                 ps.setString(3, (String) j[2]);
@@ -405,6 +429,55 @@ public class GestorBaseDatos {
                 ps.addBatch();
             }
             ps.executeBatch();
+        }
+    }
+
+    private void asegurarCatalogoYChatGeneral(Connection conn) throws SQLException {
+        // Garantizar que bases ya existentes reciban los nuevos títulos sin duplicar registros
+        sembrarJuegos(conn);
+        try (PreparedStatement ps = conn.prepareStatement("UPDATE games SET sort_order = ? WHERE id = ? AND sort_order = 100")) {
+            for (Object[] j : JUEGOS_CATALOGO_BASE) {
+                ps.setInt(1, (Integer) j[9]);
+                ps.setString(2, (String) j[0]);
+                ps.addBatch();
+            }
+            ps.executeBatch();
+        } catch (SQLException ignored) {}
+
+        // Garantizar mensaje guía inicial en cada apartado de chat general si el canal está vacío
+        String sqlCheckChan = "SELECT COUNT(*) FROM chat_messages WHERE LOWER(channel) = LOWER(?)";
+        String sqlCheckUser = "SELECT 1 FROM users WHERE id = ?";
+        String sqlInsMsg = "INSERT INTO chat_messages (id, sender_id, sender_username, sender_avatar, channel, content, sent_at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING";
+
+        for (String[] m : MENSAJES_CANALES_INICIALES) {
+            String channel = m[4];
+            if (!"global".equals(channel) && !"general-duo".equals(channel) && !"general-escuadra".equals(channel)) {
+                continue;
+            }
+            boolean channelEmpty = false;
+            try (PreparedStatement pc = conn.prepareStatement(sqlCheckChan)) {
+                pc.setString(1, channel);
+                try (ResultSet rs = pc.executeQuery()) {
+                    channelEmpty = rs.next() && rs.getInt(1) == 0;
+                }
+            }
+            if (!channelEmpty) continue;
+
+            boolean senderExists = false;
+            try (PreparedStatement pu = conn.prepareStatement(sqlCheckUser)) {
+                pu.setString(1, m[1]);
+                try (ResultSet rs = pu.executeQuery()) {
+                    senderExists = rs.next();
+                }
+            }
+            if (!senderExists) continue;
+
+            try (PreparedStatement pi = conn.prepareStatement(sqlInsMsg)) {
+                for (int i = 0; i < 7; i++) {
+                    pi.setString(i + 1, m[i]);
+                }
+                pi.executeUpdate();
+            }
         }
     }
 
@@ -577,23 +650,11 @@ public class GestorBaseDatos {
 
     private void sembrarMensajesIniciales(Connection conn) throws SQLException {
         String sql = "INSERT INTO chat_messages (id, sender_id, sender_username, sender_avatar, channel, content, sent_at) VALUES (?, ?, ?, ?, ?, ?, ?)";
-        Object[][] msgs = {
-            {"msg-1", "u-1", "Jesus_Villasanti", "https://api.dicebear.com/7.x/bottts/svg?seed=Jesus_Villasanti", "global",
-             "Bienvenidos a PlayMatch. Todas las partidas, registros y torneos quedan persistidos en base de datos.", "19:00"},
-            {"msg-2", "u-2", "Datrikk", "https://api.dicebear.com/7.x/bottts/svg?seed=Datrikk", "scrims-valorant",
-             "Buscamos 1 Duelista o Iniciador rango Ascendente+ para scrim hoy a las 21:00.", "19:15"},
-            {"msg-3", "u-3", "dididong", "https://api.dicebear.com/7.x/bottts/svg?seed=dididong", "duo-lol",
-             "Disponible para ranked Duo en servidor LAS como Support.", "19:22"}
-        };
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            for (Object[] m : msgs) {
-                ps.setString(1, (String) m[0]);
-                ps.setString(2, (String) m[1]);
-                ps.setString(3, (String) m[2]);
-                ps.setString(4, (String) m[3]);
-                ps.setString(5, (String) m[4]);
-                ps.setString(6, (String) m[5]);
-                ps.setString(7, (String) m[6]);
+            for (String[] m : MENSAJES_CANALES_INICIALES) {
+                for (int i = 0; i < 7; i++) {
+                    ps.setString(i + 1, m[i]);
+                }
                 ps.addBatch();
             }
             ps.executeBatch();

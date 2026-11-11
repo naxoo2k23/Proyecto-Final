@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 320" width="800" height="320">
+  <defs>
+    <linearGradient id="bg-mc" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#091a12"/>
+      <stop offset="55%" stop-color="#113322"/>
+      <stop offset="100%" stop-color="#080713"/>
+    </linearGradient>
+    <radialGradient id="glow-mc" cx="72%" cy="48%" r="48%">
+      <stop offset="0%" stop-color="#22c55e" stop-opacity="0.52"/>
+      <stop offset="100%" stop-color="#22c55e" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="800" height="320" fill="url(#bg-mc)"/>
+  <rect width="800" height="320" fill="url(#glow-mc)"/>
+  <g stroke="#22c55e" stroke-opacity="0.18" stroke-width="1">
+    <path d="M400 0 V320 M464 0 V320 M528 0 V320 M592 0 V320 M656 0 V320 M720 0 V320"/>
+    <path d="M400 64 H800 M400 128 H800 M400 192 H800 M400 256 H800"/>
+  </g>
+  <g transform="translate(592 160)">
+    <polygon points="0,-78 72,-38 0,2 -72,-38" fill="#4ade80" fill-opacity="0.78" stroke="#bbf7d0" stroke-width="2"/>
+    <polygon points="-72,-38 0,2 0,80 -72,40" fill="#16a34a" fill-opacity="0.72" stroke="#86efac" stroke-width="2"/>
+    <polygon points="72,-38 0,2 0,80 72,40" fill="#15803d" fill-opacity="0.82" stroke="#4ade80" stroke-width="2"/>
+  </g>
+  <text x="52" y="138" font-family="system-ui,-apple-system,sans-serif" font-size="14" font-weight="700" letter-spacing="4" fill="#86efac">SUPERVIVENCIA / PVP / REALMS</text>
+  <text x="50" y="192" font-family="system-ui,-apple-system,sans-serif" font-size="44" font-weight="800" letter-spacing="1" fill="#ffffff">MINECRAFT</text>
+  <rect x="52" y="212" width="110" height="4" rx="2" fill="#22c55e"/>
+</svg>

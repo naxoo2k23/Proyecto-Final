@@ -221,7 +221,7 @@ function syncGameDropdowns(games) {
     }
   }
 
-  ['prof-game', 'new-t-game'].forEach(selId => {
+  ['prof-game', 'new-t-game', 'match-target-game'].forEach(selId => {
     const sel = document.getElementById(selId);
     if (!sel) return;
     const prev = sel.value;
@@ -248,10 +248,11 @@ function renderGamesGrid(games) {
 
   grid.innerHTML = '';
   filtered.forEach(g => {
+    const accent = /^#[0-9a-fA-F]{3,8}$/.test(g.accentColor || '') ? g.accentColor : '#8b5cf6';
     const card = document.createElement('div');
     card.className = 'game-card';
     card.innerHTML = `
-      <div class="game-card-banner">
+      <div class="game-card-banner" style="background:linear-gradient(135deg, ${accent}44 0%, #0d0a18 100%);">
         <img src="${escapeHtml(g.bannerUrl)}" alt="${escapeHtml(g.name)}">
         <div class="game-card-banner-overlay"></div>
         <span class="game-card-category">${escapeHtml(g.category)}</span>
@@ -282,6 +283,9 @@ function renderGamesGrid(games) {
         </button>
       </div>
     `;
+    card.querySelector('.game-card-banner img')?.addEventListener('error', (e) => {
+      e.currentTarget.style.display = 'none';
+    });
     grid.appendChild(card);
   });
 
@@ -530,8 +534,15 @@ function setupChat() {
       document.querySelectorAll('.channel-list-item').forEach(b => b.classList.remove('active'));
       chBtn.classList.add('active');
       state.activeChannel = chBtn.dataset.channel || 'global';
+      const label = chBtn.dataset.label || chBtn.innerText.trim();
+      const desc = chBtn.dataset.desc || 'Conversación persistida entre jugadores.';
       const header = document.getElementById('active-channel-title');
-      if (header) header.innerText = `Canal Activo: ${chBtn.innerText}`;
+      if (header) header.innerText = `Canal Activo: ${label}`;
+      const descEl = document.getElementById('active-channel-desc');
+      if (descEl) descEl.innerText = desc;
+      if (input) input.placeholder = `Escribe en ${label} para charlar o buscar gente...`;
+      const mc = document.getElementById('chat-messages-container');
+      if (mc) mc.innerHTML = '<div class="chat-empty-state">Cargando sala...</div>';
       fetchAndRenderChat();
     });
   });
@@ -570,11 +581,15 @@ async function fetchAndRenderChat() {
       msgContainer.innerHTML = `
         <div class="chat-empty-state">
           No hay mensajes guardados en <strong>#${escapeHtml(state.activeChannel)}</strong> todavía.<br>
-          Envía un mensaje para iniciar la coordinación del equipo.
+          Envía un mensaje para iniciar la conversación o buscar dúo.
         </div>
       `;
       return;
     }
+
+    const defaultGame = (state.selectedGameFilter && state.selectedGameFilter !== 'all')
+      ? state.selectedGameFilter
+      : (document.getElementById('prof-game')?.value || 'valorant');
 
     messages.forEach(m => {
       const isMe = Boolean(state.currentUser && m.sender.toLowerCase() === state.currentUser.username.toLowerCase());
@@ -586,10 +601,14 @@ async function fetchAndRenderChat() {
           <div class="msg-meta-line">
             <strong>${escapeHtml(m.sender)}</strong>
             <span>${escapeHtml(m.timestamp)}</span>
+            ${!isMe ? `<button type="button" class="msg-invite-btn">Invitar a jugar</button>` : ''}
           </div>
           <div class="msg-text-content">${escapeHtml(m.content)}</div>
         </div>
       `;
+      item.querySelector('.msg-invite-btn')?.addEventListener('click', () => {
+        openMatchModal(m.sender, defaultGame);
+      });
       msgContainer.appendChild(item);
     });
 
@@ -934,8 +953,22 @@ function setupModals() {
 
 function openMatchModal(username, game) {
   document.getElementById('match-target-user').value = username;
-  document.getElementById('match-target-game').value = game;
-  document.getElementById('modal-title').innerText = `Invitar a @${username} (${game})`;
+  const gameSel = document.getElementById('match-target-game');
+  let selectedLabel = game || 'PlayMatch';
+  if (gameSel && gameSel.options.length > 0) {
+    const targetLower = String(game || '').trim().toLowerCase();
+    const matched = [...gameSel.options].find(
+      o => o.value.toLowerCase() === targetLower || o.text.toLowerCase() === targetLower
+    );
+    if (matched) {
+      gameSel.value = matched.value;
+      selectedLabel = matched.text;
+    } else {
+      gameSel.selectedIndex = 0;
+      selectedLabel = gameSel.options[0].text;
+    }
+  }
+  document.getElementById('modal-title').innerText = `Invitar a @${username} (${selectedLabel})`;
   document.getElementById('match-modal').style.display = 'flex';
 }
 
