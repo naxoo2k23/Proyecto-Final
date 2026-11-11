@@ -241,7 +241,6 @@ public class GestorBaseDatos {
     }
 
     private void migrarColumnasSiFaltan(Connection conn) throws SQLException {
-        boolean marcoRecienAgregado = false;
         if (esPostgreSQL()) {
             try (Statement st = conn.createStatement()) {
                 st.execute("ALTER TABLE player_game_stats ADD COLUMN IF NOT EXISTS is_primary INT DEFAULT 1;");
@@ -269,7 +268,6 @@ public class GestorBaseDatos {
                 st.execute("ALTER TABLE tournament_matches ADD COLUMN IF NOT EXISTS next_slot INT DEFAULT 0;");
             }
         } else {
-            marcoRecienAgregado = !existeColumnaSqlite(conn, "player_profiles", "card_frame");
             String[][] columnasSqlite = {
                 {"player_game_stats", "is_primary", "INT DEFAULT 1"},
                 {"games", "is_active", "INT DEFAULT 1"},
@@ -307,49 +305,14 @@ public class GestorBaseDatos {
             st.execute("UPDATE tournament_matches SET round_index = 2, next_match_order = 0, next_slot = 0 WHERE tournament_id = 't-3' AND match_order = 3 AND round_index = 1;");
             st.execute("UPDATE tournament_matches SET round_index = 1, next_match_order = 3, next_slot = 1 WHERE tournament_id = 't-3' AND match_order = 1 AND next_match_order = 0;");
             st.execute("UPDATE tournament_matches SET round_index = 1, next_match_order = 3, next_slot = 2 WHERE tournament_id = 't-3' AND match_order = 2 AND next_match_order = 0;");
-            if (marcoRecienAgregado) {
-                String[][] marcosDemo = {
-                    {"p-1", "CHALLENGER"}, {"p-2", "EMERALD"}, {"p-3", "DIAMOND"},
-                    {"p-4", "GOLD"}, {"p-5", "RUBY"}, {"p-6", "GOLD"}
-                };
-                try (PreparedStatement pf = conn.prepareStatement("UPDATE player_profiles SET card_frame = ? WHERE id = ? AND (card_frame IS NULL OR card_frame = 'NONE')")) {
-                    for (String[] mf : marcosDemo) {
-                        pf.setString(1, mf[1]);
-                        pf.setString(2, mf[0]);
-                        pf.addBatch();
-                    }
-                    pf.executeBatch();
-                }
-            }
-            if (!existeTablaSql(conn, "player_clips") || contarFilas(conn, "player_clips") == 0) {
+            if (!existeTablaSql(conn, "player_clips")) {
                 st.execute("CREATE TABLE IF NOT EXISTS player_clips (" +
                            "id VARCHAR(36) PRIMARY KEY, user_id VARCHAR(36) NOT NULL, title VARCHAR(120) NOT NULL, " +
                            "clip_url TEXT NOT NULL, game_code VARCHAR(40) NOT NULL DEFAULT 'valorant', " +
                            "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
                            "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE);");
-                if (contarFilas(conn, "users") > 0) {
-                    sembrarClipsIniciales(conn);
-                }
             }
-            // Asignar titulos desbloqueados de muestra si recien se migro equipped_title o actualizar titulo base
             st.execute("UPDATE player_profiles SET equipped_title = 'Héroe de Internet' WHERE equipped_title = 'Jugador Activo';");
-            if (contarFilasConTitulo(conn) == 0 && contarFilas(conn, "users") > 0) {
-                String[][] titulosDemo = {
-                    {"p-1", "Héroe de Internet"}, {"p-2", "Dúo Confiable"},
-                    {"p-3", "Héroe de Internet"}, {"p-4", "Cero Tilt"},
-                    {"p-5", "Comandante Social"}, {"p-6", "Héroe de Internet"}
-                };
-                try (PreparedStatement pt = conn.prepareStatement("UPDATE player_profiles SET equipped_title = ? WHERE id = ? AND (equipped_title IS NULL OR equipped_title = '')")) {
-                    for (String[] td : titulosDemo) {
-                        pt.setString(1, td[1]);
-                        pt.setString(2, td[0]);
-                        pt.addBatch();
-                    }
-                    pt.executeBatch();
-                }
-            } else {
-                st.execute("UPDATE player_profiles SET equipped_title = 'Héroe de Internet' WHERE id IN ('p-3','p-6') AND (equipped_title IS NULL OR equipped_title = '');");
-            }
             // Migrar avatares robots antiguos al nuevo avatar SVG propio /api/avatar
             try (PreparedStatement pu = conn.prepareStatement("SELECT id, username FROM users WHERE avatar_url IS NULL OR avatar_url = '' OR avatar_url LIKE '%dicebear.com/7.x/bottts%'");
                  ResultSet rs = pu.executeQuery()) {
@@ -412,6 +375,15 @@ public class GestorBaseDatos {
     private int contarFilasConTitulo(Connection conn) {
         try (Statement st = conn.createStatement();
              ResultSet rs = st.executeQuery("SELECT COUNT(*) FROM player_profiles WHERE equipped_title IS NOT NULL AND equipped_title <> ''")) {
+            return rs.next() ? rs.getInt(1) : 0;
+        } catch (SQLException e) {
+            return 0;
+        }
+    }
+
+    private int contarFilasConMarco(Connection conn) {
+        try (Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery("SELECT COUNT(*) FROM player_profiles WHERE card_frame IS NOT NULL AND card_frame <> '' AND card_frame <> 'NONE'")) {
             return rs.next() ? rs.getInt(1) : 0;
         } catch (SQLException e) {
             return 0;
@@ -792,7 +764,9 @@ public class GestorBaseDatos {
             {"rt-8", "u-2", "u-5", 5, "Recomendado para dúo."},
             {"rt-9", "u-3", "u-5", 5, "Cero flameo."},
             {"rt-10", "u-1", "u-8", 1, "Abandonó partida clasificatoria."},
-            {"rt-11", "u-2", "u-8", 2, "Mucha actitud negativa por voz."}
+            {"rt-11", "u-2", "u-8", 2, "Mucha actitud negativa por voz."},
+            {"rt-12", "u-1", "u-4", 5, "Excelente AWPer y muy buena comunicación."},
+            {"rt-13", "u-5", "u-4", 5, "Cero tilt, gran compañero de CS2 y Valorant."}
         };
         try (PreparedStatement pr = conn.prepareStatement(
                 "INSERT INTO player_ratings (id, rater_user_id, rated_user_id, stars, comment) VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING")) {
@@ -807,8 +781,52 @@ public class GestorBaseDatos {
             pr.executeBatch();
         } catch (SQLException ignored) {}
 
+        asegurarCosmeticosYClipsDemo(conn);
         asegurarAmistadesYChatsDemo(conn);
         asegurarLobbiesDemo(conn);
+    }
+
+    private void asegurarCosmeticosYClipsDemo(Connection conn) {
+        try {
+            if (contarFilasConMarco(conn) == 0 && contarFilas(conn, "player_profiles") > 0) {
+                String[][] marcosDemo = {
+                    {"p-1", "CHALLENGER"}, {"p-2", "EMERALD"}, {"p-3", "DIAMOND"},
+                    {"p-4", "GOLD"}, {"p-5", "RUBY"}, {"p-6", "GOLD"}
+                };
+                try (PreparedStatement pf = conn.prepareStatement(
+                        "UPDATE player_profiles SET card_frame = ? WHERE id = ? AND (card_frame IS NULL OR card_frame = '' OR card_frame = 'NONE')")) {
+                    for (String[] mf : marcosDemo) {
+                        pf.setString(1, mf[1]);
+                        pf.setString(2, mf[0]);
+                        pf.addBatch();
+                    }
+                    pf.executeBatch();
+                }
+            }
+            if (contarFilasConTitulo(conn) == 0 && contarFilas(conn, "player_profiles") > 0) {
+                String[][] titulosDemo = {
+                    {"p-1", "Héroe de Internet"}, {"p-2", "Dúo Confiable"},
+                    {"p-3", "Héroe de Internet"}, {"p-4", "Cero Tilt"},
+                    {"p-5", "Comandante Social"}, {"p-6", "Héroe de Internet"}
+                };
+                try (PreparedStatement pt = conn.prepareStatement(
+                        "UPDATE player_profiles SET equipped_title = ? WHERE id = ? AND (equipped_title IS NULL OR equipped_title = '')")) {
+                    for (String[] td : titulosDemo) {
+                        pt.setString(1, td[1]);
+                        pt.setString(2, td[0]);
+                        pt.addBatch();
+                    }
+                    pt.executeBatch();
+                }
+            } else {
+                try (Statement st = conn.createStatement()) {
+                    st.execute("UPDATE player_profiles SET equipped_title = 'Héroe de Internet' WHERE id IN ('p-3','p-6') AND (equipped_title IS NULL OR equipped_title = '');");
+                }
+            }
+            if (contarFilas(conn, "player_clips") == 0 && contarFilas(conn, "users") > 0) {
+                sembrarClipsIniciales(conn);
+            }
+        } catch (SQLException ignored) {}
     }
 
     private void asegurarAmistadesYChatsDemo(Connection conn) {
