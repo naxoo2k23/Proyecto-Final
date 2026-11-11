@@ -47,11 +47,12 @@ public class ServidorPlayMatch {
         servidor.start();
 
         System.out.println("====================================================================");
-        System.out.println("   PLAYMATCH ARENA · Servidor Web & SQLite Activo (Java + JDBC)     ");
+        System.out.println("   PLAYMATCH ARENA · Servidor Web Java + JDBC (" + db.getNombreMotor() + ")");
         System.out.println("====================================================================");
         System.out.println(" > Servidor HTTP:      http://localhost:" + puerto);
         System.out.println(" > Directorio web:     " + new File(DIRECTORIO_PUBLICO).getAbsolutePath());
-        System.out.println(" > Base de datos SQL:  SQLite (" + db.getRutaBaseDatos() + ")");
+        System.out.println(" > Motor Base Datos:   " + db.getNombreMotor() + " [" + db.getRutaBaseDatos() + "]");
+        System.out.println(" > Estado del Motor:   " + db.getNotaEstadoMotor());
         System.out.println(" > Presione Ctrl+C para detener el servidor.");
         System.out.println("====================================================================");
     }
@@ -72,7 +73,7 @@ public class ServidorPlayMatch {
             String json = "{" +
                     "\"status\":\"" + (dbOk ? "UP" : "DEGRADED") + "\"," +
                     "\"project\":\"PlayMatch\"," +
-                    "\"database\":{\"engine\":\"SQLite 3 (JDBC)\",\"connected\":" + dbOk + ",\"sizeBytes\":" + db.getTamanoArchivoBytes() + "}," +
+                    "\"database\":{\"engine\":\"" + JsonUtils.escape(db.getNombreMotor()) + "\",\"isPostgres\":" + db.esPostgreSQL() + ",\"note\":\"" + JsonUtils.escape(db.getNotaEstadoMotor()) + "\",\"connected\":" + dbOk + ",\"sizeBytes\":" + db.getTamanoArchivoBytes() + "}," +
                     "\"counts\":{\"users\":" + stats.get("users") + ",\"games\":" + stats.get("games") + ",\"tournaments\":" + stats.get("tournaments") + "}" +
                     "}";
             enviarRespuestaJson(exchange, dbOk ? 200 : 503, json);
@@ -93,7 +94,9 @@ public class ServidorPlayMatch {
             try {
                 Map<String, Integer> stats = db.obtenerEstadisticasGenerales();
                 String json = "{" +
-                        "\"dbEngine\":\"SQLite 3 (JDBC)\"," +
+                        "\"dbEngine\":\"" + JsonUtils.escape(db.getNombreMotor()) + "\"," +
+                        "\"isPostgres\":" + db.esPostgreSQL() + "," +
+                        "\"dbNote\":\"" + JsonUtils.escape(db.getNotaEstadoMotor()) + "\"," +
                         "\"dbPath\":\"" + JsonUtils.escape(db.getRutaBaseDatos()) + "\"," +
                         "\"dbSizeKB\":" + Math.max(1, db.getTamanoArchivoBytes() / 1024) + "," +
                         "\"users\":" + stats.get("users") + "," +
@@ -165,7 +168,7 @@ public class ServidorPlayMatch {
                         enviarError(exchange, 409, "Ya existe un juego registrado con ese nombre o código.");
                         return;
                     }
-                    enviarRespuestaJson(exchange, 201, "{\"message\":\"Juego registrado en SQLite con éxito\",\"game\":" + juegoAJson(creado) + "}");
+                    enviarRespuestaJson(exchange, 201, "{\"message\":\"Juego registrado en la base de datos con éxito\",\"game\":" + juegoAJson(creado) + "}");
                 }
             } catch (Exception e) {
                 enviarError(exchange, 500, "Error procesando juegos: " + e.getMessage());
@@ -234,7 +237,7 @@ public class ServidorPlayMatch {
 
                     db.actualizarCuentaUsuario(actual.getUsername(), email, telefono);
                     Usuario actualizado = db.buscarUsuarioPorUsername(actual.getUsername());
-                    enviarRespuestaJson(exchange, 200, "{\"message\":\"Datos de cuenta actualizados en SQLite\",\"user\":" + usuarioAJson(actualizado) + "}");
+                    enviarRespuestaJson(exchange, 200, "{\"message\":\"Datos de cuenta actualizados en la base de datos\",\"user\":" + usuarioAJson(actualizado) + "}");
                 }
             } catch (Exception e) {
                 enviarError(exchange, 500, "Error procesando usuarios: " + e.getMessage());
@@ -325,7 +328,7 @@ public class ServidorPlayMatch {
                     db.actualizarPerfil(perfil);
                     PerfilJugador actualizado = db.buscarPerfilPorUsername(username);
                     Usuario uAct = db.buscarUsuarioPorUsername(username);
-                    enviarRespuestaJson(exchange, 200, "{\"message\":\"Perfil y cuenta guardados en SQLite\",\"profile\":" + perfilAJson(actualizado) + ",\"user\":" + usuarioAJson(uAct) + "}");
+                    enviarRespuestaJson(exchange, 200, "{\"message\":\"Perfil y cuenta guardados en la base de datos\",\"profile\":" + perfilAJson(actualizado) + ",\"user\":" + usuarioAJson(uAct) + "}");
                 }
             } catch (Exception e) {
                 enviarError(exchange, 500, "Error procesando perfiles: " + e.getMessage());
@@ -396,7 +399,7 @@ public class ServidorPlayMatch {
                         Usuario u = db.crearUsuario(username, email, password, telefono, gameCode);
                         PerfilJugador p = db.buscarPerfilPorUsername(u.getUsername());
                         enviarRespuestaJson(exchange, 201,
-                            "{\"message\":\"Usuario registrado y persistido en SQLite\",\"token\":\"tok_" + UUID.randomUUID() + "\",\"user\":" + usuarioAJson(u) + ",\"profile\":" + (p != null ? perfilAJson(p) : "null") + "}");
+                            "{\"message\":\"Usuario registrado y persistido en la base de datos\",\"token\":\"tok_" + UUID.randomUUID() + "\",\"user\":" + usuarioAJson(u) + ",\"profile\":" + (p != null ? perfilAJson(p) : "null") + "}");
 
                     } else if (ruta.endsWith("/login")) {
                         String identifier = datos.get("username");
@@ -481,7 +484,7 @@ public class ServidorPlayMatch {
 
                     boolean ok = db.inscribirEquipoEnTorneo(torneoId, nombreEquipo, capitan);
                     if (ok) {
-                        enviarRespuestaJson(exchange, 200, "{\"message\":\"Equipo " + JsonUtils.escape(nombreEquipo.trim()) + " inscrito exitosamente en SQLite\"}");
+                        enviarRespuestaJson(exchange, 200, "{\"message\":\"Equipo " + JsonUtils.escape(nombreEquipo.trim()) + " inscrito exitosamente en la base de datos\"}");
                     } else {
                         enviarError(exchange, 400, "No se pudo inscribir (cupos llenos, equipo duplicado o torneo inexistente).");
                     }
@@ -511,7 +514,7 @@ public class ServidorPlayMatch {
                         enviarError(exchange, 400, "El juego seleccionado no existe.");
                         return;
                     }
-                    enviarRespuestaJson(exchange, 201, "{\"message\":\"Torneo creado y persistido en SQLite\",\"tournament\":" + torneoAJson(creado) + "}");
+                    enviarRespuestaJson(exchange, 201, "{\"message\":\"Torneo creado y persistido en la base de datos\",\"tournament\":" + torneoAJson(creado) + "}");
                 }
             } catch (Exception e) {
                 enviarError(exchange, 500, "Error procesando torneos: " + e.getMessage());
@@ -570,7 +573,7 @@ public class ServidorPlayMatch {
                             (channel != null && !channel.trim().isEmpty()) ? channel.trim() : "global",
                             content.trim(), null);
                     db.agregarMensajeChat(msg);
-                    enviarRespuestaJson(exchange, 201, "{\"message\":\"Mensaje guardado en SQLite\",\"id\":\"" + msg.getId() + "\"}");
+                    enviarRespuestaJson(exchange, 201, "{\"message\":\"Mensaje guardado en la base de datos\",\"id\":\"" + msg.getId() + "\"}");
                 }
             } catch (Exception e) {
                 enviarError(exchange, 500, "Error procesando chat: " + e.getMessage());
@@ -661,7 +664,7 @@ public class ServidorPlayMatch {
                             null);
                     db.agregarMensajeChat(alert);
 
-                    enviarRespuestaJson(exchange, 201, "{\"message\":\"Invitación guardada en SQLite\",\"requestId\":\"" + req.getId() + "\"}");
+                    enviarRespuestaJson(exchange, 201, "{\"message\":\"Invitación guardada en la base de datos\",\"requestId\":\"" + req.getId() + "\"}");
                 }
             } catch (Exception e) {
                 enviarError(exchange, 500, "Error procesando solicitud: " + e.getMessage());
@@ -693,6 +696,8 @@ public class ServidorPlayMatch {
 
             String mime = obtenerTipoMime(archivo.getName());
             exchange.getResponseHeaders().set("Content-Type", mime);
+            exchange.getResponseHeaders().set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+            exchange.getResponseHeaders().set("Pragma", "no-cache");
             byte[] bytes = Files.readAllBytes(archivo.toPath());
             exchange.sendResponseHeaders(200, bytes.length);
             try (OutputStream os = exchange.getResponseBody()) {

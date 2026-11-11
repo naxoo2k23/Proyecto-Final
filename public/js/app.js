@@ -1,6 +1,6 @@
 /**
  * PlayMatch Frontend Application Logic
- * Conectado a Backend Java 21 REST + SQLite JDBC persistente.
+ * Conectado a Backend Java 21 REST + PostgreSQL (HikariCP) / SQLite JDBC.
  */
 
 // Auth Guard en cliente: exige sesión activa
@@ -18,11 +18,11 @@ if (!storedUser) {
 
 const TAB_META = {
   lfg: { kicker: 'Arena Competitiva', title: 'Buscador de Jugadores (LFG)' },
-  games: { kicker: 'Catálogo SQLite', title: 'Juegos Disponibles' },
+  games: { kicker: 'Catálogo Relacional', title: 'Juegos Disponibles' },
   tournaments: { kicker: 'Competencias Oficiales', title: 'Torneos y Brackets' },
   chat: { kicker: 'Comunicación', title: 'Sala de Coordinación & Invitaciones' },
   profile: { kicker: 'Cuenta Verificada', title: 'Mi Perfil y Credenciales' },
-  database: { kicker: 'Persistencia Relacional 3NF', title: 'Monitor Base de Datos (SQLite)' }
+  database: { kicker: 'Persistencia Relacional 3NF', title: 'Monitor Base de Datos' }
 };
 
 const state = {
@@ -177,7 +177,19 @@ async function loadStats() {
 
     const metaEl = document.getElementById('stat-db-meta');
     if (metaEl) {
-      metaEl.innerText = `${stats.dbEngine || 'SQLite 3'} · ${stats.dbSizeKB || 1} KB persistidos`;
+      metaEl.innerText = `${stats.dbEngine || 'PostgreSQL'} · ${stats.dbSizeKB || 1} KB persistidos`;
+    }
+    const liveLabel = document.getElementById('db-live-label');
+    if (liveLabel) {
+      liveLabel.innerText = stats.isPostgres ? 'PostgreSQL · Activa' : 'SQLite Local · Activa';
+    }
+    const engineTag = document.getElementById('telemetry-engine-tag');
+    if (engineTag) {
+      engineTag.innerText = stats.isPostgres ? 'POSTGRES · POOL' : 'SQLITE · 3NF';
+    }
+    const monEl = document.getElementById('db-monitor-engine-name');
+    if (monEl) {
+      monEl.innerText = stats.dbEngine || 'SQL';
     }
   } catch (err) {
     console.error('Error cargando telemetría DB:', err);
@@ -185,7 +197,7 @@ async function loadStats() {
 }
 
 // =========================================================================
-// 2. CATÁLOGO DE JUEGOS DISPONIBLES (SQLITE)
+// 2. CATÁLOGO DE JUEGOS DISPONIBLES (BASE DE DATOS)
 // =========================================================================
 async function loadGames() {
   try {
@@ -291,7 +303,7 @@ async function loadLfgPlayers() {
   const container = document.getElementById('players-grid');
   if (!container) return;
 
-  container.innerHTML = '<div style="color:var(--text-secondary);grid-column:1/-1;text-align:center;padding:2rem;">Consultando jugadores en SQLite...</div>';
+  container.innerHTML = '<div style="color:var(--text-secondary);grid-column:1/-1;text-align:center;padding:2rem;">Consultando jugadores en la base de datos...</div>';
 
   try {
     const q = (state.currentTab === 'lfg') ? state.globalSearch : '';
@@ -448,7 +460,7 @@ async function renderTournamentBracket(tournamentId) {
         : '';
       bracketContainer.innerHTML = `
         <div style="padding:1.5rem;text-align:center;color:var(--text-muted);font-size:0.85rem;">
-          Llaves pendientes de sorteo (${Number(t.registeredTeamsCount)} de ${Number(t.maxTeams)} equipos inscritos en SQLite).
+          Llaves pendientes de sorteo (${Number(t.registeredTeamsCount)} de ${Number(t.maxTeams)} equipos inscritos).
           ${teamsList}
         </div>
       `;
@@ -502,7 +514,7 @@ function createMatchBoxHtml(m) {
 }
 
 // =========================================================================
-// 5. SALA DE COORDINACIÓN (CHAT MULTICANAL + INVITACIONES SQLITE)
+// 5. SALA DE COORDINACIÓN (CHAT MULTICANAL + INVITACIONES)
 // =========================================================================
 function setupChat() {
   const input = document.getElementById('chat-message-input');
@@ -558,7 +570,7 @@ async function fetchAndRenderChat() {
       msgContainer.innerHTML = `
         <div class="chat-empty-state">
           No hay mensajes guardados en <strong>#${escapeHtml(state.activeChannel)}</strong> todavía.<br>
-          Envía un mensaje para iniciar la coordinación en SQLite.
+          Envía un mensaje para iniciar la coordinación del equipo.
         </div>
       `;
       return;
@@ -724,7 +736,7 @@ function setupProfileForm() {
         storage.setItem('playmatch_user', JSON.stringify(state.currentUser));
       }
 
-      showToast('Perfil, correo y teléfono actualizados en SQLite.');
+      showToast('Perfil, correo y teléfono actualizados en la base de datos.');
       loadLfgPlayers();
       loadGames();
     } catch (err) {
@@ -734,7 +746,7 @@ function setupProfileForm() {
 }
 
 // =========================================================================
-// 7. MONITOR DE BASE DE DATOS SQLITE
+// 7. MONITOR DE BASE DE DATOS
 // =========================================================================
 function setupDatabaseMonitor() {
   let dbDebounce = null;
@@ -788,7 +800,7 @@ async function loadDatabaseExplorer() {
       </tr>
     `).join('');
   } catch (err) {
-    console.error('Error cargando monitor SQLite:', err);
+    console.error('Error cargando monitor de base de datos:', err);
   }
 }
 
@@ -830,7 +842,7 @@ function setupModals() {
       }
       closeModalById('match-modal');
       document.getElementById('match-message-input').value = '';
-      showToast(`Invitación enviada a @${receiver} y guardada en SQLite.`);
+      showToast(`Invitación enviada a @${receiver} y guardada en la base de datos.`);
       loadInvites();
       loadStats();
     } catch (err) {
@@ -854,7 +866,7 @@ function setupModals() {
       }
       closeModalById('join-tournament-modal');
       document.getElementById('join-team-name').value = '';
-      showToast(data.message || 'Equipo inscrito en SQLite.');
+      showToast(data.message || 'Equipo inscrito en la base de datos.');
       loadTournaments();
       loadStats();
     } catch (err) {
@@ -862,7 +874,7 @@ function setupModals() {
     }
   });
 
-  // Registrar nuevo juego disponible en SQLite
+  // Registrar nuevo juego disponible en la base de datos
   document.getElementById('add-game-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const gameData = {
@@ -881,7 +893,7 @@ function setupModals() {
       }
       closeModalById('add-game-modal');
       e.target.reset();
-      showToast(`Juego "${gameData.name}" guardado en SQLite.`);
+      showToast(`Juego "${gameData.name}" guardado en la base de datos.`);
       await loadGames();
       await loadStats();
       switchTab('games');
@@ -911,7 +923,7 @@ function setupModals() {
       }
       closeModalById('add-tournament-modal');
       e.target.reset();
-      showToast('Torneo publicado y guardado en SQLite.');
+      showToast('Torneo publicado y guardado en la base de datos.');
       await loadTournaments();
       await loadStats();
     } catch (err) {

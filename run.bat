@@ -1,7 +1,7 @@
 @echo off
 chcp 65001 > nul
 echo =========================================================
-echo     INICIANDO PLATAFORMA PLAYMATCH (JAVA 21 + SQLITE)    
+echo   INICIANDO PLATAFORMA PLAYMATCH (POSTGRESQL / SQLITE)   
 echo =========================================================
 
 set JAVA_BIN=C:\Users\igvil\.vscode\extensions\redhat.java-1.56.0-win32-x64\jre\21.0.12.1-win32-x86_64\bin
@@ -10,7 +10,7 @@ set JAVA_EXE="%JAVA_BIN%\java.exe"
 
 cd /d "%~dp0"
 
-echo [1/3] Compilando codigo Java con SQLite JDBC...
+echo [1/3] Compilando codigo Java con Drivers PostgreSQL (HikariCP) y SQLite...
 if not exist "bin" mkdir "bin"
 %JAVAC_EXE% -encoding UTF-8 -cp "lib/*" -d bin -sourcepath src src/com/playmatch/ServidorPlayMatch.java
 if %errorlevel% neq 0 (

@@ -1,7 +1,10 @@
 package com.playmatch.repositorio;
 
 import com.playmatch.modelo.*;
+import com.playmatch.util.ConfiguracionDB;
 import com.playmatch.util.SeguridadUtil;
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 
 import java.io.File;
 import java.io.IOException;
@@ -13,40 +16,46 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 /**
- * Repositorio relacional robusto respaldado por SQLite JDBC (java.sql.*).
- * Gestiona conexiones, esquema 3NF, integridad referencial, transacciones atómicas,
- * hashing de contraseñas (PBKDF2) y operaciones CRUD completas para PlayMatch.
+ * Repositorio relacional robusto sobre JDBC estándar (java.sql.*).
+ * Motor principal empresarial: PostgreSQL 14+ gestionado con pool de conexiones HikariCP.
+ * Respaldo automático local: SQLite 3 (WAL + Foreign Keys) cuando no hay servidor Postgres configurado.
  */
 public class GestorBaseDatos {
+    public enum MotorDB {
+        POSTGRESQL,
+        SQLITE
+    }
+
     private static GestorBaseDatos instancia;
 
-    private final String dbPath;
-    private final String jdbcUrl;
-    private final boolean esEnMemoria;
+    private final ConfiguracionDB configDB;
+    private MotorDB motorActivo;
+    private HikariDataSource hikariPool;
+    private String sqlitePath;
+    private String sqliteJdbcUrl;
+    private boolean esSqliteEnMemoria;
+    private String notaEstadoMotor = "";
 
     private static final DateTimeFormatter FMT_HORA = DateTimeFormatter.ofPattern("HH:mm");
 
     static {
         try {
+            Class.forName("org.postgresql.Driver");
+        } catch (ClassNotFoundException ignored) {}
+        try {
             Class.forName("org.sqlite.JDBC");
-        } catch (ClassNotFoundException e) {
-            throw new IllegalStateException("No se encontró el driver SQLite JDBC en el classpath.", e);
-        }
+        } catch (ClassNotFoundException ignored) {}
     }
 
     private GestorBaseDatos() {
-        String customPath = System.getProperty("playmatch.db.path");
-        if (customPath == null || customPath.trim().isEmpty()) {
-            customPath = System.getenv("PLAYMATCH_DB_PATH");
-        }
-        this.dbPath = (customPath != null && !customPath.trim().isEmpty())
-                ? customPath.trim()
-                : "data/playmatch.db";
-        this.esEnMemoria = ":memory:".equalsIgnoreCase(this.dbPath);
-        this.jdbcUrl = "jdbc:sqlite:" + this.dbPath;
+        this.configDB = ConfiguracionDB.cargar();
+        this.sqlitePath = configDB.getSqlitePath();
+        this.esSqliteEnMemoria = ":memory:".equalsIgnoreCase(this.sqlitePath);
+        this.sqliteJdbcUrl = "jdbc:sqlite:" + this.sqlitePath;
 
-        asegurarDirectorioBaseDatos();
-        inicializarBaseDatos();
+        inicializarMotorYEsquema();
+
+        Runtime.getRuntime().addShutdownHook(new Thread(this::cerrarPool));
     }
 
     public static synchronized GestorBaseDatos getInstancia() {
@@ -56,20 +65,108 @@ public class GestorBaseDatos {
         return instancia;
     }
 
+    private void inicializarMotorYEsquema() {
+        if (configDB.isPostgresConfigured()) {
+            try {
+                iniciarPoolPostgreSQL();
+                this.motorActivo = MotorDB.POSTGRESQL;
+                this.notaEstadoMotor = "Pool HikariCP activo (10 conexiones)";
+                inicializarBaseDatos();
+                return;
+            } catch (Exception e) {
+                cerrarPool();
+                if (configDB.isStrictPostgres()) {
+                    throw new IllegalStateException("Fallo conexión obligatoria a PostgreSQL (DB_STRICT=true): " + e.getMessage(), e);
+                }
+                System.err.println("[BaseDatos] Aviso: No se pudo conectar a PostgreSQL (" + e.getMessage() + "). Activando respaldo local SQLite.");
+                this.notaEstadoMotor = "Respaldo SQLite local (PostgreSQL inaccesible)";
+            }
+        } else {
+            this.notaEstadoMotor = "Modo local SQLite (configura .env DATABASE_URL para PostgreSQL)";
+        }
+
+        this.motorActivo = MotorDB.SQLITE;
+        asegurarDirectorioSqlite();
+        try {
+            inicializarBaseDatos();
+        } catch (SQLException e) {
+            throw new IllegalStateException("Error inicializando SQLite en " + sqlitePath, e);
+        }
+    }
+
+    private void iniciarPoolPostgreSQL() throws SQLException {
+        HikariConfig hc = new HikariConfig();
+        hc.setJdbcUrl(configDB.getJdbcUrl());
+        if (configDB.getUsername() != null && !configDB.getUsername().isEmpty()) {
+            hc.setUsername(configDB.getUsername());
+        }
+        if (configDB.getPassword() != null && !configDB.getPassword().isEmpty()) {
+            hc.setPassword(configDB.getPassword());
+        }
+        hc.setMaximumPoolSize(10);
+        hc.setMinimumIdle(2);
+        hc.setConnectionTimeout(8000);
+        hc.setIdleTimeout(300000);
+        hc.setMaxLifetime(900000);
+        hc.setPoolName("PlayMatch-PostgresPool");
+        hc.setConnectionTestQuery("SELECT 1");
+
+        this.hikariPool = new HikariDataSource(hc);
+        try (Connection test = hikariPool.getConnection();
+             Statement st = test.createStatement();
+             ResultSet rs = st.executeQuery("SELECT version()")) {
+            if (rs.next()) {
+                System.out.println("[PostgreSQL] Conectado: " + rs.getString(1));
+            }
+        }
+    }
+
+    public void cerrarPool() {
+        if (hikariPool != null && !hikariPool.isClosed()) {
+            try {
+                hikariPool.close();
+            } catch (Exception ignored) {}
+        }
+    }
+
+    public boolean esPostgreSQL() {
+        return motorActivo == MotorDB.POSTGRESQL;
+    }
+
+    public String getNombreMotor() {
+        return esPostgreSQL() ? "PostgreSQL (HikariCP)" : "SQLite 3 (JDBC)";
+    }
+
+    public String getNotaEstadoMotor() {
+        return notaEstadoMotor;
+    }
+
     public String getRutaBaseDatos() {
-        if (esEnMemoria) return ":memory:";
-        return new File(dbPath).getAbsolutePath();
+        if (esPostgreSQL()) {
+            return configDB.getSafePostgresTarget();
+        }
+        if (esSqliteEnMemoria) return ":memory:";
+        return new File(sqlitePath).getAbsolutePath();
     }
 
     public long getTamanoArchivoBytes() {
-        if (esEnMemoria) return 0L;
-        File f = new File(dbPath);
+        if (esPostgreSQL()) {
+            try (Connection conn = abrirConexion();
+                 Statement st = conn.createStatement();
+                 ResultSet rs = st.executeQuery("SELECT pg_database_size(current_database())")) {
+                return rs.next() ? rs.getLong(1) : 0L;
+            } catch (SQLException e) {
+                return 0L;
+            }
+        }
+        if (esSqliteEnMemoria) return 0L;
+        File f = new File(sqlitePath);
         return f.exists() ? f.length() : 0L;
     }
 
-    private void asegurarDirectorioBaseDatos() {
-        if (esEnMemoria) return;
-        File dbFile = new File(dbPath);
+    private void asegurarDirectorioSqlite() {
+        if (esSqliteEnMemoria) return;
+        File dbFile = new File(sqlitePath);
         File parent = dbFile.getParentFile();
         if (parent != null && !parent.exists()) {
             parent.mkdirs();
@@ -77,7 +174,10 @@ public class GestorBaseDatos {
     }
 
     private Connection abrirConexion() throws SQLException {
-        Connection conn = DriverManager.getConnection(jdbcUrl);
+        if (esPostgreSQL()) {
+            return hikariPool.getConnection();
+        }
+        Connection conn = DriverManager.getConnection(sqliteJdbcUrl);
         try (Statement st = conn.createStatement()) {
             st.execute("PRAGMA foreign_keys = ON;");
             st.execute("PRAGMA busy_timeout = 5000;");
@@ -85,9 +185,9 @@ public class GestorBaseDatos {
         return conn;
     }
 
-    private void inicializarBaseDatos() {
+    private void inicializarBaseDatos() throws SQLException {
         try (Connection conn = abrirConexion()) {
-            if (!esEnMemoria) {
+            if (!esPostgreSQL() && !esSqliteEnMemoria) {
                 try (Statement st = conn.createStatement()) {
                     st.execute("PRAGMA journal_mode = WAL;");
                 }
@@ -95,8 +195,6 @@ public class GestorBaseDatos {
             ejecutarEsquema(conn);
             migrarColumnasSiFaltan(conn);
             sembrarDatosInicialesSiVacio(conn);
-        } catch (SQLException e) {
-            throw new IllegalStateException("Error inicializando la base de datos SQLite en " + dbPath, e);
         }
     }
 
@@ -121,19 +219,42 @@ public class GestorBaseDatos {
     }
 
     private void migrarColumnasSiFaltan(Connection conn) throws SQLException {
-        if (!existeColumna(conn, "player_game_stats", "is_primary")) {
+        if (esPostgreSQL()) {
             try (Statement st = conn.createStatement()) {
-                st.execute("ALTER TABLE player_game_stats ADD COLUMN is_primary INT DEFAULT 1;");
+                st.execute("ALTER TABLE player_game_stats ADD COLUMN IF NOT EXISTS is_primary INT DEFAULT 1;");
+                st.execute("ALTER TABLE games ADD COLUMN IF NOT EXISTS is_active INT DEFAULT 1;");
+                st.execute("ALTER TABLE games ADD COLUMN IF NOT EXISTS sort_order INT DEFAULT 100;");
+            }
+        } else {
+            if (!existeColumnaSqlite(conn, "player_game_stats", "is_primary")) {
+                try (Statement st = conn.createStatement()) {
+                    st.execute("ALTER TABLE player_game_stats ADD COLUMN is_primary INT DEFAULT 1;");
+                }
+            }
+            if (!existeColumnaSqlite(conn, "games", "is_active")) {
+                try (Statement st = conn.createStatement()) {
+                    st.execute("ALTER TABLE games ADD COLUMN is_active INT DEFAULT 1;");
+                }
+            }
+            if (!existeColumnaSqlite(conn, "games", "sort_order")) {
+                try (Statement st = conn.createStatement()) {
+                    st.execute("ALTER TABLE games ADD COLUMN sort_order INT DEFAULT 100;");
+                }
             }
         }
-        if (!existeColumna(conn, "games", "is_active")) {
-            try (Statement st = conn.createStatement()) {
-                st.execute("ALTER TABLE games ADD COLUMN is_active INT DEFAULT 1;");
+        // Asegurar orden base de juegos iniciales
+        try (PreparedStatement ps = conn.prepareStatement("UPDATE games SET sort_order = ? WHERE id = ? AND sort_order = 100")) {
+            String[][] orden = {{"1", "g-val"}, {"2", "g-lol"}, {"3", "g-cs2"}, {"4", "g-rl"}};
+            for (String[] item : orden) {
+                ps.setInt(1, Integer.parseInt(item[0]));
+                ps.setString(2, item[1]);
+                ps.addBatch();
             }
-        }
+            ps.executeBatch();
+        } catch (SQLException ignored) {}
     }
 
-    private boolean existeColumna(Connection conn, String tabla, String columna) throws SQLException {
+    private boolean existeColumnaSqlite(Connection conn, String tabla, String columna) throws SQLException {
         try (Statement st = conn.createStatement();
              ResultSet rs = st.executeQuery("PRAGMA table_info(" + tabla + ");")) {
             while (rs.next()) {
@@ -173,7 +294,7 @@ public class GestorBaseDatos {
                 "id VARCHAR(36) PRIMARY KEY, code VARCHAR(40) NOT NULL UNIQUE, name VARCHAR(100) NOT NULL UNIQUE, " +
                 "category VARCHAR(50) NOT NULL, platform VARCHAR(60) DEFAULT 'PC / Multiplataforma', " +
                 "max_team_size INT DEFAULT 5, description TEXT, accent_color VARCHAR(20) DEFAULT '#8b5cf6', " +
-                "banner_url VARCHAR(255), is_active INT DEFAULT 1, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);" +
+                "banner_url VARCHAR(255), is_active INT DEFAULT 1, sort_order INT DEFAULT 100, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);" +
                 "CREATE TABLE IF NOT EXISTS player_game_stats (" +
                 "id VARCHAR(36) PRIMARY KEY, user_id VARCHAR(36) NOT NULL, game_id VARCHAR(36) NOT NULL, " +
                 "in_game_rank VARCHAR(60) NOT NULL, preferred_role VARCHAR(60) NOT NULL, " +
@@ -254,20 +375,20 @@ public class GestorBaseDatos {
     }
 
     private void sembrarJuegos(Connection conn) throws SQLException {
-        String sql = "INSERT INTO games (id, code, name, category, platform, max_team_size, description, accent_color, banner_url, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)";
+        String sql = "INSERT INTO games (id, code, name, category, platform, max_team_size, description, accent_color, banner_url, is_active, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)";
         Object[][] juegos = {
             {"g-val", "valorant", "Valorant", "Tactical FPS", "PC / Consola", 5,
              "Shooter táctico 5v5 basado en precisión de disparo y habilidades estratégicas de agentes.",
-             "#ff4655", "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=900&q=80"},
+             "#ff4655", "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=900&q=80", 1},
             {"g-lol", "lol", "League of Legends", "MOBA", "PC (LAS)", 5,
              "Arena de batalla multijugador por equipos 5v5 con enfoque en macrogame y objetivos.",
-             "#8b5cf6", "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=900&q=80"},
+             "#8b5cf6", "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=900&q=80", 2},
             {"g-cs2", "cs2", "Counter-Strike 2", "Tactical FPS", "PC (Steam)", 5,
              "Competitivo clásico por rondas de ataque y defensa táctica con economía de equipo.",
-             "#f59e0b", "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=900&q=80"},
+             "#f59e0b", "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=900&q=80", 3},
             {"g-rl", "rocket-league", "Rocket League", "Deportes / Arcade", "Multiplataforma", 3,
              "Fútbol vehicular competitivo 3v3 de alta velocidad, rotaciones y mecánicas aéreas.",
-             "#06b6d4", "https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&w=900&q=80"}
+             "#06b6d4", "https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&w=900&q=80", 4}
         };
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             for (Object[] j : juegos) {
@@ -280,6 +401,7 @@ public class GestorBaseDatos {
                 ps.setString(7, (String) j[6]);
                 ps.setString(8, (String) j[7]);
                 ps.setString(9, (String) j[8]);
+                ps.setInt(10, (Integer) j[9]);
                 ps.addBatch();
             }
             ps.executeBatch();
@@ -457,7 +579,7 @@ public class GestorBaseDatos {
         String sql = "INSERT INTO chat_messages (id, sender_id, sender_username, sender_avatar, channel, content, sent_at) VALUES (?, ?, ?, ?, ?, ?, ?)";
         Object[][] msgs = {
             {"msg-1", "u-1", "Jesus_Villasanti", "https://api.dicebear.com/7.x/bottts/svg?seed=Jesus_Villasanti", "global",
-             "Bienvenidos a PlayMatch. Todas las partidas, registros y torneos quedan persistidos en SQLite.", "19:00"},
+             "Bienvenidos a PlayMatch. Todas las partidas, registros y torneos quedan persistidos en base de datos.", "19:00"},
             {"msg-2", "u-2", "Datrikk", "https://api.dicebear.com/7.x/bottts/svg?seed=Datrikk", "scrims-valorant",
              "Buscamos 1 Duelista o Iniciador rango Ascendente+ para scrim hoy a las 21:00.", "19:15"},
             {"msg-3", "u-3", "dididong", "https://api.dicebear.com/7.x/bottts/svg?seed=dididong", "duo-lol",
@@ -485,7 +607,7 @@ public class GestorBaseDatos {
     public List<Juego> obtenerTodosLosJuegos(boolean soloActivos) {
         StringBuilder sql = new StringBuilder(
             "SELECT g.id, g.code, g.name, g.category, g.platform, g.max_team_size, " +
-            "g.description, g.accent_color, g.banner_url, g.is_active, g.created_at, " +
+            "g.description, g.accent_color, g.banner_url, g.is_active, g.sort_order, g.created_at, " +
             "COUNT(DISTINCT CASE WHEN pgs.is_primary = 1 THEN pgs.user_id END) AS player_count, " +
             "COUNT(DISTINCT t.id) AS tournament_count " +
             "FROM games g " +
@@ -495,7 +617,9 @@ public class GestorBaseDatos {
         if (soloActivos) {
             sql.append("WHERE g.is_active = 1 ");
         }
-        sql.append("GROUP BY g.id ORDER BY g.rowid ASC");
+        sql.append("GROUP BY g.id, g.code, g.name, g.category, g.platform, g.max_team_size, " +
+                   "g.description, g.accent_color, g.banner_url, g.is_active, g.sort_order, g.created_at " +
+                   "ORDER BY g.sort_order ASC, g.created_at ASC, g.name ASC");
 
         List<Juego> lista = new ArrayList<>();
         try (Connection conn = abrirConexion();
@@ -546,7 +670,7 @@ public class GestorBaseDatos {
 
         Juego j = new Juego(UUID.randomUUID().toString(), codeFinal, nombre.trim(), categoria, plataforma,
                 maxTamanoEquipo, descripcion, colorAcento, bannerUrl, true);
-        String sql = "INSERT INTO games (id, code, name, category, platform, max_team_size, description, accent_color, banner_url, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)";
+        String sql = "INSERT INTO games (id, code, name, category, platform, max_team_size, description, accent_color, banner_url, is_active, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 100)";
         try (Connection conn = abrirConexion();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, j.getId());
@@ -578,7 +702,7 @@ public class GestorBaseDatos {
             rs.getString("banner_url"),
             rs.getInt("is_active") == 1
         );
-        j.setFechaCreacion(rs.getString("created_at"));
+        j.setFechaCreacion(limpiarTimestamp(rs.getString("created_at")));
         return j;
     }
 
@@ -722,7 +846,7 @@ public class GestorBaseDatos {
                 throw e;
             }
         } catch (SQLException e) {
-            throw new RuntimeException("Error creando usuario en SQLite", e);
+            throw new RuntimeException("Error creando usuario en base de datos", e);
         }
     }
 
@@ -768,7 +892,7 @@ public class GestorBaseDatos {
             rs.getString("role"),
             rs.getString("avatar_url"),
             rs.getString("telefono"),
-            rs.getString("created_at")
+            limpiarTimestamp(rs.getString("created_at"))
         );
     }
 
@@ -881,7 +1005,11 @@ public class GestorBaseDatos {
                     ps.setString(4, nullSafe(actualizado.getSteamId()));
                     ps.setString(5, nullSafe(actualizado.getRiotId()));
                     ps.setString(6, nullSafe(actualizado.getDiscordTag()));
-                    ps.setString(7, actualizado.getNivelToxicidad());
+                    if (actualizado.getNivelToxicidad() == null) {
+                        ps.setNull(7, Types.VARCHAR);
+                    } else {
+                        ps.setString(7, actualizado.getNivelToxicidad());
+                    }
                     ps.setString(8, u.getId());
                     ps.executeUpdate();
                 }
@@ -896,9 +1024,9 @@ public class GestorBaseDatos {
                     String sqlUpsert = "INSERT INTO player_game_stats (id, user_id, game_id, in_game_rank, preferred_role, playstyle, is_primary) " +
                                        "VALUES (?, ?, ?, ?, ?, ?, 1) " +
                                        "ON CONFLICT(user_id, game_id) DO UPDATE SET " +
-                                       "in_game_rank = excluded.in_game_rank, " +
-                                       "preferred_role = excluded.preferred_role, " +
-                                       "playstyle = excluded.playstyle, " +
+                                       "in_game_rank = EXCLUDED.in_game_rank, " +
+                                       "preferred_role = EXCLUDED.preferred_role, " +
+                                       "playstyle = EXCLUDED.playstyle, " +
                                        "is_primary = 1";
                     try (PreparedStatement psStat = conn.prepareStatement(sqlUpsert)) {
                         psStat.setString(1, UUID.randomUUID().toString());
@@ -1040,7 +1168,7 @@ public class GestorBaseDatos {
                 int actuales = 0;
                 String sqlCheck = "SELECT t.max_teams, COUNT(tr.id) AS enrolled " +
                                   "FROM tournaments t LEFT JOIN tournament_registrations tr ON t.id = tr.tournament_id " +
-                                  "WHERE t.id = ? GROUP BY t.id";
+                                  "WHERE t.id = ? GROUP BY t.id, t.max_teams";
                 try (PreparedStatement ps = conn.prepareStatement(sqlCheck)) {
                     ps.setString(1, torneoId);
                     try (ResultSet rs = ps.executeQuery()) {
@@ -1057,7 +1185,6 @@ public class GestorBaseDatos {
                     return false;
                 }
 
-                // Verificar nombre duplicado dentro del mismo torneo
                 String sqlDup = "SELECT COUNT(*) FROM tournament_registrations tr " +
                                 "JOIN teams tm ON tr.team_id = tm.id " +
                                 "WHERE tr.tournament_id = ? AND LOWER(tm.name) = LOWER(?)";
@@ -1281,7 +1408,7 @@ public class GestorBaseDatos {
                         rs.getString("message"),
                         rs.getString("status")
                     );
-                    s.setFechaCreacion(rs.getString("created_at"));
+                    s.setFechaCreacion(limpiarTimestamp(rs.getString("created_at")));
                     lista.add(s);
                 }
             }
@@ -1332,6 +1459,12 @@ public class GestorBaseDatos {
         } catch (SQLException e) {
             return false;
         }
+    }
+
+    private String limpiarTimestamp(String raw) {
+        if (raw == null) return "";
+        String t = raw.trim();
+        return t.length() > 19 ? t.substring(0, 19) : t;
     }
 
     private String nullSafe(String s) {

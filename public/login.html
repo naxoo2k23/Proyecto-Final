@@ -46,7 +46,7 @@
 
           <h1 class="auth-showcase-title">Compite en escuadra.<br>Cero toxicidad.</h1>
           <p class="auth-showcase-desc">
-            Encuentra compañeros afines, regístrate en torneos locales y coordina tus partidas con persistencia real en base de datos SQLite.
+            Encuentra compañeros afines, regístrate en torneos locales y coordina tus partidas con persistencia relacional en tiempo real.
           </p>
 
           <div class="auth-feature-list">
@@ -64,7 +64,7 @@
                 <svg class="icon" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"></path></svg>
               </div>
               <div>
-                <strong>Base de Datos SQLite Persistente</strong>
+                <strong>Base de Datos PostgreSQL & Pool JDBC</strong>
                 <span>Cuentas, correos, teléfonos, catálogo de juegos y torneos guardados con PBKDF2.</span>
               </div>
             </div>
@@ -82,7 +82,7 @@
 
         <div class="auth-showcase-footer">
           <span class="pulse-dot"></span>
-          <span>Motor Activo · Java 21 SE + SQLite JDBC</span>
+          <span id="auth-db-footer">Motor Activo · Java 21 SE + PostgreSQL / SQLite JDBC</span>
         </div>
       </div>
 
@@ -136,7 +136,9 @@
             <span class="demo-user-pill" onclick="fillDemoLogin('jaeliug', 'password123')">jaeliug</span>
             <span class="demo-user-pill" onclick="fillDemoLogin('pepitogamer67', 'password123')">pepitogamer67</span>
           </div>
-          <div style="margin-top:0.4rem;font-size:0.7rem;">Claves iniciales: <code>admin123</code> (admin) · <code>password123</code> (jugadores)</div>
+          <div style="margin-top:0.45rem;font-size:0.71rem;">
+            Claves: <code>Jesus_Villasanti</code> → <code>admin123</code> · Demás cuentas → <code>password123</code>
+          </div>
         </div>
       </div>
 
@@ -152,6 +154,14 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+      // Mostrar motor JDBC activo en footer
+      API.getHealth().then(h => {
+        const el = document.getElementById('auth-db-footer');
+        if (el && h && h.database && h.database.engine) {
+          el.innerText = `Motor Activo · Java 21 SE + ${h.database.engine}`;
+        }
+      });
+
       // Toggle visibilidad de contraseña
       document.getElementById('toggle-login-pw')?.addEventListener('click', () => {
         const inp = document.getElementById('login-password');
@@ -179,9 +189,9 @@
         if (!username || !password) return;
 
         alertBox.className = 'auth-alert';
-        alertBox.style.display = 'none';
+        alertBox.innerText = '';
         submitBtn.disabled = true;
-        submitBtn.innerText = 'Verificando en SQLite...';
+        submitBtn.innerText = 'Verificando credenciales...';
 
         try {
           const res = await API.loginUser(username, password);

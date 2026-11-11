@@ -46,7 +46,7 @@
 
           <h1 class="auth-showcase-title">Crea tu perfil<br>competitivo hoy.</h1>
           <p class="auth-showcase-desc">
-            Tu cuenta, correo electrónico, número telefónico y juego principal quedan almacenados de forma permanente y segura en SQLite.
+            Tu cuenta, correo electrónico, número telefónico y juego principal quedan almacenados de forma permanente y segura en PostgreSQL.
           </p>
 
           <div class="auth-feature-list">
@@ -73,7 +73,7 @@
 
         <div class="auth-showcase-footer">
           <span class="pulse-dot"></span>
-          <span>Almacenamiento Relacional 3NF · data/playmatch.db</span>
+          <span id="reg-db-footer">Almacenamiento Relacional 3NF · PostgreSQL / JDBC</span>
         </div>
       </div>
 
@@ -137,6 +137,13 @@
   <script src="js/api.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
+      API.getHealth().then(h => {
+        const el = document.getElementById('reg-db-footer');
+        if (el && h && h.database && h.database.engine) {
+          el.innerText = `Almacenamiento Relacional 3NF · ${h.database.engine}`;
+        }
+      });
+
       document.getElementById('toggle-reg-pw')?.addEventListener('click', () => {
         const inp = document.getElementById('reg-password');
         inp.type = inp.type === 'password' ? 'text' : 'password';
@@ -170,9 +177,9 @@
         }
 
         alertBox.className = 'auth-alert';
-        alertBox.style.display = 'none';
+        alertBox.innerText = '';
         submitBtn.disabled = true;
-        submitBtn.innerText = 'Guardando en SQLite...';
+        submitBtn.innerText = 'Guardando registro...';
 
         try {
           const res = await API.registerUser(username, email, password, phone, game);
@@ -193,7 +200,7 @@
             localStorage.setItem('playmatch_remember', 'true');
 
             alertBox.className = 'auth-alert success';
-            alertBox.innerText = `¡Cuenta creada en SQLite, @${res.user.username}! Redirigiendo...`;
+            alertBox.innerText = `¡Cuenta creada correctamente, @${res.user.username}! Redirigiendo...`;
 
             setTimeout(() => {
               window.location.href = 'index.html';

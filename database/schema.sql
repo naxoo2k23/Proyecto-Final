@@ -1,5 +1,5 @@
 -- =====================================================================
--- PLAYMATCH DATABASE SCHEMA (SQLite / PostgreSQL / MySQL Compatible)
+-- PLAYMATCH DATABASE SCHEMA (PostgreSQL 14+ / SQLite 3 Compatible)
 -- Plataforma Web de Emparejamiento Competitivo y Torneos para Gamers
 -- Modelo Relacional en Tercera Forma Normal (3NF)
 -- =====================================================================
@@ -39,13 +39,14 @@ CREATE TABLE IF NOT EXISTS games (
     id VARCHAR(36) PRIMARY KEY,
     code VARCHAR(40) NOT NULL UNIQUE, -- 'valorant', 'lol', 'cs2', 'rocket-league', etc.
     name VARCHAR(100) NOT NULL UNIQUE,
-    category VARCHAR(50) NOT NULL,    -- 'Tactical FPS', 'MOBA', 'Battle Royale', 'Deportes'
+    category VARCHAR(50) NOT NULL,
     platform VARCHAR(60) DEFAULT 'PC / Multiplataforma',
     max_team_size INT DEFAULT 5,
     description TEXT,
     accent_color VARCHAR(20) DEFAULT '#8b5cf6',
     banner_url VARCHAR(255),
     is_active INT DEFAULT 1,
+    sort_order INT DEFAULT 100,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -54,9 +55,10 @@ CREATE TABLE IF NOT EXISTS player_game_stats (
     id VARCHAR(36) PRIMARY KEY,
     user_id VARCHAR(36) NOT NULL,
     game_id VARCHAR(36) NOT NULL,
-    in_game_rank VARCHAR(60) NOT NULL,  -- ej. 'Inmortal 1', 'Diamante IV'
-    preferred_role VARCHAR(60) NOT NULL,-- ej. 'Controlador', 'Support'
-    playstyle VARCHAR(30) DEFAULT 'COMPETITIVE', -- 'CASUAL', 'COMPETITIVE', 'TRYHARD'
+    in_game_rank VARCHAR(60) NOT NULL,
+    preferred_role VARCHAR(60) NOT NULL,
+    playstyle VARCHAR(30) DEFAULT 'COMPETITIVE',
+    is_primary INT DEFAULT 1,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE,
     UNIQUE(user_id, game_id)
@@ -69,7 +71,7 @@ CREATE TABLE IF NOT EXISTS match_requests (
     receiver_id VARCHAR(36) NOT NULL,
     game_id VARCHAR(36) NOT NULL,
     message VARCHAR(255),
-    status VARCHAR(20) DEFAULT 'PENDING', -- 'PENDING', 'ACCEPTED', 'REJECTED'
+    status VARCHAR(20) DEFAULT 'PENDING',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -87,7 +89,7 @@ CREATE TABLE IF NOT EXISTS tournaments (
     format VARCHAR(50) DEFAULT 'SINGLE_ELIMINATION',
     max_teams INT DEFAULT 8,
     start_date VARCHAR(60),
-    status VARCHAR(30) DEFAULT 'OPEN_REGISTRATION', -- 'OPEN_REGISTRATION', 'IN_PROGRESS', 'COMPLETED'
+    status VARCHAR(30) DEFAULT 'OPEN_REGISTRATION',
     rules TEXT,
     banner_url VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -129,7 +131,7 @@ CREATE TABLE IF NOT EXISTS tournament_matches (
     score_team1 INT DEFAULT 0,
     score_team2 INT DEFAULT 0,
     winner_name VARCHAR(100),
-    status VARCHAR(20) DEFAULT 'SCHEDULED', -- 'SCHEDULED', 'IN_PROGRESS', 'FINISHED'
+    status VARCHAR(20) DEFAULT 'SCHEDULED',
     FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE CASCADE
 );
 

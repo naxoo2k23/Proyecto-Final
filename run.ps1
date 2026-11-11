@@ -1,8 +1,8 @@
-# Script de ejecución en PowerShell para PlayMatch (Java + SQLite)
+# Script de ejecución en PowerShell para PlayMatch (PostgreSQL / SQLite)
 $ErrorActionPreference = "Stop"
 
 Write-Host "=========================================================" -ForegroundColor Cyan
-Write-Host "    INICIANDO PLATAFORMA PLAYMATCH (JAVA 21 + SQLITE)    " -ForegroundColor Magenta
+Write-Host "  INICIANDO PLATAFORMA PLAYMATCH (POSTGRESQL / SQLITE)   " -ForegroundColor Magenta
 Write-Host "=========================================================" -ForegroundColor Cyan
 
 $javaBin = "C:\Users\igvil\.vscode\extensions\redhat.java-1.56.0-win32-x64\jre\21.0.12.1-win32-x86_64\bin"
@@ -11,7 +11,7 @@ $java = Join-Path $javaBin "java.exe"
 
 Set-Location $PSScriptRoot
 
-Write-Host "[1/3] Compilando código fuente Java + SQLite JDBC..." -ForegroundColor Yellow
+Write-Host "[1/3] Compilando código Java + Drivers PostgreSQL (HikariCP) y SQLite..." -ForegroundColor Yellow
 if (-not (Test-Path "bin")) { New-Item -ItemType Directory -Path "bin" | Out-Null }
 & $javac -encoding UTF-8 -cp "lib/*" -d "bin" -sourcepath "src" "src/com/playmatch/ServidorPlayMatch.java"
 

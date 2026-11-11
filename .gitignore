@@ -3,8 +3,16 @@ bin/
 Fase_2/bin/
 *.class
 
-# Datos locales temporales
+# Variables de entorno y credenciales de base de datos (NO subir secretos)
+.env
+.env.local
+.env.*.local
+
+# Datos locales temporales (SQLite fallback)
 data/
+*.db
+*.db-wal
+*.db-shm
 *.log
 
 # Archivos de sistema operativo

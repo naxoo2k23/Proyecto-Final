@@ -45,7 +45,7 @@
 
         <div class="db-live-pill" id="db-live-pill">
           <span class="pulse-dot"></span>
-          <span>SQLite JDBC · Activa</span>
+          <span id="db-live-label">Base de Datos · Conectada</span>
         </div>
       </div>
 
@@ -107,7 +107,7 @@
               <button class="nav-tab-btn" data-tab="database">
                 <span class="nav-tab-btn-inner">
                   <svg class="icon" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"></path></svg>
-                  Base de Datos (SQLite)
+                  Base de Datos (SQL)
                 </span>
               </button>
             </li>
@@ -195,9 +195,9 @@
               <div class="telemetry-header">
                 <h3>
                   <svg class="icon" style="color:var(--color-cyan);" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"></path></svg>
-                  Telemetría SQLite
+                  Telemetría DB
                 </h3>
-                <span class="telemetry-engine-tag">3NF · JDBC</span>
+                <span class="telemetry-engine-tag" id="telemetry-engine-tag">3NF · JDBC</span>
               </div>
 
               <div class="telemetry-grid">
@@ -221,7 +221,7 @@
             </div>
 
             <div class="telemetry-footer">
-              <span id="stat-db-meta">Archivo: data/playmatch.db</span>
+              <span id="stat-db-meta">Conectando motor JDBC...</span>
               <a href="#" style="color:var(--color-cyan);text-decoration:none;font-weight:600;" onclick="switchTab('database'); return false;">Explorar BD →</a>
             </div>
           </div>
@@ -256,7 +256,7 @@
           <div class="section-toolbar">
             <div class="section-title">
               <svg class="icon" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"></rect><path d="M6 12h4m-2-2v4m7-2h.01m3 0h.01"></path></svg>
-              Catálogo de Juegos Disponibles (SQLite)
+              Catálogo de Juegos Disponibles
             </div>
             <button class="btn btn-primary btn-sm" id="btn-open-add-game">
               + Registrar Nuevo Juego
@@ -310,7 +310,7 @@
               <div class="chat-main-area">
                 <div class="chat-top-header">
                   <span id="active-channel-title">Canal Activo: # General Nacional</span>
-                  <span style="font-size:0.74rem;color:var(--color-cyan);">Persistido en SQLite</span>
+                  <span style="font-size:0.74rem;color:var(--color-cyan);">Persistido en BD</span>
                 </div>
 
                 <div id="chat-messages-container" class="chat-scroll-messages"></div>
@@ -349,7 +349,7 @@
             <div class="profile-two-col">
               <!-- TARJETA CUENTA (TABLA USERS) -->
               <div class="profile-panel">
-                <h3 style="font-family:var(--font-display);font-size:1rem;margin-bottom:0.25rem;">Datos de Cuenta (SQLite <code>users</code>)</h3>
+                <h3 style="font-family:var(--font-display);font-size:1rem;margin-bottom:0.25rem;">Datos de Cuenta (Tabla <code>users</code>)</h3>
                 <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:1.25rem;">
                   Información de contacto y credenciales verificadas.
                 </p>
@@ -425,19 +425,19 @@
                 </div>
 
                 <div style="margin-top:1.35rem;display:flex;justify-content:flex-end;">
-                  <button type="submit" class="btn btn-primary">Guardar Cambios en SQLite</button>
+                  <button type="submit" class="btn btn-primary">Guardar Cambios</button>
                 </div>
               </div>
             </div>
           </form>
         </section>
 
-        <!-- SECCIÓN 6: MONITOR DE BASE DE DATOS (SQLITE) -->
+        <!-- SECCIÓN 6: MONITOR DE BASE DE DATOS -->
         <section id="section-database" class="app-section" style="display:none;">
           <div class="section-toolbar">
             <div class="section-title">
               <svg class="icon" style="color:var(--color-cyan);" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"></path></svg>
-              Explorador de Datos Persistidos (SQLite)
+              Explorador de Datos Persistidos (<span id="db-monitor-engine-name">SQL</span>)
             </div>
             <div class="filter-group">
               <input type="text" id="db-search-input" class="form-control" style="width:240px;" placeholder="Filtrar usuario, correo o teléfono...">
@@ -527,11 +527,11 @@
     </div>
   </div>
 
-  <!-- MODAL: REGISTRAR NUEVO JUEGO DISPONIBLE EN SQLITE -->
+  <!-- MODAL: REGISTRAR NUEVO JUEGO DISPONIBLE -->
   <div id="add-game-modal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
-        <h3>Registrar Nuevo Juego en SQLite</h3>
+        <h3>Registrar Nuevo Juego</h3>
         <button id="add-game-close-btn" class="btn-close">&times;</button>
       </div>
       <form id="add-game-form">
@@ -600,7 +600,7 @@
           <label class="form-label" for="new-t-rules">Reglas</label>
           <textarea id="new-t-rules" class="form-textarea" rows="2" placeholder="Formato Bo1/Bo3, tolerancia y reglamento..."></textarea>
         </div>
-        <button type="submit" class="btn btn-primary" style="width:100%;">Publicar Torneo en SQLite</button>
+        <button type="submit" class="btn btn-primary" style="width:100%;">Publicar Torneo</button>
       </form>
     </div>
   </div>
