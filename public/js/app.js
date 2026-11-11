@@ -34,6 +34,7 @@ const state = {
   selectedTournamentId: 't-3',
   activeChannel: 'global',
   gamesCache: [],
+  favGamesSelected: new Set(),
   chatInterval: null
 };
 
@@ -45,10 +46,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupProfileForm();
   setupDatabaseMonitor();
 
+  document.getElementById('btn-refresh-ai-rec')?.addEventListener('click', () => loadRecommendations(true));
+
   await Promise.all([
     loadStats(),
     loadGames(),
     loadLfgPlayers(),
+    loadRecommendations(),
     loadTournaments(),
     loadProfileData(),
     loadInvites()
@@ -230,6 +234,32 @@ function syncGameDropdowns(games) {
       sel.value = prev;
     }
   });
+
+  renderFavGamesChips(games);
+}
+
+function renderFavGamesChips(games = state.gamesCache) {
+  const wrap = document.getElementById('prof-fav-games-chips');
+  if (!wrap || !games || games.length === 0) return;
+  wrap.innerHTML = games.map(g => {
+    const code = String(g.code || '').toLowerCase();
+    const isAct = state.favGamesSelected.has(code);
+    return `<button type="button" class="taste-chip ${isAct ? 'active' : ''}" data-value="${escapeHtml(code)}">${escapeHtml(g.name)}</button>`;
+  }).join('');
+
+  wrap.querySelectorAll('.taste-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const code = String(btn.dataset.value || '').toLowerCase();
+      if (!code) return;
+      if (state.favGamesSelected.has(code)) {
+        state.favGamesSelected.delete(code);
+        btn.classList.remove('active');
+      } else {
+        state.favGamesSelected.add(code);
+        btn.classList.add('active');
+      }
+    });
+  });
 }
 
 function renderGamesGrid(games) {
@@ -301,8 +331,105 @@ function renderGamesGrid(games) {
 }
 
 // =========================================================================
-// 3. BUSCADOR DE JUGADORES (LFG)
+// 3. BUSCADOR DE JUGADORES (LFG) Y RECOMENDACIÓN IA (GEMINI)
 // =========================================================================
+async function loadRecommendations(showFeedback = false) {
+  if (!state.currentUser) return;
+  const grid = document.getElementById('ai-recommendations-grid');
+  if (!grid) return;
+
+  try {
+    const data = await API.getRecommendations(state.currentUser.username);
+    if (!data || data.error) return;
+    renderRecommendations(data);
+    if (showFeedback) {
+      showToast(`Recomendaciones recalculadas (${data.engineLabel || 'IA'}).`);
+    }
+  } catch (err) {
+    console.error('Error cargando recomendaciones IA:', err);
+  }
+}
+
+function renderRecommendations(data) {
+  const pill = document.getElementById('ai-engine-pill');
+  const summaryEl = document.getElementById('ai-rec-summary');
+  const warnEl = document.getElementById('ai-low-rating-banner');
+  const gamesWrap = document.getElementById('ai-suggested-games');
+  const grid = document.getElementById('ai-recommendations-grid');
+  if (!grid) return;
+
+  if (pill) {
+    pill.innerText = data.geminiConfigured ? `GEMINI · ${(data.model || '3.8-flash').toUpperCase()}` : 'MOTOR IA · AFINIDAD';
+  }
+  if (summaryEl) {
+    summaryEl.innerText = data.summary || 'Recomendaciones calculadas según tus juegos, gustos y valoración.';
+  }
+  if (warnEl) {
+    if (data.currentUserLowVisibility) {
+      warnEl.style.display = 'block';
+      warnEl.innerText = `Aviso de visibilidad: Tu cuenta tiene ${Number(data.currentUserRating || 0).toFixed(1)}★ (menos de 2.0★), por lo que otros jugadores te verán recomendado con mucha menor frecuencia.`;
+    } else {
+      warnEl.style.display = 'none';
+    }
+  }
+  if (gamesWrap) {
+    const recGames = Array.isArray(data.recommendedGames) ? data.recommendedGames : [];
+    gamesWrap.innerHTML = recGames.map(gName => `<span class="game-code-pill">${escapeHtml(gName)}</span>`).join('');
+  }
+
+  const recs = Array.isArray(data.recommendations) ? data.recommendations : [];
+  if (recs.length === 0) {
+    grid.innerHTML = '<div style="color:var(--text-secondary);font-size:0.84rem;">No hay otros jugadores para recomendar todavía.</div>';
+    return;
+  }
+
+  grid.innerHTML = '';
+  recs.slice(0, 6).forEach(rec => {
+    const isLow = Boolean(rec.lowRatedPenalty || Number(rec.starRating) < 2.0 || rec.visibilityTier === 'REDUCIDA');
+    const card = document.createElement('div');
+    card.className = `ai-rec-card ${isLow ? 'low-rated' : ''}`;
+    const tags = Array.isArray(rec.sharedTags) ? rec.sharedTags.slice(0, 4) : [];
+
+    card.innerHTML = `
+      <div class="ai-rec-card-top">
+        <div class="ai-rec-user-info">
+          <img src="${escapeHtml(rec.avatarUrl)}" alt="${escapeHtml(rec.username)}">
+          <div style="min-width:0;">
+            <strong style="color:#fff;font-size:0.9rem;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">@${escapeHtml(rec.username)}</strong>
+            <span class="star-rating-pill ${isLow ? 'low' : ''}">
+              ${Number(rec.starRating || 0).toFixed(1)} ★ (${Number(rec.ratingCount) || 0}) ${isLow ? '· Baja visibilidad' : ''}
+            </span>
+          </div>
+        </div>
+        <span class="ai-score-badge ${isLow ? 'low' : ''}">
+          ${isLow ? `${Number(rec.matchScore)}% · <2★ Penalizado` : `${Number(rec.matchScore)}% Match IA`}
+        </span>
+      </div>
+
+      <p class="ai-rec-reason">${escapeHtml(rec.reason)}</p>
+
+      <div class="player-chips-row" style="margin-bottom:0.2rem;">
+        <span class="badge-game ${escapeHtml(rec.game)}">${escapeHtml(rec.gameName || rec.game)}</span>
+        ${tags.map(t => `<span class="chip-plat">${escapeHtml(t)}</span>`).join('')}
+      </div>
+
+      <div class="ai-rec-actions">
+        <button type="button" class="btn btn-primary btn-sm btn-ai-invite" data-user="${escapeHtml(rec.username)}" data-game="${escapeHtml(rec.gameName || rec.game)}" style="flex:1;">Invitar</button>
+        <button type="button" class="btn btn-secondary btn-sm btn-ai-rate" data-user="${escapeHtml(rec.username)}">Valorar ★</button>
+      </div>
+    `;
+
+    card.querySelector('.btn-ai-invite')?.addEventListener('click', (e) => {
+      const b = e.currentTarget;
+      openMatchModal(b.dataset.user, b.dataset.game);
+    });
+    card.querySelector('.btn-ai-rate')?.addEventListener('click', (e) => {
+      openRateModal(e.currentTarget.dataset.user);
+    });
+    grid.appendChild(card);
+  });
+}
+
 async function loadLfgPlayers() {
   const container = document.getElementById('players-grid');
   if (!container) return;
@@ -333,6 +460,8 @@ function createPlayerCard(player) {
   const div = document.createElement('div');
   div.className = 'player-card';
   const isCurrentUser = Boolean(state.currentUser && player.username.toLowerCase() === state.currentUser.username.toLowerCase());
+  const stars = Number(player.starRating !== undefined ? player.starRating : 4.8);
+  const isLowRating = stars < 2.0;
 
   div.innerHTML = `
     <div class="player-card-header">
@@ -340,7 +469,12 @@ function createPlayerCard(player) {
       <div>
         <h3>${escapeHtml(player.username)}</h3>
         <p class="player-meta-text">${escapeHtml(player.region || 'Chile')}</p>
-        <span class="badge-game ${escapeHtml(player.game)}">${escapeHtml(player.gameName || player.game)}</span>
+        <div style="display:flex;flex-wrap:wrap;gap:0.35rem;align-items:center;">
+          <span class="badge-game ${escapeHtml(player.game)}">${escapeHtml(player.gameName || player.game)}</span>
+          <span class="star-rating-pill ${isLowRating ? 'low' : ''}">
+            ${stars.toFixed(1)} ★ (${Number(player.ratingCount) || 0})
+          </span>
+        </div>
       </div>
     </div>
 
@@ -358,33 +492,52 @@ function createPlayerCard(player) {
         <strong>${escapeHtml(player.preferredSchedule || 'Noches')}</strong>
       </div>
       <div class="player-data-cell">
-        <span>Conducta</span>
-        <strong style="color:var(--color-success);">${player.toxicLevel === 'ZERO_TOXIC' ? `Zero-Toxic (${player.reputationScore || 100})` : `Amigable (${player.reputationScore || 95})`}</strong>
+        <span>Visibilidad</span>
+        <strong style="color:${isLowRating ? 'var(--color-danger)' : 'var(--color-success)'};">
+          ${isLowRating ? 'Reducida (<2★)' : (player.toxicLevel === 'ZERO_TOXIC' ? 'Zero-Toxic · Alta' : 'Amigable · Normal')}
+        </strong>
       </div>
     </div>
 
     <p class="player-bio-snippet">"${escapeHtml(player.bio || 'Jugador activo buscando formar equipo.')}"</p>
 
     <div class="player-chips-row">
+      ${player.favoriteGenres ? `<span class="chip-plat">${escapeHtml(player.favoriteGenres.split(',')[0])}</span>` : ''}
       ${player.riotId ? `<span class="chip-plat">ID: ${escapeHtml(player.riotId)}</span>` : ''}
-      ${player.discordTag ? `<span class="chip-plat">Discord: ${escapeHtml(player.discordTag)}</span>` : ''}
+      ${(player.discordConnected || player.discordTag) ? `<button type="button" class="chip-discord" data-copy-discord="${escapeHtml(player.discordTag)}">Discord: @${escapeHtml(player.discordTag)}</button>` : ''}
       ${player.steamId ? `<span class="chip-plat">Steam Vinculado</span>` : ''}
     </div>
 
     ${!isCurrentUser ? `
-      <button class="btn btn-primary btn-sm btn-invite-player" data-user="${escapeHtml(player.username)}" data-game="${escapeHtml(player.gameName || player.game)}">
-        Invitar a Partida
-      </button>
+      <div class="player-actions-row">
+        <button class="btn btn-primary btn-sm btn-invite-player" data-user="${escapeHtml(player.username)}" data-game="${escapeHtml(player.gameName || player.game)}">
+          Invitar a Partida
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm btn-rate-player" data-user="${escapeHtml(player.username)}">
+          Valorar ★
+        </button>
+      </div>
     ` : `
       <button class="btn btn-secondary btn-sm btn-edit-own-profile">
-        Editar mi Perfil
+        Editar mi Perfil y Gustos
       </button>
     `}
   `;
 
+  div.querySelector('.chip-discord')?.addEventListener('click', (e) => {
+    const tag = e.currentTarget.dataset.copyDiscord;
+    if (tag && navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(tag).then(() => showToast(`Usuario de Discord @${tag} copiado.`));
+    } else if (tag) {
+      showToast(`Discord conectado: @${tag}`);
+    }
+  });
   div.querySelector('.btn-invite-player')?.addEventListener('click', (e) => {
     const btn = e.currentTarget;
     openMatchModal(btn.dataset.user, btn.dataset.game);
+  });
+  div.querySelector('.btn-rate-player')?.addEventListener('click', (e) => {
+    openRateModal(e.currentTarget.dataset.user);
   });
   div.querySelector('.btn-edit-own-profile')?.addEventListener('click', () => switchTab('profile'));
 
@@ -678,6 +831,114 @@ async function loadInvites() {
 // =========================================================================
 // 6. PERFIL DE USUARIO Y CUENTA REGISTRADA
 // =========================================================================
+function syncProfileSession(userObj) {
+  if (!state.currentUser || !userObj) return;
+  if (userObj.email !== undefined) state.currentUser.email = userObj.email;
+  if (userObj.telefono !== undefined) state.currentUser.telefono = userObj.telefono;
+  if (userObj.phoneVerified !== undefined) state.currentUser.phoneVerified = Boolean(userObj.phoneVerified);
+  if (userObj.avatarUrl) state.currentUser.avatar = userObj.avatarUrl;
+  const storage = localStorage.getItem('playmatch_user') ? localStorage : sessionStorage;
+  storage.setItem('playmatch_user', JSON.stringify(state.currentUser));
+  updateAuthUI();
+}
+
+function renderProfileIdentityBadges(profile = null) {
+  const user = state.currentUser;
+  if (!user) return;
+  const defaultAvatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(user.username)}`;
+  const avatarSrc = user.avatar || defaultAvatar;
+
+  const prevImg = document.getElementById('prof-avatar-preview');
+  if (prevImg) prevImg.src = avatarSrc;
+  const nameEl = document.getElementById('prof-avatar-username');
+  if (nameEl) nameEl.innerText = `@${user.username}`;
+  const urlInp = document.getElementById('prof-avatar-url');
+  if (urlInp && !avatarSrc.startsWith('data:image/')) {
+    urlInp.value = avatarSrc;
+  }
+
+  const verified = Boolean(user.phoneVerified);
+  ['prof-phone-badge', 'prof-phone-status-pill'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.className = `status-pill ${verified ? 'verified' : 'pending'}`;
+    el.innerText = verified ? 'Cuenta Verificada (Privado)' : 'Teléfono sin verificar';
+  });
+
+  if (profile !== null) {
+    const connected = Boolean(profile.discordConnected || (profile.discordTag && profile.discordTag.trim()));
+    const dTag = (profile.discordTag || '').trim();
+    const dId = (profile.discordId || '').trim();
+
+    const profBadge = document.getElementById('prof-discord-badge');
+    if (profBadge) {
+      profBadge.className = `status-pill ${connected ? 'discord' : 'offline'}`;
+      profBadge.innerText = connected ? `Discord: @${dTag}` : 'Discord sin conectar';
+    }
+    const cardBadge = document.getElementById('discord-status-badge');
+    if (cardBadge) {
+      cardBadge.className = `status-pill ${connected ? 'discord' : 'offline'}`;
+      cardBadge.innerText = connected ? `Conectado: @${dTag}` : 'Sin conectar';
+    }
+
+    const dUserInp = document.getElementById('discord-username-input');
+    if (dUserInp) dUserInp.value = dTag;
+    const dIdInp = document.getElementById('discord-id-input');
+    if (dIdInp) dIdInp.value = dId;
+
+    const btnDisconnect = document.getElementById('btn-disconnect-discord');
+    if (btnDisconnect) btnDisconnect.style.display = connected ? 'inline-flex' : 'none';
+    const profileLink = document.getElementById('discord-profile-link');
+    if (profileLink) {
+      if (connected && /^[0-9]{17,22}$/.test(dId)) {
+        profileLink.href = `https://discord.com/users/${encodeURIComponent(dId)}`;
+        profileLink.style.display = 'inline-flex';
+      } else {
+        profileLink.style.display = 'none';
+      }
+    }
+
+    const stars = Number(profile.starRating !== undefined ? profile.starRating : 4.8);
+    const votes = Number(profile.ratingCount || 0);
+    const lowVis = stars < 2.0;
+    const rateBadge = document.getElementById('prof-rating-badge');
+    if (rateBadge) {
+      rateBadge.className = `status-pill ${lowVis ? 'pending' : 'verified'}`;
+      rateBadge.innerText = `${stars.toFixed(1)} ★ (${votes} votos) · ${lowVis ? 'Baja visibilidad IA' : 'Prioridad Alta'}`;
+    }
+    const visNote = document.getElementById('prof-rating-visibility-note');
+    if (visNote) {
+      visNote.innerText = lowVis
+        ? 'Tu valoración está bajo 2.0★: te recomendarán menos en las sugerencias IA hasta subir tu puntuación.'
+        : 'Con 2.0★ o más tu perfil participa normalmente en las recomendaciones por gustos de Gemini IA.';
+    }
+  }
+}
+
+function applyTasteChipsSelection(containerId, csvValues) {
+  const wrap = document.getElementById(containerId);
+  if (!wrap) return;
+  const selected = new Set(
+    String(csvValues || '')
+      .split(',')
+      .map(s => s.trim().toLowerCase())
+      .filter(Boolean)
+  );
+  wrap.querySelectorAll('.taste-chip').forEach(btn => {
+    const v = String(btn.dataset.value || '').trim().toLowerCase();
+    btn.classList.toggle('active', selected.has(v));
+  });
+}
+
+function collectTasteChipsSelection(containerId) {
+  const wrap = document.getElementById(containerId);
+  if (!wrap) return '';
+  return [...wrap.querySelectorAll('.taste-chip.active')]
+    .map(b => String(b.dataset.value || '').trim())
+    .filter(Boolean)
+    .join(',');
+}
+
 async function loadProfileData() {
   if (!state.currentUser) return;
 
@@ -690,20 +951,20 @@ async function loadProfileData() {
   setVal('prof-email', state.currentUser.email || '');
   setVal('prof-phone', state.currentUser.telefono || '');
   setVal('prof-account-role', state.currentUser.role || 'GAMER');
+  renderProfileIdentityBadges(null);
 
   try {
-    const [players, users] = await Promise.all([
+    const [players, meRes] = await Promise.all([
       API.getPlayers('all'),
-      API.getUsers(state.currentUser.username)
+      API.getMyAccount(state.currentUser.username).catch(() => ({ ok: false, data: null }))
     ]);
 
-    const myAccount = users.find(u => u.username.toLowerCase() === state.currentUser.username.toLowerCase());
+    const myAccount = meRes && meRes.ok && meRes.data && meRes.data.user ? meRes.data.user : null;
     if (myAccount) {
       setVal('prof-email', myAccount.email || '');
       setVal('prof-phone', myAccount.telefono || '');
       setVal('prof-account-role', myAccount.role || 'GAMER');
-      state.currentUser.email = myAccount.email;
-      state.currentUser.telefono = myAccount.telefono;
+      syncProfileSession(myAccount);
     }
 
     const myProfile = players.find(p => p.username.toLowerCase() === state.currentUser.username.toLowerCase());
@@ -714,15 +975,201 @@ async function loadProfileData() {
       setVal('prof-rank', myProfile.rank || '');
       setVal('prof-role', myProfile.role || '');
       setVal('prof-riot', myProfile.riotId || '');
-      setVal('prof-discord', myProfile.discordTag || '');
+      setVal('prof-playstyle', myProfile.playstyle || 'COMPETITIVE');
       setVal('prof-schedule', myProfile.preferredSchedule || '');
+
+      state.favGamesSelected = new Set(
+        String(myProfile.favoriteGames || '')
+          .split(',')
+          .map(s => s.trim().toLowerCase())
+          .filter(Boolean)
+      );
+      renderFavGamesChips();
+      applyTasteChipsSelection('prof-fav-genres-chips', myProfile.favoriteGenres || '');
+      applyTasteChipsSelection('prof-play-prefs-chips', myProfile.playPreferences || '');
+      renderProfileIdentityBadges(myProfile);
     }
   } catch (err) {
     console.error('Error cargando perfil:', err);
   }
 }
 
+function resizeImageFileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('No se pudo leer el archivo seleccionado.'));
+    reader.onload = () => {
+      const rawDataUrl = reader.result;
+      if (file.type === 'image/gif' && rawDataUrl.length <= 450000) {
+        resolve(rawDataUrl);
+        return;
+      }
+      const img = new Image();
+      img.onerror = () => reject(new Error('Archivo de imagen inválido o dañado.'));
+      img.onload = () => {
+        const maxSide = 256;
+        const ratio = Math.min(1, maxSide / Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width * ratio));
+        const h = Math.max(1, Math.round(img.height * ratio));
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        const outWebp = canvas.toDataURL('image/webp', 0.88);
+        const out = outWebp.startsWith('data:image/webp') ? outWebp : canvas.toDataURL('image/jpeg', 0.88);
+        resolve(out);
+      };
+      img.src = rawDataUrl;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function persistAvatarChange(avatarUrl) {
+  if (!state.currentUser) return;
+  try {
+    const { ok, data } = await API.updateAvatar(state.currentUser.username, avatarUrl);
+    if (!ok) {
+      showToast((data && data.error) || 'No se pudo actualizar la foto de perfil.', true);
+      return;
+    }
+    if (data && data.user) syncProfileSession(data.user);
+    renderProfileIdentityBadges(null);
+    showToast('Foto de perfil actualizada en tu cuenta, LFG y chat.');
+    loadLfgPlayers();
+    fetchAndRenderChat();
+  } catch (err) {
+    showToast('Error al subir la imagen al servidor.', true);
+  }
+}
+
 function setupProfileForm() {
+  // 1. Subir imagen desde archivo local o URL
+  document.getElementById('prof-avatar-file')?.addEventListener('change', async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    try {
+      const dataUrl = await resizeImageFileToDataUrl(file);
+      const prev = document.getElementById('prof-avatar-preview');
+      if (prev) prev.src = dataUrl;
+      await persistAvatarChange(dataUrl);
+    } catch (err) {
+      showToast(err.message || 'No se pudo procesar la imagen.', true);
+    } finally {
+      e.target.value = '';
+    }
+  });
+
+  document.getElementById('btn-apply-avatar-url')?.addEventListener('click', async () => {
+    const url = document.getElementById('prof-avatar-url')?.value?.trim();
+    if (!url) {
+      showToast('Pega la URL de una imagen antes de aplicar.', true);
+      return;
+    }
+    await persistAvatarChange(url);
+  });
+
+  document.getElementById('btn-reset-avatar')?.addEventListener('click', async () => {
+    if (!state.currentUser) return;
+    const defaultUrl = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(state.currentUser.username)}`;
+    await persistAvatarChange(defaultUrl);
+  });
+
+  // 2. Verificación privada de teléfono
+  document.getElementById('btn-request-phone-code')?.addEventListener('click', async () => {
+    if (!state.currentUser) return;
+    const telefono = document.getElementById('prof-phone')?.value?.trim() || '';
+    try {
+      const { ok, data } = await API.requestPhoneVerification(state.currentUser.username, telefono);
+      if (!ok) {
+        showToast((data && data.error) || 'No se pudo generar el código.', true);
+        return;
+      }
+      const hint = document.getElementById('phone-demo-code-hint');
+      const row = document.getElementById('phone-code-input-row');
+      if (hint && data && data.demoCode) {
+        hint.innerText = `Código demo: ${data.demoCode}`;
+        hint.style.display = 'inline';
+      }
+      if (row) row.style.display = 'flex';
+      showToast('Código generado. Ingrésalo para verificar tu teléfono privado.');
+    } catch (err) {
+      showToast('Error al solicitar verificación de teléfono.', true);
+    }
+  });
+
+  document.getElementById('btn-verify-phone-code')?.addEventListener('click', async () => {
+    if (!state.currentUser) return;
+    const code = document.getElementById('prof-phone-code')?.value?.trim() || '';
+    if (!code) {
+      showToast('Ingresa el código de 6 dígitos.', true);
+      return;
+    }
+    try {
+      const { ok, data } = await API.verifyPhoneCode(state.currentUser.username, code);
+      if (!ok) {
+        showToast((data && data.error) || 'Código incorrecto.', true);
+        return;
+      }
+      if (data && data.user) syncProfileSession(data.user);
+      const hint = document.getElementById('phone-demo-code-hint');
+      const row = document.getElementById('phone-code-input-row');
+      const inp = document.getElementById('prof-phone-code');
+      if (hint) hint.style.display = 'none';
+      if (row) row.style.display = 'none';
+      if (inp) inp.value = '';
+      renderProfileIdentityBadges(null);
+      showToast('Cuenta verificada mediante tu teléfono privado.');
+      if (state.currentTab === 'database') loadDatabaseExplorer();
+    } catch (err) {
+      showToast('Error al confirmar el código.', true);
+    }
+  });
+
+  // 3. Conexión dedicada con Discord
+  document.getElementById('btn-connect-discord')?.addEventListener('click', async () => {
+    if (!state.currentUser) return;
+    const discordTag = document.getElementById('discord-username-input')?.value?.trim() || '';
+    const discordId = document.getElementById('discord-id-input')?.value?.trim() || '';
+    try {
+      const { ok, data } = await API.connectDiscord(state.currentUser.username, discordTag, discordId);
+      if (!ok) {
+        showToast((data && data.error) || 'No se pudo conectar la cuenta de Discord.', true);
+        return;
+      }
+      if (data && data.profile) renderProfileIdentityBadges(data.profile);
+      showToast('Cuenta de Discord conectada a tu perfil.');
+      loadLfgPlayers();
+    } catch (err) {
+      showToast('Error conectando con Discord.', true);
+    }
+  });
+
+  document.getElementById('btn-disconnect-discord')?.addEventListener('click', async () => {
+    if (!state.currentUser) return;
+    try {
+      const { ok, data } = await API.disconnectDiscord(state.currentUser.username);
+      if (!ok) {
+        showToast((data && data.error) || 'No se pudo desconectar Discord.', true);
+        return;
+      }
+      if (data && data.profile) renderProfileIdentityBadges(data.profile);
+      showToast('Cuenta de Discord desconectada.');
+      loadLfgPlayers();
+    } catch (err) {
+      showToast('Error desconectando Discord.', true);
+    }
+  });
+
+  // 4. Chips interactivos de gustos (géneros y preferencias sociales)
+  ['prof-fav-genres-chips', 'prof-play-prefs-chips'].forEach(containerId => {
+    document.getElementById(containerId)?.querySelectorAll('.taste-chip').forEach(btn => {
+      btn.addEventListener('click', () => btn.classList.toggle('active'));
+    });
+  });
+
+  // 5. Guardar cambios generales de cuenta privada, gustos y perfil competitivo
   document.getElementById('profile-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!state.currentUser) return;
@@ -737,8 +1184,11 @@ function setupProfileForm() {
       rank: document.getElementById('prof-rank').value.trim(),
       role: document.getElementById('prof-role').value.trim(),
       riotId: document.getElementById('prof-riot').value.trim(),
-      discordTag: document.getElementById('prof-discord').value.trim(),
-      preferredSchedule: document.getElementById('prof-schedule').value.trim()
+      playstyle: document.getElementById('prof-playstyle')?.value || 'COMPETITIVE',
+      preferredSchedule: document.getElementById('prof-schedule').value.trim(),
+      favoriteGames: [...state.favGamesSelected].join(','),
+      favoriteGenres: collectTasteChipsSelection('prof-fav-genres-chips'),
+      playPreferences: collectTasteChipsSelection('prof-play-prefs-chips')
     };
 
     try {
@@ -748,15 +1198,12 @@ function setupProfileForm() {
         return;
       }
 
-      if (data && data.user) {
-        state.currentUser.email = data.user.email;
-        state.currentUser.telefono = data.user.telefono;
-        const storage = localStorage.getItem('playmatch_user') ? localStorage : sessionStorage;
-        storage.setItem('playmatch_user', JSON.stringify(state.currentUser));
-      }
+      if (data && data.user) syncProfileSession(data.user);
+      if (data && data.profile) renderProfileIdentityBadges(data.profile);
 
-      showToast('Perfil, correo y teléfono actualizados en la base de datos.');
+      showToast('Perfil, gustos y datos privados guardados; recalculando IA...');
       loadLfgPlayers();
+      loadRecommendations();
       loadGames();
     } catch (err) {
       showToast('Error al conectar con el servidor Java.', true);
@@ -794,15 +1241,19 @@ async function loadDatabaseExplorer() {
 
     usersTbody.innerHTML = users.length === 0
       ? '<tr><td colspan="5" style="text-align:center;">Sin usuarios coincidentes.</td></tr>'
-      : users.map(u => `
+      : users.map(u => {
+        const badgeClass = u.phoneVerified ? 'verified' : 'pending';
+        const badgeText = u.phoneVerified ? 'Privado · Verificado' : (u.hasPhone ? 'Privado · Pendiente' : 'Privado · Sin número');
+        return `
         <tr>
           <td><strong style="color:#fff;">@${escapeHtml(u.username)}</strong></td>
           <td>${escapeHtml(u.email)}</td>
-          <td>${escapeHtml(u.telefono || 'Sin registro')}</td>
+          <td><span class="status-pill ${badgeClass}">${badgeText}</span></td>
           <td><span class="role-pill ${escapeHtml(u.role)}">${escapeHtml(u.role)}</span></td>
           <td style="font-size:0.76rem;color:var(--text-muted);">${escapeHtml(u.createdAt || 'Reciente')}</td>
         </tr>
-      `).join('');
+      `;
+      }).join('');
 
     const gCountLabel = document.getElementById('db-games-count-label');
     if (gCountLabel) gCountLabel.innerText = `${games.length} juegos`;
@@ -828,9 +1279,44 @@ async function loadDatabaseExplorer() {
 // =========================================================================
 function setupModals() {
   document.getElementById('modal-close-btn')?.addEventListener('click', () => closeModalById('match-modal'));
+  document.getElementById('rate-modal-close-btn')?.addEventListener('click', () => closeModalById('rate-modal'));
   document.getElementById('tournament-modal-close-btn')?.addEventListener('click', () => closeModalById('join-tournament-modal'));
   document.getElementById('add-game-close-btn')?.addEventListener('click', () => closeModalById('add-game-modal'));
   document.getElementById('add-tournament-close-btn')?.addEventListener('click', () => closeModalById('add-tournament-modal'));
+
+  document.querySelectorAll('#rate-stars-picker .rate-star-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const stars = btn.dataset.stars || '5';
+      const inp = document.getElementById('rate-stars-value');
+      if (inp) inp.value = stars;
+      document.querySelectorAll('#rate-stars-picker .rate-star-btn').forEach(b => {
+        b.classList.toggle('active', Number(b.dataset.stars) <= Number(stars));
+      });
+    });
+  });
+
+  document.getElementById('rate-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!state.currentUser) return;
+
+    const ratedUsername = document.getElementById('rate-target-user').value;
+    const stars = Number(document.getElementById('rate-stars-value').value || 5);
+    const comment = document.getElementById('rate-comment-input').value.trim();
+
+    try {
+      const { ok, data } = await API.ratePlayer(state.currentUser.username, ratedUsername, stars, comment);
+      if (!ok) {
+        showToast((data && data.error) || 'No se pudo guardar la valoración.', true);
+        return;
+      }
+      closeModalById('rate-modal');
+      document.getElementById('rate-comment-input').value = '';
+      showToast(`Valoración de ${stars}★ guardada para @${ratedUsername}.`);
+      await Promise.all([loadLfgPlayers(), loadRecommendations()]);
+    } catch (err) {
+      showToast('Error al enviar la valoración.', true);
+    }
+  });
 
   document.getElementById('btn-logout')?.addEventListener('click', () => {
     localStorage.removeItem('playmatch_user');
@@ -970,6 +1456,16 @@ function openMatchModal(username, game) {
   }
   document.getElementById('modal-title').innerText = `Invitar a @${username} (${selectedLabel})`;
   document.getElementById('match-modal').style.display = 'flex';
+}
+
+function openRateModal(username) {
+  document.getElementById('rate-target-user').value = username;
+  document.getElementById('rate-stars-value').value = '5';
+  document.querySelectorAll('#rate-stars-picker .rate-star-btn').forEach(b => {
+    b.classList.toggle('active', Number(b.dataset.stars) <= 5);
+  });
+  document.getElementById('rate-modal-title').innerText = `Valorar a @${username}`;
+  document.getElementById('rate-modal').style.display = 'flex';
 }
 
 function openJoinTournamentModal(tournamentId, tournamentTitle) {

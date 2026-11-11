@@ -1,11 +1,14 @@
 package com.playmatch.util;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
- * Utilidad ligera y sin dependencias externas para parseo y serialización de JSON simple.
- * Soporta comillas escapadas, barras invertidas, números, booleanos y cadenas con comas o dos puntos.
+ * Utilidad ligera y sin dependencias externas para parseo y serialización de JSON simple y anidado.
+ * Soporta comillas escapadas, barras invertidas, objetos/arreglos anidados, números, booleanos y cadenas.
  */
 public class JsonUtils {
 
@@ -128,5 +131,154 @@ public class JsonUtils {
             }
         }
         return out.toString();
+    }
+
+    public static Object parseJson(String json) {
+        if (json == null || json.trim().isEmpty()) return null;
+        return new RecursiveParser(json).parseValue();
+    }
+
+    @SuppressWarnings("unchecked")
+    public static Map<String, Object> asMap(Object obj) {
+        return obj instanceof Map ? (Map<String, Object>) obj : null;
+    }
+
+    @SuppressWarnings("unchecked")
+    public static List<Object> asList(Object obj) {
+        return obj instanceof List ? (List<Object>) obj : null;
+    }
+
+    public static String asString(Object obj) {
+        return obj != null ? String.valueOf(obj) : "";
+    }
+
+    public static double asDouble(Object obj, double fallback) {
+        if (obj instanceof Number) return ((Number) obj).doubleValue();
+        if (obj instanceof String) {
+            try { return Double.parseDouble(((String) obj).trim()); } catch (NumberFormatException ignored) {}
+        }
+        return fallback;
+    }
+
+    public static int asInt(Object obj, int fallback) {
+        return (int) Math.round(asDouble(obj, fallback));
+    }
+
+    private static final class RecursiveParser {
+        private final String s;
+        private int pos = 0;
+
+        RecursiveParser(String s) {
+            this.s = s;
+        }
+
+        Object parseValue() {
+            skipWs();
+            if (pos >= s.length()) return null;
+            char c = s.charAt(pos);
+            if (c == '{') return parseObject();
+            if (c == '[') return parseArray();
+            if (c == '"') return parseString();
+            if (c == 't' && s.startsWith("true", pos)) { pos += 4; return Boolean.TRUE; }
+            if (c == 'f' && s.startsWith("false", pos)) { pos += 5; return Boolean.FALSE; }
+            if (c == 'n' && s.startsWith("null", pos)) { pos += 4; return null; }
+            return parseNumber();
+        }
+
+        private Map<String, Object> parseObject() {
+            Map<String, Object> map = new LinkedHashMap<>();
+            pos++; // '{'
+            skipWs();
+            if (pos < s.length() && s.charAt(pos) == '}') { pos++; return map; }
+            while (pos < s.length()) {
+                skipWs();
+                if (pos >= s.length() || s.charAt(pos) != '"') break;
+                String key = parseString();
+                skipWs();
+                if (pos < s.length() && s.charAt(pos) == ':') pos++;
+                Object val = parseValue();
+                map.put(key, val);
+                skipWs();
+                if (pos < s.length() && s.charAt(pos) == ',') { pos++; continue; }
+                if (pos < s.length() && s.charAt(pos) == '}') { pos++; break; }
+                break;
+            }
+            return map;
+        }
+
+        private List<Object> parseArray() {
+            List<Object> list = new ArrayList<>();
+            pos++; // '['
+            skipWs();
+            if (pos < s.length() && s.charAt(pos) == ']') { pos++; return list; }
+            while (pos < s.length()) {
+                list.add(parseValue());
+                skipWs();
+                if (pos < s.length() && s.charAt(pos) == ',') { pos++; continue; }
+                if (pos < s.length() && s.charAt(pos) == ']') { pos++; break; }
+                break;
+            }
+            return list;
+        }
+
+        private String parseString() {
+            pos++; // opening '"'
+            StringBuilder sb = new StringBuilder();
+            while (pos < s.length()) {
+                char c = s.charAt(pos++);
+                if (c == '"') break;
+                if (c == '\\' && pos < s.length()) {
+                    char esc = s.charAt(pos++);
+                    switch (esc) {
+                        case '"': sb.append('"'); break;
+                        case '\\': sb.append('\\'); break;
+                        case '/': sb.append('/'); break;
+                        case 'b': sb.append('\b'); break;
+                        case 'f': sb.append('\f'); break;
+                        case 'n': sb.append('\n'); break;
+                        case 'r': sb.append('\r'); break;
+                        case 't': sb.append('\t'); break;
+                        case 'u':
+                            if (pos + 4 <= s.length()) {
+                                String hex = s.substring(pos, pos + 4);
+                                try {
+                                    sb.append((char) Integer.parseInt(hex, 16));
+                                } catch (NumberFormatException ignored) {}
+                                pos += 4;
+                            }
+                            break;
+                        default: sb.append(esc); break;
+                    }
+                } else {
+                    sb.append(c);
+                }
+            }
+            return sb.toString();
+        }
+
+        private Number parseNumber() {
+            int start = pos;
+            while (pos < s.length()) {
+                char c = s.charAt(pos);
+                if ((c >= '0' && c <= '9') || c == '-' || c == '+' || c == '.' || c == 'e' || c == 'E') {
+                    pos++;
+                } else {
+                    break;
+                }
+            }
+            String num = s.substring(start, pos);
+            try {
+                if (num.indexOf('.') >= 0 || num.indexOf('e') >= 0 || num.indexOf('E') >= 0) {
+                    return Double.parseDouble(num);
+                }
+                return Long.parseLong(num);
+            } catch (NumberFormatException e) {
+                return 0;
+            }
+        }
+
+        private void skipWs() {
+            while (pos < s.length() && Character.isWhitespace(s.charAt(pos))) pos++;
+        }
     }
 }

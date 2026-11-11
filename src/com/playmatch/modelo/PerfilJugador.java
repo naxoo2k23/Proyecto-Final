@@ -13,6 +13,13 @@ public class PerfilJugador {
     private String steamId;
     private String riotId;
     private String discordTag;
+    private String discordId;
+    private boolean discordConnected;
+    private String favoriteGames;
+    private String favoriteGenres;
+    private String playPreferences;
+    private double starRating = 4.8;
+    private int ratingCount = 0;
     private String juego;          // "valorant", "lol", "cs2"
     private String nombreJuego;    // "Valorant", "League of Legends", "CS2"
     private String rango;          // ej. "Inmortal 1", "Diamante IV"
@@ -70,6 +77,20 @@ public class PerfilJugador {
     public void setRiotId(String riotId) { this.riotId = riotId; }
     public String getDiscordTag() { return discordTag; }
     public void setDiscordTag(String discordTag) { this.discordTag = discordTag; }
+    public String getDiscordId() { return discordId; }
+    public void setDiscordId(String discordId) { this.discordId = discordId; }
+    public boolean isDiscordConnected() { return discordConnected; }
+    public void setDiscordConnected(boolean discordConnected) { this.discordConnected = discordConnected; }
+    public String getFavoriteGames() { return favoriteGames; }
+    public void setFavoriteGames(String favoriteGames) { this.favoriteGames = favoriteGames; }
+    public String getFavoriteGenres() { return favoriteGenres; }
+    public void setFavoriteGenres(String favoriteGenres) { this.favoriteGenres = favoriteGenres; }
+    public String getPlayPreferences() { return playPreferences; }
+    public void setPlayPreferences(String playPreferences) { this.playPreferences = playPreferences; }
+    public double getStarRating() { return starRating; }
+    public void setStarRating(double starRating) { this.starRating = starRating; }
+    public int getRatingCount() { return ratingCount; }
+    public void setRatingCount(int ratingCount) { this.ratingCount = ratingCount; }
     public String getJuego() { return juego; }
     public void setJuego(String juego) { this.juego = juego; }
     public String getNombreJuego() { return nombreJuego; }

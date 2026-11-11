@@ -198,9 +198,11 @@
           if (res && res.user) {
             const userSession = {
               id: res.user.id,
+              token: res.token || '',
               username: res.user.username,
               email: res.user.email,
               telefono: res.user.telefono || '',
+              phoneVerified: Boolean(res.user.phoneVerified),
               role: res.user.role || 'GAMER',
               avatar: res.user.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${res.user.username}`,
               reputation: (res.profile && res.profile.reputationScore) || 100,

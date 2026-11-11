@@ -5,16 +5,16 @@
 
 -- 1. JUEGOS DISPONIBLES (10 títulos iniciales)
 INSERT INTO games (id, code, name, category, platform, max_team_size, description, accent_color, banner_url, is_active, sort_order) VALUES
-('g-val', 'valorant', 'Valorant', 'Tactical FPS', 'PC / Consola', 5, 'Shooter táctico 5v5 basado en precisión de disparo y habilidades de agentes.', '#ff4655', 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=900&q=80', 1, 1),
-('g-lol', 'lol', 'League of Legends', 'MOBA', 'PC (LAS)', 5, 'Arena de batalla multijugador por equipos estratégicos 5v5 en la Grieta del Invocador.', '#8b5cf6', 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=900&q=80', 1, 2),
-('g-cs2', 'cs2', 'Counter-Strike 2', 'Tactical FPS', 'PC (Steam)', 5, 'Competitivo clásico de ataque y defensa táctica con servidores de alta precisión.', '#f59e0b', 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=900&q=80', 1, 3),
-('g-rl', 'rocket-league', 'Rocket League', 'Deportes / Arcade', 'Multiplataforma', 3, 'Fútbol vehicular de alta velocidad 3v3 competitivo con juego aéreo y rotaciones.', '#06b6d4', 'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&w=900&q=80', 1, 4),
-('g-mr', 'marvel-rivals', 'Marvel Rivals', 'Hero Shooter', 'PC / Consola', 6, 'Hero shooter competitivo 6v6 por equipos con sinergias de habilidades entre superhéroes y villanos.', '#e11d48', '/assets/games/marvel-rivals.svg', 1, 5),
-('g-ow', 'overwatch', 'Overwatch 2', 'Hero Shooter', 'Multiplataforma', 5, 'Combate por objetivos 5v5 con roles de Tanque, Daño y Apoyo enfocado en coordinación de equipo.', '#f97316', '/assets/games/overwatch.svg', 1, 6),
-('g-apex', 'apex-legends', 'Apex Legends', 'Battle Royale', 'Multiplataforma', 3, 'Battle Royale táctico en tríos y dúos con leyendas de movilidad rápida y juego en escuadra.', '#dc2626', '/assets/games/apex-legends.svg', 1, 7),
-('g-fn', 'fortnite', 'Fortnite', 'Battle Royale', 'Multiplataforma', 4, 'Dúos, tríos y escuadrones competitivos en Batalla Campal, Cero Construcción y torneos Arena.', '#3b82f6', '/assets/games/fortnite.svg', 1, 8),
-('g-rbx', 'roblox', 'Roblox', 'Sandbox / Multijuego', 'Multiplataforma', 4, 'Plataforma social multijuego para coordinar partidas competitivas, experiencias y salas privadas.', '#0ea5e9', '/assets/games/roblox.svg', 1, 9),
-('g-mc', 'minecraft', 'Minecraft', 'Supervivencia / PvP', 'Multiplataforma', 4, 'Supervivencia cooperativa, Realms, SkyWars, BedWars y servidores competitivos en equipo.', '#22c55e', '/assets/games/minecraft.svg', 1, 10)
+('g-val', 'valorant', 'Valorant', 'Tactical FPS', 'PC / Consola', 5, 'Shooter táctico 5v5 basado en precisión de disparo y habilidades de agentes.', '#ff4655', '/assets/games/valorant.jpg', 1, 1),
+('g-lol', 'lol', 'League of Legends', 'MOBA', 'PC (LAS)', 5, 'Arena de batalla multijugador por equipos estratégicos 5v5 en la Grieta del Invocador.', '#8b5cf6', '/assets/games/lol.jpg', 1, 2),
+('g-cs2', 'cs2', 'Counter-Strike 2', 'Tactical FPS', 'PC (Steam)', 5, 'Competitivo clásico de ataque y defensa táctica con servidores de alta precisión.', '#f59e0b', '/assets/games/cs2.jpg', 1, 3),
+('g-rl', 'rocket-league', 'Rocket League', 'Deportes / Arcade', 'Multiplataforma', 3, 'Fútbol vehicular de alta velocidad 3v3 competitivo con juego aéreo y rotaciones.', '#06b6d4', '/assets/games/rocket-league.jpg', 1, 4),
+('g-mr', 'marvel-rivals', 'Marvel Rivals', 'Hero Shooter', 'PC / Consola', 6, 'Hero shooter competitivo 6v6 por equipos con sinergias de habilidades entre superhéroes y villanos.', '#e11d48', '/assets/games/marvel-rivals.jpg', 1, 5),
+('g-ow', 'overwatch', 'Overwatch 2', 'Hero Shooter', 'Multiplataforma', 5, 'Combate por objetivos 5v5 con roles de Tanque, Daño y Apoyo enfocado en coordinación de equipo.', '#f97316', '/assets/games/overwatch.jpg', 1, 6),
+('g-apex', 'apex-legends', 'Apex Legends', 'Battle Royale', 'Multiplataforma', 3, 'Battle Royale táctico en tríos y dúos con leyendas de movilidad rápida y juego en escuadra.', '#dc2626', '/assets/games/apex-legends.jpg', 1, 7),
+('g-fn', 'fortnite', 'Fortnite', 'Battle Royale', 'Multiplataforma', 4, 'Dúos, tríos y escuadrones competitivos en Batalla Campal, Cero Construcción y torneos Arena.', '#3b82f6', '/assets/games/fortnite.jpg', 1, 8),
+('g-rbx', 'roblox', 'Roblox', 'Sandbox / Multijuego', 'Multiplataforma', 4, 'Plataforma social multijuego para coordinar partidas competitivas, experiencias y salas privadas.', '#0ea5e9', '/assets/games/roblox.jpg', 1, 9),
+('g-mc', 'minecraft', 'Minecraft', 'Supervivencia / PvP', 'Multiplataforma', 4, 'Supervivencia cooperativa, Realms, SkyWars, BedWars y servidores competitivos en equipo.', '#22c55e', '/assets/games/minecraft.jpg', 1, 10)
 ON CONFLICT DO NOTHING;
 
 -- 2. USUARIOS INICIALES (Las contraseñas en runtime usan PBKDF2WithHmacSHA256)

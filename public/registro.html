@@ -97,7 +97,7 @@
 
           <div class="form-grid-2" style="margin-bottom:0.25rem;">
             <div class="form-group">
-              <label class="form-label" for="reg-phone">Número de Teléfono</label>
+              <label class="form-label" for="reg-phone">Teléfono (Privado · Verificación)</label>
               <input type="tel" id="reg-phone" class="form-control" placeholder="+56 9 1234 5678" required autocomplete="tel">
             </div>
             <div class="form-group">
@@ -186,9 +186,11 @@
           if (res && res.user) {
             const userSession = {
               id: res.user.id,
+              token: res.token || '',
               username: res.user.username,
               email: res.user.email,
               telefono: res.user.telefono || phone,
+              phoneVerified: Boolean(res.user.phoneVerified),
               role: res.user.role || 'GAMER',
               avatar: res.user.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${res.user.username}`,
               reputation: (res.profile && res.profile.reputationScore) || 100,

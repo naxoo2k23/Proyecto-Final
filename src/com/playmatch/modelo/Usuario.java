@@ -10,23 +10,29 @@ public class Usuario {
     private String rol;
     private String avatarUrl;
     private String telefono;
+    private boolean telefonoVerificado;
     private String fechaCreacion;
 
     public Usuario() {
         this.id = UUID.randomUUID().toString();
         this.rol = "GAMER";
         this.telefono = "";
+        this.telefonoVerificado = false;
     }
 
     public Usuario(String id, String username, String email, String passwordHash, String rol, String avatarUrl) {
-        this(id, username, email, passwordHash, rol, avatarUrl, "", "");
+        this(id, username, email, passwordHash, rol, avatarUrl, "", false, "");
     }
 
     public Usuario(String id, String username, String email, String passwordHash, String rol, String avatarUrl, String telefono) {
-        this(id, username, email, passwordHash, rol, avatarUrl, telefono, "");
+        this(id, username, email, passwordHash, rol, avatarUrl, telefono, false, "");
     }
 
     public Usuario(String id, String username, String email, String passwordHash, String rol, String avatarUrl, String telefono, String fechaCreacion) {
+        this(id, username, email, passwordHash, rol, avatarUrl, telefono, false, fechaCreacion);
+    }
+
+    public Usuario(String id, String username, String email, String passwordHash, String rol, String avatarUrl, String telefono, boolean telefonoVerificado, String fechaCreacion) {
         this.id = id != null ? id : UUID.randomUUID().toString();
         this.username = username;
         this.email = email;
@@ -34,6 +40,7 @@ public class Usuario {
         this.rol = rol != null ? rol : "GAMER";
         this.avatarUrl = avatarUrl != null ? avatarUrl : "https://api.dicebear.com/7.x/bottts/svg?seed=" + username;
         this.telefono = telefono != null ? telefono : "";
+        this.telefonoVerificado = telefonoVerificado;
         this.fechaCreacion = fechaCreacion != null ? fechaCreacion : "";
     }
 
@@ -57,6 +64,9 @@ public class Usuario {
 
     public String getTelefono() { return telefono; }
     public void setTelefono(String telefono) { this.telefono = telefono; }
+
+    public boolean isTelefonoVerificado() { return telefonoVerificado; }
+    public void setTelefonoVerificado(boolean telefonoVerificado) { this.telefonoVerificado = telefonoVerificado; }
 
     public String getFechaCreacion() { return fechaCreacion; }
     public void setFechaCreacion(String fechaCreacion) { this.fechaCreacion = fechaCreacion; }

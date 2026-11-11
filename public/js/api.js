@@ -4,8 +4,24 @@
 const API = {
   baseUrl: '',
 
+  getAuthToken() {
+    try {
+      const saved = localStorage.getItem('playmatch_user') || sessionStorage.getItem('playmatch_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed && parsed.token ? parsed.token : '';
+      }
+    } catch (e) {}
+    return '';
+  },
+
   async requestJson(url, options = {}) {
-    const res = await fetch(`${this.baseUrl}${url}`, options);
+    const token = this.getAuthToken();
+    const headers = Object.assign({}, options.headers || {});
+    if (token && !headers.Authorization) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    const res = await fetch(`${this.baseUrl}${url}`, Object.assign({}, options, { headers }));
     let data = null;
     try {
       data = await res.json();
@@ -60,6 +76,50 @@ const API = {
     });
   },
 
+  async getMyAccount(username) {
+    return this.requestJson(`/api/users/me?username=${encodeURIComponent(username)}`);
+  },
+
+  async updateAvatar(username, avatarUrl) {
+    return this.requestJson('/api/users/avatar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, avatarUrl })
+    });
+  },
+
+  async requestPhoneVerification(username, telefono) {
+    return this.requestJson('/api/users/phone/request-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, telefono })
+    });
+  },
+
+  async verifyPhoneCode(username, code) {
+    return this.requestJson('/api/users/phone/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, code })
+    });
+  },
+
+  async connectDiscord(username, discordTag, discordId = '') {
+    return this.requestJson('/api/users/discord/connect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, discordTag, discordId })
+    });
+  },
+
+  async disconnectDiscord(username) {
+    return this.requestJson('/api/users/discord/disconnect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username })
+    });
+  },
+
   // JUGADORES (LFG)
   async getPlayers(game = 'all', toxic = '', q = '') {
     const params = new URLSearchParams();
@@ -76,6 +136,19 @@ const API = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(profileData)
+    });
+  },
+
+  async getRecommendations(username) {
+    const { data } = await this.requestJson(`/api/recommendations?username=${encodeURIComponent(username)}`);
+    return data;
+  },
+
+  async ratePlayer(raterUsername, ratedUsername, stars, comment = '') {
+    return this.requestJson('/api/players/rate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ raterUsername, ratedUsername, stars, comment })
     });
   },
 

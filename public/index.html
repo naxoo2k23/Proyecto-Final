@@ -229,10 +229,40 @@
 
         <!-- SECCIÓN 1: BUSCADOR DE JUGADORES (LFG) -->
         <section id="section-lfg" class="app-section">
+          <!-- PANEL DE RECOMENDACIÓN POR IA (GEMINI) -->
+          <div id="ai-recommendations-panel" class="ai-rec-panel">
+            <div class="ai-rec-header">
+              <div class="ai-rec-title-group">
+                <div class="ai-spark-badge" aria-hidden="true">IA</div>
+                <div>
+                  <h2 style="font-family:var(--font-display);font-size:1.08rem;color:#fff;margin:0;">
+                    Recomendados para Ti por IA
+                  </h2>
+                  <p id="ai-rec-summary" style="font-size:0.79rem;color:var(--text-secondary);margin:0.18rem 0 0;">
+                    Analizando tus juegos favoritos, gustos y valoración comunitaria...
+                  </p>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;">
+                <span id="ai-engine-pill" class="telemetry-engine-tag">GEMINI IA</span>
+                <button type="button" id="btn-refresh-ai-rec" class="btn btn-secondary btn-sm">Recalcular Match IA</button>
+              </div>
+            </div>
+
+            <div id="ai-low-rating-banner" class="ai-warning-banner" style="display:none;"></div>
+
+            <div class="ai-suggested-games-row">
+              <span style="font-size:0.73rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">Juegos según tus gustos:</span>
+              <div id="ai-suggested-games" class="ai-games-pills"></div>
+            </div>
+
+            <div id="ai-recommendations-grid" class="ai-rec-grid"></div>
+          </div>
+
           <div class="section-toolbar">
             <div class="section-title">
               <svg class="icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-              Jugadores Disponibles
+              Todos los Jugadores Disponibles
             </div>
 
             <div class="filter-group">
@@ -363,17 +393,51 @@
           <div class="section-toolbar">
             <div class="section-title">
               <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"></circle><path d="M20 21a8 8 0 1 0-16 0"></path></svg>
-              Configuración de Cuenta y Perfil Gamer
+              Personalización de Perfil, Privacidad y Discord
+            </div>
+          </div>
+
+          <!-- TARJETA IDENTIDAD VISUAL / FOTO DE PERFIL -->
+          <div class="profile-avatar-card">
+            <div class="profile-avatar-preview-wrap">
+              <img id="prof-avatar-preview" src="" alt="Foto de perfil" class="profile-avatar-lg">
+              <div>
+                <h3 id="prof-avatar-username" style="font-family:var(--font-display);font-size:1.15rem;margin-bottom:0.35rem;">Jugador PlayMatch</h3>
+                <div class="profile-status-badges">
+                  <span id="prof-phone-badge" class="status-pill pending">Teléfono sin verificar</span>
+                  <span id="prof-discord-badge" class="status-pill offline">Discord sin conectar</span>
+                  <span id="prof-rating-badge" class="status-pill verified">4.8 ★ · Prioridad Alta</span>
+                </div>
+                <p id="prof-rating-visibility-note" style="font-size:0.72rem;color:var(--text-muted);margin:0.4rem 0 0;"></p>
+              </div>
+            </div>
+
+            <div class="profile-avatar-controls">
+              <div class="avatar-action-row">
+                <label for="prof-avatar-file" class="btn btn-primary btn-sm" style="cursor:pointer;">Subir Imagen desde Equipo</label>
+                <input type="file" id="prof-avatar-file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+                <button type="button" id="btn-reset-avatar" class="btn btn-secondary btn-sm">Restaurar Avatar</button>
+              </div>
+              <div class="avatar-url-row">
+                <input type="url" id="prof-avatar-url" class="form-control" placeholder="O pega el enlace directo de cualquier imagen (https://...)">
+                <button type="button" id="btn-apply-avatar-url" class="btn btn-secondary btn-sm">Aplicar URL</button>
+              </div>
+              <p style="font-size:0.72rem;color:var(--text-muted);margin:0;">
+                Formatos permitidos: PNG, JPG, WebP, GIF o enlace directo HTTPS. Se actualiza en LFG y chat al instante.
+              </p>
             </div>
           </div>
 
           <form id="profile-form">
             <div class="profile-two-col">
-              <!-- TARJETA CUENTA (TABLA USERS) -->
+              <!-- TARJETA CUENTA PRIVADA (TABLA USERS) -->
               <div class="profile-panel">
-                <h3 style="font-family:var(--font-display);font-size:1rem;margin-bottom:0.25rem;">Datos de Cuenta (Tabla <code>users</code>)</h3>
-                <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:1.25rem;">
-                  Información de contacto y credenciales verificadas.
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;margin-bottom:0.25rem;">
+                  <h3 style="font-family:var(--font-display);font-size:1rem;">Cuenta Privada y Verificación</h3>
+                  <span class="privacy-pill">Privado</span>
+                </div>
+                <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:1.15rem;">
+                  Tu correo y teléfono son privados. El teléfono se usa únicamente para verificar tu cuenta y nunca es visible para otros usuarios.
                 </p>
 
                 <div class="form-group">
@@ -382,13 +446,26 @@
                 </div>
 
                 <div class="form-group">
-                  <label class="form-label" for="prof-email">Correo Electrónico Registrado</label>
+                  <label class="form-label" for="prof-email">Correo Electrónico Privado</label>
                   <input type="email" id="prof-email" class="form-control" placeholder="correo@playmatch.cl" required>
                 </div>
 
                 <div class="form-group">
-                  <label class="form-label" for="prof-phone">Número de Teléfono</label>
+                  <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <label class="form-label" for="prof-phone" style="margin-bottom:0.35rem;">Teléfono Privado (Solo Verificación)</label>
+                    <span id="prof-phone-status-pill" class="status-pill pending" style="font-size:0.65rem;">Sin verificar</span>
+                  </div>
                   <input type="tel" id="prof-phone" class="form-control" placeholder="+56 9 1234 5678">
+                  <div class="verify-phone-box">
+                    <div class="verify-phone-actions">
+                      <button type="button" id="btn-request-phone-code" class="btn btn-secondary btn-sm">Enviar Código de Verificación</button>
+                      <span id="phone-demo-code-hint" class="phone-code-hint" style="display:none;"></span>
+                    </div>
+                    <div id="phone-code-input-row" class="verify-phone-confirm" style="display:none;">
+                      <input type="text" id="prof-phone-code" class="form-control" maxlength="6" placeholder="Código de 6 dígitos">
+                      <button type="button" id="btn-verify-phone-code" class="btn btn-primary btn-sm">Verificar Cuenta</button>
+                    </div>
+                  </div>
                 </div>
 
                 <div class="form-group" style="margin-bottom:0;">
@@ -400,8 +477,8 @@
               <!-- TARJETA PERFIL GAMER (TABLA PLAYER_PROFILES) -->
               <div class="profile-panel">
                 <h3 style="font-family:var(--font-display);font-size:1rem;margin-bottom:0.25rem;">Perfil Competitivo (<code>player_profiles</code>)</h3>
-                <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:1.25rem;">
-                  Visible en el buscador LFG para formar escuadras.
+                <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:1.15rem;">
+                  Visible en el buscador LFG para formar escuadras y alimentar recomendaciones IA.
                 </p>
 
                 <div class="form-group">
@@ -435,23 +512,106 @@
                   </div>
                 </div>
 
-                <div class="form-grid-2">
+                <div class="form-grid-2" style="margin-top:0.85rem;">
                   <div>
                     <label class="form-label" for="prof-riot">Riot / In-Game ID</label>
                     <input type="text" id="prof-riot" class="form-control" placeholder="Jesus#CHI">
                   </div>
                   <div>
-                    <label class="form-label" for="prof-discord">Discord Tag</label>
-                    <input type="text" id="prof-discord" class="form-control" placeholder="usuario#0001">
+                    <label class="form-label" for="prof-playstyle">Enfoque / Estilo</label>
+                    <select id="prof-playstyle" class="form-select">
+                      <option value="COMPETITIVE">Competitivo</option>
+                      <option value="TRYHARD">Tryhard / Rankeds</option>
+                      <option value="CASUAL">Casual / Chill</option>
+                    </select>
                   </div>
                 </div>
 
                 <div style="margin-top:1.35rem;display:flex;justify-content:flex-end;">
-                  <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                  <button type="submit" class="btn btn-primary">Guardar Cambios y Gustos</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- GUSTOS Y JUEGOS FAVORITOS PARA GEMINI IA -->
+            <div id="profile-tastes-panel" class="tastes-panel">
+              <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.85rem;">
+                <div>
+                  <h3 style="font-family:var(--font-display);font-size:1.02rem;color:#fff;margin:0;">
+                    Mis Gustos y Juegos Favoritos (para Recomendación IA)
+                  </h3>
+                  <p style="font-size:0.76rem;color:var(--text-secondary);margin:0.15rem 0 0;">
+                    Selecciona los juegos, géneros y preferencias que más disfrutas; Gemini IA usará esto y tu valoración (★) para emparejarte mejor.
+                  </p>
+                </div>
+                <span class="telemetry-engine-tag">GEMINI · MATCH</span>
+              </div>
+
+              <div class="tastes-group">
+                <span class="form-label">Otros Juegos que Disfruto</span>
+                <div id="prof-fav-games-chips" class="tastes-chips-wrap"></div>
+              </div>
+
+              <div class="tastes-group">
+                <span class="form-label">Géneros Favoritos</span>
+                <div id="prof-fav-genres-chips" class="tastes-chips-wrap">
+                  <button type="button" class="taste-chip" data-value="Tactical FPS">Tactical FPS</button>
+                  <button type="button" class="taste-chip" data-value="Hero Shooter">Hero Shooter</button>
+                  <button type="button" class="taste-chip" data-value="Battle Royale">Battle Royale</button>
+                  <button type="button" class="taste-chip" data-value="MOBA">MOBA</button>
+                  <button type="button" class="taste-chip" data-value="Deportes / Arcade">Deportes / Arcade</button>
+                  <button type="button" class="taste-chip" data-value="Sandbox / Multijuego">Sandbox / Multijuego</button>
+                  <button type="button" class="taste-chip" data-value="Supervivencia / PvP">Supervivencia / PvP</button>
+                </div>
+              </div>
+
+              <div class="tastes-group" style="margin-bottom:0;">
+                <span class="form-label">Preferencias de Escuadra y Ambiente</span>
+                <div id="prof-play-prefs-chips" class="tastes-chips-wrap">
+                  <button type="button" class="taste-chip" data-value="Dúo">Dúo</button>
+                  <button type="button" class="taste-chip" data-value="Escuadra">Escuadra</button>
+                  <button type="button" class="taste-chip" data-value="Con Micrófono">Con Micrófono</button>
+                  <button type="button" class="taste-chip" data-value="Sin Toxicidad">Sin Toxicidad</button>
+                  <button type="button" class="taste-chip" data-value="Partidas Chill">Partidas Chill</button>
+                  <button type="button" class="taste-chip" data-value="Rankeds Tryhard">Rankeds Tryhard</button>
                 </div>
               </div>
             </div>
           </form>
+
+          <!-- APARTADO DEDICADO: CONECTAR CUENTA DE DISCORD -->
+          <div id="discord-connect-panel" class="discord-connect-panel">
+            <div class="discord-panel-header">
+              <div style="display:flex;align-items:center;gap:0.85rem;">
+                <div class="discord-logo-badge" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
+                </div>
+                <div>
+                  <h3 style="font-family:var(--font-display);font-size:1.05rem;">Conectar Cuenta de Discord</h3>
+                  <p style="font-size:0.78rem;color:var(--text-secondary);margin:0;">
+                    Vincula tu usuario de Discord para que tu dúo o escuadra te agregue directamente al chat de voz sin exponer datos privados.
+                  </p>
+                </div>
+              </div>
+              <span id="discord-status-badge" class="status-pill offline">Sin conectar</span>
+            </div>
+
+            <div class="discord-form-grid">
+              <div>
+                <label class="form-label" for="discord-username-input">Usuario de Discord</label>
+                <input type="text" id="discord-username-input" class="form-control" placeholder="Ej: jesus.villasanti o usuario#0001">
+              </div>
+              <div>
+                <label class="form-label" for="discord-id-input">Discord User ID (Opcional)</label>
+                <input type="text" id="discord-id-input" class="form-control" placeholder="Ej: 294817263544123456">
+              </div>
+              <div class="discord-btn-group">
+                <button type="button" id="btn-connect-discord" class="btn btn-discord">Conectar Discord</button>
+                <button type="button" id="btn-disconnect-discord" class="btn btn-secondary btn-sm" style="display:none;">Desconectar</button>
+                <a id="discord-profile-link" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="display:none;">Abrir Perfil</a>
+              </div>
+            </div>
+          </div>
         </section>
 
         <!-- SECCIÓN 6: MONITOR DE BASE DE DATOS -->
@@ -462,14 +622,14 @@
               Explorador de Datos Persistidos (<span id="db-monitor-engine-name">SQL</span>)
             </div>
             <div class="filter-group">
-              <input type="text" id="db-search-input" class="form-control" style="width:240px;" placeholder="Filtrar usuario, correo o teléfono...">
+              <input type="text" id="db-search-input" class="form-control" style="width:240px;" placeholder="Filtrar usuario o correo...">
               <button class="btn btn-secondary btn-sm" id="btn-refresh-db">Recargar Tablas</button>
             </div>
           </div>
 
           <div class="db-table-card">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.85rem;">
-              <h3 style="font-family:var(--font-display);font-size:1rem;">Tabla <code>users</code> · Usuarios, Correos y Teléfonos Registrados</h3>
+              <h3 style="font-family:var(--font-display);font-size:1rem;">Tabla <code>users</code> · Cuentas Registradas (Teléfonos Privados)</h3>
               <span class="game-code-pill" id="db-users-count-label">0 registros</span>
             </div>
             <table class="db-data-table">
@@ -477,7 +637,7 @@
                 <tr>
                   <th>Usuario</th>
                   <th>Correo Electrónico</th>
-                  <th>Teléfono</th>
+                  <th>Verificación Privada</th>
                   <th>Rol</th>
                   <th>Registro</th>
                 </tr>
@@ -530,6 +690,38 @@
           <textarea id="match-message-input" class="form-textarea" rows="3" placeholder="Hola, vi tu perfil en PlayMatch. ¿Jugamos unas partidas clasificatorias hoy?"></textarea>
         </div>
         <button type="submit" class="btn btn-primary" style="width:100%;">Enviar y Guardar Invitación</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: VALORAR JUGADOR (1 A 5 ESTRELLAS) -->
+  <div id="rate-modal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="rate-modal-title">Valorar Jugador</h3>
+        <button id="rate-modal-close-btn" class="btn-close">&times;</button>
+      </div>
+      <form id="rate-form">
+        <input type="hidden" id="rate-target-user">
+        <input type="hidden" id="rate-stars-value" value="5">
+        <div class="form-group">
+          <label class="form-label">Calificación (1 a 5 estrellas)</label>
+          <div class="rate-stars-picker" id="rate-stars-picker">
+            <button type="button" class="rate-star-btn" data-stars="1">1 ★</button>
+            <button type="button" class="rate-star-btn" data-stars="2">2 ★</button>
+            <button type="button" class="rate-star-btn" data-stars="3">3 ★</button>
+            <button type="button" class="rate-star-btn" data-stars="4">4 ★</button>
+            <button type="button" class="rate-star-btn active" data-stars="5">5 ★</button>
+          </div>
+          <p style="font-size:0.73rem;color:var(--text-muted);margin:0.45rem 0 0;">
+            Los jugadores que caen por debajo de <strong>2.0 ★</strong> aparecen con visibilidad reducida en las recomendaciones IA.
+          </p>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="rate-comment-input">Comentario (opcional)</label>
+          <textarea id="rate-comment-input" class="form-textarea" rows="2" placeholder="Ej: Muy buena comunicación en ranked, puntual y sin flameo..."></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;">Guardar Valoración</button>
       </form>
     </div>
   </div>

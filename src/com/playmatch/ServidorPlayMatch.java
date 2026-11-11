@@ -2,6 +2,7 @@ package com.playmatch;
 
 import com.playmatch.modelo.*;
 import com.playmatch.repositorio.GestorBaseDatos;
+import com.playmatch.servicio.ServicioRecomendacionIA;
 import com.playmatch.util.JsonUtils;
 import com.playmatch.util.SeguridadUtil;
 import com.sun.net.httpserver.HttpExchange;
@@ -13,12 +14,27 @@ import java.net.InetSocketAddress;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.security.MessageDigest;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 
 public class ServidorPlayMatch {
     private static final int PUERTO_POR_DEFECTO = 8080;
     private static final String DIRECTORIO_PUBLICO = "public";
+    private static final Map<String, String> SESIONES_ACTIVAS = new ConcurrentHashMap<>();
+    private static final Map<String, CodigoVerificacion> CODIGOS_TELEFONO = new ConcurrentHashMap<>();
+
+    private static class CodigoVerificacion {
+        final String codigo;
+        final String telefonoNormalizado;
+        final long expiraEnMs;
+        CodigoVerificacion(String codigo, String telefonoNormalizado, long expiraEnMs) {
+            this.codigo = codigo;
+            this.telefonoNormalizado = telefonoNormalizado;
+            this.expiraEnMs = expiraEnMs;
+        }
+    }
 
     public static void main(String[] args) throws IOException {
         int puerto = PUERTO_POR_DEFECTO;
@@ -37,6 +53,7 @@ public class ServidorPlayMatch {
         servidor.createContext("/api/games", new ManejadorJuegos(db));
         servidor.createContext("/api/users", new ManejadorUsuarios(db));
         servidor.createContext("/api/players", new ManejadorJugadores(db));
+        servidor.createContext("/api/recommendations", new ManejadorRecomendaciones(db));
         servidor.createContext("/api/auth", new ManejadorAutenticacion(db));
         servidor.createContext("/api/tournaments", new ManejadorTorneos(db));
         servidor.createContext("/api/chat", new ManejadorChat(db));
@@ -70,10 +87,13 @@ public class ServidorPlayMatch {
             }
             boolean dbOk = db.verificarSaludConexion();
             Map<String, Integer> stats = db.obtenerEstadisticasGenerales();
+            boolean geminiOk = db.getConfigDB() != null && db.getConfigDB().isGeminiConfigured();
+            String geminiModel = db.getConfigDB() != null ? db.getConfigDB().getGeminiModel() : "gemini-3.8-flash";
             String json = "{" +
                     "\"status\":\"" + (dbOk ? "UP" : "DEGRADED") + "\"," +
                     "\"project\":\"PlayMatch\"," +
                     "\"database\":{\"engine\":\"" + JsonUtils.escape(db.getNombreMotor()) + "\",\"isPostgres\":" + db.esPostgreSQL() + ",\"note\":\"" + JsonUtils.escape(db.getNotaEstadoMotor()) + "\",\"connected\":" + dbOk + ",\"sizeBytes\":" + db.getTamanoArchivoBytes() + "}," +
+                    "\"ai\":{\"geminiConfigured\":" + geminiOk + ",\"model\":\"" + JsonUtils.escape(geminiModel) + "\"}," +
                     "\"counts\":{\"users\":" + stats.get("users") + ",\"games\":" + stats.get("games") + ",\"tournaments\":" + stats.get("tournaments") + "}" +
                     "}";
             enviarRespuestaJson(exchange, dbOk ? 200 : 503, json);
@@ -193,12 +213,25 @@ public class ServidorPlayMatch {
             try {
                 if ("GET".equalsIgnoreCase(metodo)) {
                     Map<String, String> params = parseQueryParams(exchange.getRequestURI().getRawQuery());
+                    if (ruta.endsWith("/me")) {
+                        String reqUser = params.get("username");
+                        Usuario u = db.buscarUsuarioPorUsername(reqUser);
+                        String token = extraerTokenBearer(exchange);
+                        String authUserId = token != null ? SESIONES_ACTIVAS.get(token) : null;
+                        if (u == null || authUserId == null || !u.getId().equals(authUserId)) {
+                            enviarError(exchange, 401, "No autorizado para consultar datos privados de cuenta.");
+                            return;
+                        }
+                        enviarRespuestaJson(exchange, 200, "{\"user\":" + usuarioPrivadoAJson(u) + "}");
+                        return;
+                    }
+
                     String q = params.get("q");
                     List<Usuario> lista = db.obtenerTodosLosUsuarios(q);
                     StringBuilder sb = new StringBuilder("[");
                     for (int i = 0; i < lista.size(); i++) {
                         if (i > 0) sb.append(",");
-                        sb.append(usuarioAJson(lista.get(i)));
+                        sb.append(usuarioPublicoAJson(lista.get(i)));
                     }
                     sb.append("]");
                     enviarRespuestaJson(exchange, 200, sb.toString());
@@ -237,7 +270,125 @@ public class ServidorPlayMatch {
 
                     db.actualizarCuentaUsuario(actual.getUsername(), email, telefono);
                     Usuario actualizado = db.buscarUsuarioPorUsername(actual.getUsername());
-                    enviarRespuestaJson(exchange, 200, "{\"message\":\"Datos de cuenta actualizados en la base de datos\",\"user\":" + usuarioAJson(actualizado) + "}");
+                    enviarRespuestaJson(exchange, 200, "{\"message\":\"Datos privados de cuenta actualizados\",\"user\":" + usuarioPrivadoAJson(actualizado) + "}");
+
+                } else if ("POST".equalsIgnoreCase(metodo) && ruta.endsWith("/avatar")) {
+                    String cuerpo = leerCuerpo(exchange);
+                    Map<String, String> datos = JsonUtils.parseSimpleJsonObject(cuerpo);
+                    String username = datos.get("username");
+                    String avatarUrl = datos.get("avatarUrl");
+
+                    if (username == null || username.trim().isEmpty()) {
+                        enviarError(exchange, 400, "Falta identificar el usuario.");
+                        return;
+                    }
+                    Usuario actual = db.buscarUsuarioPorUsername(username);
+                    if (actual == null) {
+                        enviarError(exchange, 404, "Usuario no encontrado.");
+                        return;
+                    }
+                    if (!SeguridadUtil.isValidAvatarUrl(avatarUrl)) {
+                        enviarError(exchange, 400, "Imagen no válida. Usa PNG, JPG, WebP, GIF (< 500 KB) o enlace HTTPS.");
+                        return;
+                    }
+                    db.actualizarAvatarUsuario(actual.getUsername(), avatarUrl);
+                    Usuario actualizado = db.buscarUsuarioPorUsername(actual.getUsername());
+                    enviarRespuestaJson(exchange, 200, "{\"message\":\"Foto de perfil actualizada\",\"user\":" + usuarioPrivadoAJson(actualizado) + "}");
+
+                } else if ("POST".equalsIgnoreCase(metodo) && ruta.endsWith("/phone/request-code")) {
+                    String cuerpo = leerCuerpo(exchange);
+                    Map<String, String> datos = JsonUtils.parseSimpleJsonObject(cuerpo);
+                    String username = datos.get("username");
+                    String telefono = datos.get("telefono");
+
+                    if (username == null || username.trim().isEmpty()) {
+                        enviarError(exchange, 400, "Falta identificar el usuario.");
+                        return;
+                    }
+                    Usuario actual = db.buscarUsuarioPorUsername(username);
+                    if (actual == null) {
+                        enviarError(exchange, 404, "Usuario no encontrado.");
+                        return;
+                    }
+                    String telObjetivo = (telefono != null && !telefono.trim().isEmpty()) ? telefono.trim() : actual.getTelefono();
+                    if (!SeguridadUtil.isValidPhone(telObjetivo)) {
+                        enviarError(exchange, 400, "Ingresa un número de teléfono válido (8 a 15 dígitos) para verificar tu cuenta.");
+                        return;
+                    }
+                    if (!telObjetivo.equals(actual.getTelefono())) {
+                        db.actualizarCuentaUsuario(actual.getUsername(), null, telObjetivo);
+                    }
+                    String codigo = SeguridadUtil.generarCodigoVerificacion6Digitos();
+                    String digits = telObjetivo.replaceAll("[^0-9]", "");
+                    CODIGOS_TELEFONO.put(actual.getId(), new CodigoVerificacion(codigo, digits, System.currentTimeMillis() + 600_000L));
+                    enviarRespuestaJson(exchange, 200, "{\"message\":\"Código de verificación generado (modo demo)\",\"demoCode\":\"" + codigo + "\"}");
+
+                } else if ("POST".equalsIgnoreCase(metodo) && ruta.endsWith("/phone/verify")) {
+                    String cuerpo = leerCuerpo(exchange);
+                    Map<String, String> datos = JsonUtils.parseSimpleJsonObject(cuerpo);
+                    String username = datos.get("username");
+                    String code = datos.get("code");
+
+                    Usuario actual = db.buscarUsuarioPorUsername(username);
+                    if (actual == null) {
+                        enviarError(exchange, 404, "Usuario no encontrado.");
+                        return;
+                    }
+                    CodigoVerificacion pendiente = CODIGOS_TELEFONO.get(actual.getId());
+                    if (pendiente == null || System.currentTimeMillis() > pendiente.expiraEnMs) {
+                        CODIGOS_TELEFONO.remove(actual.getId());
+                        enviarError(exchange, 400, "No hay un código activo o ya expiró. Solicita uno nuevo.");
+                        return;
+                    }
+                    String limpio = code != null ? code.trim() : "";
+                    if (!MessageDigest.isEqual(pendiente.codigo.getBytes(StandardCharsets.UTF_8), limpio.getBytes(StandardCharsets.UTF_8))) {
+                        enviarError(exchange, 400, "Código incorrecto. Revisa los 6 dígitos e intenta nuevamente.");
+                        return;
+                    }
+                    CODIGOS_TELEFONO.remove(actual.getId());
+                    db.marcarTelefonoVerificado(actual.getUsername());
+                    Usuario actualizado = db.buscarUsuarioPorUsername(actual.getUsername());
+                    enviarRespuestaJson(exchange, 200, "{\"message\":\"Cuenta verificada por teléfono privado\",\"user\":" + usuarioPrivadoAJson(actualizado) + "}");
+
+                } else if ("POST".equalsIgnoreCase(metodo) && ruta.endsWith("/discord/connect")) {
+                    String cuerpo = leerCuerpo(exchange);
+                    Map<String, String> datos = JsonUtils.parseSimpleJsonObject(cuerpo);
+                    String username = datos.get("username");
+                    String discordTag = datos.get("discordTag");
+                    String discordId = datos.get("discordId");
+
+                    Usuario actual = db.buscarUsuarioPorUsername(username);
+                    if (actual == null) {
+                        enviarError(exchange, 404, "Usuario no encontrado.");
+                        return;
+                    }
+                    if (!SeguridadUtil.isValidDiscordTag(discordTag)) {
+                        enviarError(exchange, 400, "Usuario de Discord inválido (usa entre 2 y 32 caracteres, ej: tu.usuario o usuario#0001).");
+                        return;
+                    }
+                    if (!SeguridadUtil.isValidDiscordId(discordId)) {
+                        enviarError(exchange, 400, "El Discord User ID debe tener entre 17 y 22 dígitos numéricos.");
+                        return;
+                    }
+                    String tagNormalizado = SeguridadUtil.normalizarDiscordTag(discordTag);
+                    String idLimpio = discordId != null ? discordId.trim() : "";
+                    db.actualizarConexionDiscord(actual.getUsername(), tagNormalizado, idLimpio, true);
+                    PerfilJugador actualizado = db.buscarPerfilPorUsername(actual.getUsername());
+                    enviarRespuestaJson(exchange, 200, "{\"message\":\"Cuenta de Discord conectada a tu perfil\",\"profile\":" + perfilAJson(actualizado) + "}");
+
+                } else if ("POST".equalsIgnoreCase(metodo) && ruta.endsWith("/discord/disconnect")) {
+                    String cuerpo = leerCuerpo(exchange);
+                    Map<String, String> datos = JsonUtils.parseSimpleJsonObject(cuerpo);
+                    String username = datos.get("username");
+
+                    Usuario actual = db.buscarUsuarioPorUsername(username);
+                    if (actual == null) {
+                        enviarError(exchange, 404, "Usuario no encontrado.");
+                        return;
+                    }
+                    db.actualizarConexionDiscord(actual.getUsername(), "", "", false);
+                    PerfilJugador actualizado = db.buscarPerfilPorUsername(actual.getUsername());
+                    enviarRespuestaJson(exchange, 200, "{\"message\":\"Cuenta de Discord desconectada\",\"profile\":" + perfilAJson(actualizado) + "}");
                 }
             } catch (Exception e) {
                 enviarError(exchange, 500, "Error procesando usuarios: " + e.getMessage());
@@ -253,6 +404,7 @@ public class ServidorPlayMatch {
         public void handle(HttpExchange exchange) throws IOException {
             agregarCabecerasCors(exchange);
             String metodo = exchange.getRequestMethod();
+            String ruta = exchange.getRequestURI().getPath();
 
             if ("OPTIONS".equalsIgnoreCase(metodo)) {
                 enviarRespuesta(exchange, 204, "");
@@ -274,6 +426,41 @@ public class ServidorPlayMatch {
                     }
                     sb.append("]");
                     enviarRespuestaJson(exchange, 200, sb.toString());
+
+                } else if ("POST".equalsIgnoreCase(metodo) && ruta.endsWith("/rate")) {
+                    String cuerpo = leerCuerpo(exchange);
+                    Map<String, String> datos = JsonUtils.parseSimpleJsonObject(cuerpo);
+                    String rater = datos.get("raterUsername");
+                    String rated = datos.get("ratedUsername");
+                    String starsStr = datos.get("stars");
+                    String comment = datos.get("comment");
+
+                    if (rater == null || rater.trim().isEmpty() || rated == null || rated.trim().isEmpty()) {
+                        enviarError(exchange, 400, "Debes indicar el usuario que califica y el jugador evaluado.");
+                        return;
+                    }
+                    int stars;
+                    try {
+                        stars = Integer.parseInt(starsStr != null ? starsStr.trim() : "0");
+                    } catch (NumberFormatException ex) {
+                        enviarError(exchange, 400, "Las estrellas deben ser un número entero entre 1 y 5.");
+                        return;
+                    }
+                    if (stars < 1 || stars > 5) {
+                        enviarError(exchange, 400, "La valoración debe estar entre 1 y 5 estrellas.");
+                        return;
+                    }
+                    try {
+                        PerfilJugador actualizado = db.calificarJugador(rater, rated, stars, comment);
+                        if (actualizado == null) {
+                            enviarError(exchange, 404, "Usuario no encontrado.");
+                            return;
+                        }
+                        enviarRespuestaJson(exchange, 200,
+                                "{\"message\":\"Valoración de " + stars + "★ guardada\",\"profile\":" + perfilAJson(actualizado) + "}");
+                    } catch (IllegalArgumentException iae) {
+                        enviarError(exchange, 400, iae.getMessage());
+                    }
 
                 } else if ("POST".equalsIgnoreCase(metodo)) {
                     String cuerpo = leerCuerpo(exchange);
@@ -313,6 +500,17 @@ public class ServidorPlayMatch {
                         db.actualizarCuentaUsuario(username, email, telefono);
                     }
 
+                    if (datos.containsKey("avatarUrl")) {
+                        String avatarUrl = datos.get("avatarUrl");
+                        if (avatarUrl != null && !avatarUrl.trim().isEmpty()) {
+                            if (!SeguridadUtil.isValidAvatarUrl(avatarUrl)) {
+                                enviarError(exchange, 400, "Imagen de perfil no válida. Usa PNG, JPG, WebP, GIF (< 500 KB) o enlace HTTPS.");
+                                return;
+                            }
+                            db.actualizarAvatarUsuario(username, avatarUrl);
+                        }
+                    }
+
                     if (datos.containsKey("bio")) perfil.setBiografia(datos.get("bio"));
                     if (datos.containsKey("region")) perfil.setRegion(datos.get("region"));
                     if (datos.containsKey("game")) perfil.setJuego(datos.get("game"));
@@ -321,17 +519,57 @@ public class ServidorPlayMatch {
                     if (datos.containsKey("playstyle")) perfil.setEstiloJuego(datos.get("playstyle"));
                     if (datos.containsKey("steamId")) perfil.setSteamId(datos.get("steamId"));
                     if (datos.containsKey("riotId")) perfil.setRiotId(datos.get("riotId"));
-                    if (datos.containsKey("discordTag")) perfil.setDiscordTag(datos.get("discordTag"));
                     if (datos.containsKey("preferredSchedule")) perfil.setHorarioPreferido(datos.get("preferredSchedule"));
                     if (datos.containsKey("toxicLevel")) perfil.setNivelToxicidad(datos.get("toxicLevel"));
+                    if (datos.containsKey("favoriteGames")) perfil.setFavoriteGames(datos.get("favoriteGames"));
+                    if (datos.containsKey("favoriteGenres")) perfil.setFavoriteGenres(datos.get("favoriteGenres"));
+                    if (datos.containsKey("playPreferences")) perfil.setPlayPreferences(datos.get("playPreferences"));
 
                     db.actualizarPerfil(perfil);
                     PerfilJugador actualizado = db.buscarPerfilPorUsername(username);
                     Usuario uAct = db.buscarUsuarioPorUsername(username);
-                    enviarRespuestaJson(exchange, 200, "{\"message\":\"Perfil y cuenta guardados en la base de datos\",\"profile\":" + perfilAJson(actualizado) + ",\"user\":" + usuarioAJson(uAct) + "}");
+                    enviarRespuestaJson(exchange, 200, "{\"message\":\"Perfil y cuenta guardados en la base de datos\",\"profile\":" + perfilAJson(actualizado) + ",\"user\":" + usuarioPrivadoAJson(uAct) + "}");
                 }
             } catch (Exception e) {
                 enviarError(exchange, 500, "Error procesando perfiles: " + e.getMessage());
+            }
+        }
+    }
+
+    static class ManejadorRecomendaciones implements HttpHandler {
+        private final GestorBaseDatos db;
+        public ManejadorRecomendaciones(GestorBaseDatos db) { this.db = db; }
+
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            agregarCabecerasCors(exchange);
+            String metodo = exchange.getRequestMethod();
+            if ("OPTIONS".equalsIgnoreCase(metodo)) {
+                enviarRespuesta(exchange, 204, "");
+                return;
+            }
+            if (!"GET".equalsIgnoreCase(metodo)) {
+                enviarError(exchange, 405, "Método no permitido.");
+                return;
+            }
+            try {
+                Map<String, String> params = parseQueryParams(exchange.getRequestURI().getRawQuery());
+                String username = params.get("username");
+                if (username == null || username.trim().isEmpty()) {
+                    enviarError(exchange, 400, "Debes indicar el parámetro username.");
+                    return;
+                }
+                PerfilJugador actual = db.buscarPerfilPorUsername(username);
+                if (actual == null) {
+                    enviarError(exchange, 404, "Perfil no encontrado.");
+                    return;
+                }
+                List<PerfilJugador> todos = db.obtenerTodosLosPerfiles();
+                List<Juego> juegos = db.obtenerTodosLosJuegos(true);
+                String json = ServicioRecomendacionIA.recomendarParaUsuarioJson(actual, todos, juegos, db.getConfigDB());
+                enviarRespuestaJson(exchange, 200, json);
+            } catch (Exception e) {
+                enviarError(exchange, 500, "Error generando recomendaciones IA: " + e.getMessage());
             }
         }
     }
@@ -398,8 +636,10 @@ public class ServidorPlayMatch {
 
                         Usuario u = db.crearUsuario(username, email, password, telefono, gameCode);
                         PerfilJugador p = db.buscarPerfilPorUsername(u.getUsername());
+                        String token = "tok_" + UUID.randomUUID();
+                        SESIONES_ACTIVAS.put(token, u.getId());
                         enviarRespuestaJson(exchange, 201,
-                            "{\"message\":\"Usuario registrado y persistido en la base de datos\",\"token\":\"tok_" + UUID.randomUUID() + "\",\"user\":" + usuarioAJson(u) + ",\"profile\":" + (p != null ? perfilAJson(p) : "null") + "}");
+                            "{\"message\":\"Usuario registrado y persistido en la base de datos\",\"token\":\"" + token + "\",\"user\":" + usuarioPrivadoAJson(u) + ",\"profile\":" + (p != null ? perfilAJson(p) : "null") + "}");
 
                     } else if (ruta.endsWith("/login")) {
                         String identifier = datos.get("username");
@@ -417,8 +657,10 @@ public class ServidorPlayMatch {
                         }
 
                         PerfilJugador p = db.buscarPerfilPorUsername(u.getUsername());
+                        String token = "tok_" + UUID.randomUUID();
+                        SESIONES_ACTIVAS.put(token, u.getId());
                         enviarRespuestaJson(exchange, 200,
-                            "{\"token\":\"tok_" + UUID.randomUUID() + "\",\"user\":" + usuarioAJson(u) + ",\"profile\":" + (p != null ? perfilAJson(p) : "null") + "}");
+                            "{\"token\":\"" + token + "\",\"user\":" + usuarioPrivadoAJson(u) + ",\"profile\":" + (p != null ? perfilAJson(p) : "null") + "}");
                     }
                 }
             } catch (Exception e) {
@@ -749,6 +991,14 @@ public class ServidorPlayMatch {
                 "\"steamId\":\"" + JsonUtils.escape(p.getSteamId()) + "\"," +
                 "\"riotId\":\"" + JsonUtils.escape(p.getRiotId()) + "\"," +
                 "\"discordTag\":\"" + JsonUtils.escape(p.getDiscordTag()) + "\"," +
+                "\"discordId\":\"" + JsonUtils.escape(p.getDiscordId()) + "\"," +
+                "\"discordConnected\":" + p.isDiscordConnected() + "," +
+                "\"favoriteGames\":\"" + JsonUtils.escape(p.getFavoriteGames()) + "\"," +
+                "\"favoriteGenres\":\"" + JsonUtils.escape(p.getFavoriteGenres()) + "\"," +
+                "\"playPreferences\":\"" + JsonUtils.escape(p.getPlayPreferences()) + "\"," +
+                "\"starRating\":" + String.format(Locale.US, "%.1f", p.getStarRating()) + "," +
+                "\"ratingCount\":" + p.getRatingCount() + "," +
+                "\"lowRatedPenalty\":" + (p.getStarRating() < 2.0) + "," +
                 "\"game\":\"" + JsonUtils.escape(p.getJuego()) + "\"," +
                 "\"gameName\":\"" + JsonUtils.escape(p.getNombreJuego()) + "\"," +
                 "\"rank\":\"" + JsonUtils.escape(p.getRango()) + "\"," +
@@ -758,12 +1008,28 @@ public class ServidorPlayMatch {
                 "}";
     }
 
-    private static String usuarioAJson(Usuario u) {
+    private static String usuarioPrivadoAJson(Usuario u) {
         return "{" +
                 "\"id\":\"" + JsonUtils.escape(u.getId()) + "\"," +
                 "\"username\":\"" + JsonUtils.escape(u.getUsername()) + "\"," +
                 "\"email\":\"" + JsonUtils.escape(u.getEmail()) + "\"," +
                 "\"telefono\":\"" + JsonUtils.escape(u.getTelefono() != null ? u.getTelefono() : "") + "\"," +
+                "\"hasPhone\":" + (u.getTelefono() != null && !u.getTelefono().trim().isEmpty()) + "," +
+                "\"phoneVerified\":" + u.isTelefonoVerificado() + "," +
+                "\"role\":\"" + JsonUtils.escape(u.getRol()) + "\"," +
+                "\"avatarUrl\":\"" + JsonUtils.escape(u.getAvatarUrl()) + "\"," +
+                "\"createdAt\":\"" + JsonUtils.escape(u.getFechaCreacion()) + "\"" +
+                "}";
+    }
+
+    private static String usuarioPublicoAJson(Usuario u) {
+        return "{" +
+                "\"id\":\"" + JsonUtils.escape(u.getId()) + "\"," +
+                "\"username\":\"" + JsonUtils.escape(u.getUsername()) + "\"," +
+                "\"email\":\"" + JsonUtils.escape(u.getEmail()) + "\"," +
+                "\"telefono\":\"\"," +
+                "\"hasPhone\":" + (u.getTelefono() != null && !u.getTelefono().trim().isEmpty()) + "," +
+                "\"phoneVerified\":" + u.isTelefonoVerificado() + "," +
                 "\"role\":\"" + JsonUtils.escape(u.getRol()) + "\"," +
                 "\"avatarUrl\":\"" + JsonUtils.escape(u.getAvatarUrl()) + "\"," +
                 "\"createdAt\":\"" + JsonUtils.escape(u.getFechaCreacion()) + "\"" +
@@ -829,12 +1095,28 @@ public class ServidorPlayMatch {
         return result;
     }
 
+    private static String extraerTokenBearer(HttpExchange exchange) {
+        String auth = exchange.getRequestHeaders().getFirst("Authorization");
+        if (auth == null || auth.trim().isEmpty()) return null;
+        String trimmed = auth.trim();
+        if (trimmed.regionMatches(true, 0, "Bearer ", 0, 7)) {
+            return trimmed.substring(7).trim();
+        }
+        return trimmed;
+    }
+
     private static String leerCuerpo(HttpExchange exchange) throws IOException {
         InputStream is = exchange.getRequestBody();
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-        byte[] datos = new byte[1024];
+        byte[] datos = new byte[4096];
         int leido;
+        int total = 0;
+        final int MAX_BYTES = 2 * 1024 * 1024;
         while ((leido = is.read(datos, 0, datos.length)) != -1) {
+            total += leido;
+            if (total > MAX_BYTES) {
+                throw new IOException("El cuerpo de la solicitud supera el límite de 2 MB.");
+            }
             buffer.write(datos, 0, leido);
         }
         buffer.flush();

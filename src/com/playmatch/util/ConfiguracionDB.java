@@ -22,6 +22,8 @@ public class ConfiguracionDB {
     private boolean strictPostgres;
     private String sqlitePath;
     private boolean postgresConfigured;
+    private String geminiApiKey;
+    private String geminiModel;
 
     private ConfiguracionDB() {}
 
@@ -35,6 +37,14 @@ public class ConfiguracionDB {
                 : "data/playmatch.db";
 
         cfg.strictPostgres = "true".equalsIgnoreCase(obtenerParam(dotEnv, "playmatch.db.strict", "DB_STRICT"));
+        cfg.geminiApiKey = obtenerParam(dotEnv, "gemini.api.key", "GEMINI_API_KEY");
+        String rawModel = obtenerParam(dotEnv, "gemini.model", "GEMINI_MODEL");
+        if (rawModel == null || rawModel.isEmpty()
+                || rawModel.startsWith("gemini-2.5") || rawModel.startsWith("gemini-2.0") || rawModel.startsWith("gemini-1.5")) {
+            cfg.geminiModel = "gemini-3.8-flash";
+        } else {
+            cfg.geminiModel = rawModel;
+        }
 
         // Si las pruebas explícitas piden -Dplaymatch.db.path=..., forzar ruta SQLite
         String sysSqlite = System.getProperty("playmatch.db.path");
@@ -157,6 +167,9 @@ public class ConfiguracionDB {
     public boolean isStrictPostgres() { return strictPostgres; }
     public String getSqlitePath() { return sqlitePath; }
     public boolean isPostgresConfigured() { return postgresConfigured; }
+    public String getGeminiApiKey() { return geminiApiKey; }
+    public String getGeminiModel() { return geminiModel != null ? geminiModel : "gemini-3.8-flash"; }
+    public boolean isGeminiConfigured() { return geminiApiKey != null && !geminiApiKey.trim().isEmpty(); }
 
     public String getSafePostgresTarget() {
         if (!postgresConfigured || jdbcUrl == null) return "";

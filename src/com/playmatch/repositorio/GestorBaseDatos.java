@@ -133,6 +133,10 @@ public class GestorBaseDatos {
         return motorActivo == MotorDB.POSTGRESQL;
     }
 
+    public ConfiguracionDB getConfigDB() {
+        return configDB;
+    }
+
     public String getNombreMotor() {
         return esPostgreSQL() ? "PostgreSQL (HikariCP)" : "SQLite 3 (JDBC)";
     }
@@ -225,24 +229,43 @@ public class GestorBaseDatos {
                 st.execute("ALTER TABLE player_game_stats ADD COLUMN IF NOT EXISTS is_primary INT DEFAULT 1;");
                 st.execute("ALTER TABLE games ADD COLUMN IF NOT EXISTS is_active INT DEFAULT 1;");
                 st.execute("ALTER TABLE games ADD COLUMN IF NOT EXISTS sort_order INT DEFAULT 100;");
+                st.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified INT NOT NULL DEFAULT 0;");
+                st.execute("ALTER TABLE users ALTER COLUMN avatar_url TYPE TEXT;");
+                st.execute("ALTER TABLE chat_messages ALTER COLUMN sender_avatar TYPE TEXT;");
+                st.execute("ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS discord_id VARCHAR(40) DEFAULT '';");
+                st.execute("ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS discord_connected INT NOT NULL DEFAULT 0;");
+                st.execute("ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS favorite_games VARCHAR(255) DEFAULT '';");
+                st.execute("ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS favorite_genres VARCHAR(255) DEFAULT '';");
+                st.execute("ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS play_preferences VARCHAR(255) DEFAULT '';");
+                st.execute("ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS star_rating DOUBLE PRECISION DEFAULT 4.8;");
+                st.execute("ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS rating_count INT NOT NULL DEFAULT 1;");
             }
         } else {
-            if (!existeColumnaSqlite(conn, "player_game_stats", "is_primary")) {
-                try (Statement st = conn.createStatement()) {
-                    st.execute("ALTER TABLE player_game_stats ADD COLUMN is_primary INT DEFAULT 1;");
-                }
-            }
-            if (!existeColumnaSqlite(conn, "games", "is_active")) {
-                try (Statement st = conn.createStatement()) {
-                    st.execute("ALTER TABLE games ADD COLUMN is_active INT DEFAULT 1;");
-                }
-            }
-            if (!existeColumnaSqlite(conn, "games", "sort_order")) {
-                try (Statement st = conn.createStatement()) {
-                    st.execute("ALTER TABLE games ADD COLUMN sort_order INT DEFAULT 100;");
+            String[][] columnasSqlite = {
+                {"player_game_stats", "is_primary", "INT DEFAULT 1"},
+                {"games", "is_active", "INT DEFAULT 1"},
+                {"games", "sort_order", "INT DEFAULT 100"},
+                {"users", "phone_verified", "INT NOT NULL DEFAULT 0"},
+                {"player_profiles", "discord_id", "VARCHAR(40) DEFAULT ''"},
+                {"player_profiles", "discord_connected", "INT NOT NULL DEFAULT 0"},
+                {"player_profiles", "favorite_games", "VARCHAR(255) DEFAULT ''"},
+                {"player_profiles", "favorite_genres", "VARCHAR(255) DEFAULT ''"},
+                {"player_profiles", "play_preferences", "VARCHAR(255) DEFAULT ''"},
+                {"player_profiles", "star_rating", "DOUBLE PRECISION DEFAULT 4.8"},
+                {"player_profiles", "rating_count", "INT NOT NULL DEFAULT 1"}
+            };
+            for (String[] c : columnasSqlite) {
+                if (!existeColumnaSqlite(conn, c[0], c[1])) {
+                    try (Statement st = conn.createStatement()) {
+                        st.execute("ALTER TABLE " + c[0] + " ADD COLUMN " + c[1] + " " + c[2] + ";");
+                    }
                 }
             }
         }
+        try (Statement st = conn.createStatement()) {
+            st.execute("UPDATE users SET phone_verified = 1 WHERE id IN ('u-1','u-2','u-3','u-4','u-5','u-6','u-7') AND phone_verified = 0 AND telefono <> '';");
+            st.execute("UPDATE player_profiles SET discord_connected = 1 WHERE id IN ('p-1','p-2','p-3','p-4','p-5','p-6') AND discord_connected = 0 AND discord_tag IS NOT NULL AND discord_tag <> '';");
+        } catch (SQLException ignored) {}
     }
 
     private boolean existeColumnaSqlite(Connection conn, String tabla, String columna) throws SQLException {
@@ -271,7 +294,8 @@ public class GestorBaseDatos {
         return "CREATE TABLE IF NOT EXISTS users (" +
                 "id VARCHAR(36) PRIMARY KEY, username VARCHAR(50) NOT NULL UNIQUE, " +
                 "email VARCHAR(120) NOT NULL UNIQUE, password_hash VARCHAR(255) NOT NULL, " +
-                "avatar_url VARCHAR(255), telefono VARCHAR(30) NOT NULL DEFAULT '', " +
+                "avatar_url TEXT, telefono VARCHAR(30) NOT NULL DEFAULT '', " +
+                "phone_verified INT NOT NULL DEFAULT 0, " +
                 "role VARCHAR(20) NOT NULL DEFAULT 'GAMER', " +
                 "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);" +
                 "CREATE TABLE IF NOT EXISTS player_profiles (" +
@@ -280,7 +304,17 @@ public class GestorBaseDatos {
                 "toxic_level VARCHAR(20) DEFAULT 'ZERO_TOXIC', reputation_score INT DEFAULT 100, " +
                 "preferred_schedule VARCHAR(60) DEFAULT 'Noches (21:00 - 01:00)', " +
                 "steam_id VARCHAR(100) DEFAULT '', riot_id VARCHAR(100) DEFAULT '', epic_id VARCHAR(100) DEFAULT '', discord_tag VARCHAR(100) DEFAULT '', " +
+                "discord_id VARCHAR(40) DEFAULT '', discord_connected INT NOT NULL DEFAULT 0, " +
+                "favorite_games VARCHAR(255) DEFAULT '', favorite_genres VARCHAR(255) DEFAULT '', " +
+                "play_preferences VARCHAR(255) DEFAULT '', star_rating DOUBLE PRECISION DEFAULT 4.8, " +
+                "rating_count INT NOT NULL DEFAULT 1, " +
                 "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE);" +
+                "CREATE TABLE IF NOT EXISTS player_ratings (" +
+                "id VARCHAR(36) PRIMARY KEY, rater_user_id VARCHAR(36) NOT NULL, rated_user_id VARCHAR(36) NOT NULL, " +
+                "stars INT NOT NULL CHECK (stars >= 1 AND stars <= 5), comment VARCHAR(255) DEFAULT '', " +
+                "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
+                "FOREIGN KEY (rater_user_id) REFERENCES users(id) ON DELETE CASCADE, " +
+                "FOREIGN KEY (rated_user_id) REFERENCES users(id) ON DELETE CASCADE, UNIQUE(rater_user_id, rated_user_id));" +
                 "CREATE TABLE IF NOT EXISTS games (" +
                 "id VARCHAR(36) PRIMARY KEY, code VARCHAR(40) NOT NULL UNIQUE, name VARCHAR(100) NOT NULL UNIQUE, " +
                 "category VARCHAR(50) NOT NULL, platform VARCHAR(60) DEFAULT 'PC / Multiplataforma', " +
@@ -324,7 +358,7 @@ public class GestorBaseDatos {
                 "FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE CASCADE);" +
                 "CREATE TABLE IF NOT EXISTS chat_messages (" +
                 "id VARCHAR(36) PRIMARY KEY, sender_id VARCHAR(36), sender_username VARCHAR(60) NOT NULL, " +
-                "sender_avatar VARCHAR(255), channel VARCHAR(50) NOT NULL DEFAULT 'global', content TEXT NOT NULL, " +
+                "sender_avatar TEXT, channel VARCHAR(50) NOT NULL DEFAULT 'global', content TEXT NOT NULL, " +
                 "sent_at VARCHAR(30) NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
                 "FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE SET NULL);";
     }
@@ -368,34 +402,34 @@ public class GestorBaseDatos {
     private static final Object[][] JUEGOS_CATALOGO_BASE = {
         {"g-val", "valorant", "Valorant", "Tactical FPS", "PC / Consola", 5,
          "Shooter táctico 5v5 basado en precisión de disparo y habilidades estratégicas de agentes.",
-         "#ff4655", "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=900&q=80", 1},
+         "#ff4655", "/assets/games/valorant.jpg", 1},
         {"g-lol", "lol", "League of Legends", "MOBA", "PC (LAS)", 5,
          "Arena de batalla multijugador por equipos 5v5 con enfoque en macrogame y objetivos.",
-         "#8b5cf6", "https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=900&q=80", 2},
+         "#8b5cf6", "/assets/games/lol.jpg", 2},
         {"g-cs2", "cs2", "Counter-Strike 2", "Tactical FPS", "PC (Steam)", 5,
          "Competitivo clásico por rondas de ataque y defensa táctica con economía de equipo.",
-         "#f59e0b", "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=900&q=80", 3},
+         "#f59e0b", "/assets/games/cs2.jpg", 3},
         {"g-rl", "rocket-league", "Rocket League", "Deportes / Arcade", "Multiplataforma", 3,
          "Fútbol vehicular competitivo 3v3 de alta velocidad, rotaciones y mecánicas aéreas.",
-         "#06b6d4", "https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&w=900&q=80", 4},
+         "#06b6d4", "/assets/games/rocket-league.jpg", 4},
         {"g-mr", "marvel-rivals", "Marvel Rivals", "Hero Shooter", "PC / Consola", 6,
          "Hero shooter competitivo 6v6 por equipos con sinergias de habilidades entre superhéroes y villanos.",
-         "#e11d48", "/assets/games/marvel-rivals.svg", 5},
+         "#e11d48", "/assets/games/marvel-rivals.jpg", 5},
         {"g-ow", "overwatch", "Overwatch 2", "Hero Shooter", "Multiplataforma", 5,
          "Combate por objetivos 5v5 con roles de Tanque, Daño y Apoyo enfocado en coordinación de equipo.",
-         "#f97316", "/assets/games/overwatch.svg", 6},
+         "#f97316", "/assets/games/overwatch.jpg", 6},
         {"g-apex", "apex-legends", "Apex Legends", "Battle Royale", "Multiplataforma", 3,
          "Battle Royale táctico en tríos y dúos con leyendas de movilidad rápida y juego en escuadra.",
-         "#dc2626", "/assets/games/apex-legends.svg", 7},
+         "#dc2626", "/assets/games/apex-legends.jpg", 7},
         {"g-fn", "fortnite", "Fortnite", "Battle Royale", "Multiplataforma", 4,
          "Dúos, tríos y escuadrones competitivos en Batalla Campal, Cero Construcción y torneos Arena.",
-         "#3b82f6", "/assets/games/fortnite.svg", 8},
+         "#3b82f6", "/assets/games/fortnite.jpg", 8},
         {"g-rbx", "roblox", "Roblox", "Sandbox / Multijuego", "Multiplataforma", 4,
          "Plataforma social multijuego para coordinar partidas competitivas, experiencias y salas privadas.",
-         "#0ea5e9", "/assets/games/roblox.svg", 9},
+         "#0ea5e9", "/assets/games/roblox.jpg", 9},
         {"g-mc", "minecraft", "Minecraft", "Supervivencia / PvP", "Multiplataforma", 4,
          "Supervivencia cooperativa, Realms, SkyWars, BedWars y servidores competitivos en equipo.",
-         "#22c55e", "/assets/games/minecraft.svg", 10}
+         "#22c55e", "/assets/games/minecraft.jpg", 10}
     };
 
     private static final String[][] MENSAJES_CANALES_INICIALES = {
@@ -444,6 +478,17 @@ public class GestorBaseDatos {
             ps.executeBatch();
         } catch (SQLException ignored) {}
 
+        // Actualizar banners de títulos base si conservan placeholders antiguos (Unsplash / SVG)
+        String sqlFixBanner = "UPDATE games SET banner_url = ? WHERE id = ? AND (banner_url IS NULL OR banner_url = '' OR banner_url LIKE 'https://images.unsplash.com/%' OR banner_url LIKE '/assets/games/%.svg')";
+        try (PreparedStatement ps = conn.prepareStatement(sqlFixBanner)) {
+            for (Object[] j : JUEGOS_CATALOGO_BASE) {
+                ps.setString(1, (String) j[8]);
+                ps.setString(2, (String) j[0]);
+                ps.addBatch();
+            }
+            ps.executeBatch();
+        } catch (SQLException ignored) {}
+
         // Garantizar mensaje guía inicial en cada apartado de chat general si el canal está vacío
         String sqlCheckChan = "SELECT COUNT(*) FROM chat_messages WHERE LOWER(channel) = LOWER(?)";
         String sqlCheckUser = "SELECT 1 FROM users WHERE id = ?";
@@ -479,13 +524,92 @@ public class GestorBaseDatos {
                 pi.executeUpdate();
             }
         }
+
+        // Asegurar gustos iniciales en perfiles base + perfil de demostración < 2 estrellas (Kuro_Tilt)
+        asegurarGustosYValoracionesDemo(conn);
+    }
+
+    private void asegurarGustosYValoracionesDemo(Connection conn) {
+        String[][] gustosSeed = {
+            {"p-1", "valorant,marvel-rivals,cs2", "Tactical FPS,Hero Shooter", "Escuadra,Con Micrófono,Sin Toxicidad,Rankeds Tryhard", "4.9", "3"},
+            {"p-2", "valorant,cs2,apex-legends", "Tactical FPS,Battle Royale", "Dúo,Escuadra,Con Micrófono,Partidas Chill", "4.8", "3"},
+            {"p-3", "lol,overwatch,fortnite", "MOBA,Hero Shooter", "Dúo,Sin Toxicidad,Con Micrófono", "4.7", "2"},
+            {"p-4", "cs2,valorant,apex-legends", "Tactical FPS,Battle Royale", "Escuadra,Rankeds Tryhard,Con Micrófono", "4.6", "2"},
+            {"p-5", "valorant,marvel-rivals,fortnite", "Tactical FPS,Hero Shooter,Battle Royale", "Dúo,Escuadra,Con Micrófono,Sin Toxicidad", "4.9", "3"},
+            {"p-6", "lol,minecraft,roblox", "MOBA,Supervivencia / PvP,Sandbox / Multijuego", "Dúo,Partidas Chill,Sin Toxicidad", "4.5", "2"}
+        };
+        try (PreparedStatement ps = conn.prepareStatement(
+                "UPDATE player_profiles SET favorite_games = ?, favorite_genres = ?, play_preferences = ?, star_rating = ?, rating_count = ? " +
+                "WHERE id = ? AND (favorite_games IS NULL OR favorite_games = '')")) {
+            for (String[] g : gustosSeed) {
+                ps.setString(1, g[1]);
+                ps.setString(2, g[2]);
+                ps.setString(3, g[3]);
+                ps.setDouble(4, Double.parseDouble(g[4]));
+                ps.setInt(5, Integer.parseInt(g[5]));
+                ps.setString(6, g[0]);
+                ps.addBatch();
+            }
+            ps.executeBatch();
+        } catch (SQLException ignored) {}
+
+        // Sembrar perfil demo de baja valoración (< 2.0 estrellas) para evidenciar penalización IA
+        try (PreparedStatement check = conn.prepareStatement("SELECT 1 FROM users WHERE id = 'u-8'");
+             ResultSet rs = check.executeQuery()) {
+            if (!rs.next()) {
+                String hashDef = SeguridadUtil.hashPassword("password123");
+                try (PreparedStatement pu = conn.prepareStatement(
+                        "INSERT INTO users (id, username, email, password_hash, avatar_url, telefono, phone_verified, role) " +
+                        "VALUES ('u-8', 'Kuro_Tilt', 'kuro.tilt@playmatch.cl', ?, 'https://api.dicebear.com/7.x/bottts/svg?seed=Kuro_Tilt', '+56 9 1999 0008', 1, 'GAMER') ON CONFLICT DO NOTHING")) {
+                    pu.setString(1, hashDef);
+                    pu.executeUpdate();
+                }
+                try (PreparedStatement pp = conn.prepareStatement(
+                        "INSERT INTO player_profiles (id, user_id, bio, country, region, toxic_level, reputation_score, preferred_schedule, steam_id, riot_id, discord_tag, discord_id, discord_connected, favorite_games, favorite_genres, play_preferences, star_rating, rating_count) " +
+                        "VALUES ('p-8', 'u-8', 'Juego Valorant y Marvel Rivals agresivo en rankeds nocturnas.', 'Chile', 'Región Metropolitana', 'COMPETITIVE', 32, 'Noches (21:00 - 01:00)', '', 'Kuro#TILT', '', '', 0, 'valorant,marvel-rivals', 'Tactical FPS,Hero Shooter', 'Rankeds Tryhard', 1.5, 2) ON CONFLICT DO NOTHING")) {
+                    pp.executeUpdate();
+                }
+                try (PreparedStatement pgs = conn.prepareStatement(
+                        "INSERT INTO player_game_stats (id, user_id, game_id, in_game_rank, preferred_role, playstyle, is_primary) " +
+                        "VALUES ('s-8', 'u-8', 'g-val', 'Platino II', 'Duelista (Reyna)', 'TRYHARD', 1) ON CONFLICT DO NOTHING")) {
+                    pgs.executeUpdate();
+                }
+            }
+        } catch (SQLException ignored) {}
+
+        // Sembrar votos base idempotentes para cálculos reales de AVG(stars)
+        Object[][] votosSeed = {
+            {"rt-1", "u-2", "u-1", 5, "Excelente comunicación y sin toxicidad."},
+            {"rt-2", "u-5", "u-1", 5, "Gran controlador en equipo."},
+            {"rt-3", "u-3", "u-1", 5, "Muy puntual en torneos."},
+            {"rt-4", "u-1", "u-2", 5, "Buen compañero de escuadra."},
+            {"rt-5", "u-5", "u-2", 5, "Buena energía en partidas."},
+            {"rt-6", "u-4", "u-2", 4, "Sólido iniciador."},
+            {"rt-7", "u-1", "u-5", 5, "Duelista muy constante."},
+            {"rt-8", "u-2", "u-5", 5, "Recomendado para dúo."},
+            {"rt-9", "u-3", "u-5", 5, "Cero flameo."},
+            {"rt-10", "u-1", "u-8", 1, "Abandonó partida clasificatoria."},
+            {"rt-11", "u-2", "u-8", 2, "Mucha actitud negativa por voz."}
+        };
+        try (PreparedStatement pr = conn.prepareStatement(
+                "INSERT INTO player_ratings (id, rater_user_id, rated_user_id, stars, comment) VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING")) {
+            for (Object[] v : votosSeed) {
+                pr.setString(1, (String) v[0]);
+                pr.setString(2, (String) v[1]);
+                pr.setString(3, (String) v[2]);
+                pr.setInt(4, (Integer) v[3]);
+                pr.setString(5, (String) v[4]);
+                pr.addBatch();
+            }
+            pr.executeBatch();
+        } catch (SQLException ignored) {}
     }
 
     private void sembrarUsuariosYPerfiles(Connection conn) throws SQLException {
         String hashAdmin = SeguridadUtil.hashPassword("admin123");
         String hashDefault = SeguridadUtil.hashPassword("password123");
 
-        String sqlUser = "INSERT INTO users (id, username, email, password_hash, avatar_url, telefono, role) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        String sqlUser = "INSERT INTO users (id, username, email, password_hash, avatar_url, telefono, phone_verified, role) VALUES (?, ?, ?, ?, ?, ?, 1, ?)";
         Object[][] usersData = {
             {"u-1", "Jesus_Villasanti", "jesus.villasanti@playmatch.cl", hashAdmin, "https://api.dicebear.com/7.x/bottts/svg?seed=Jesus_Villasanti", "+56 9 8123 4567", "ADMIN"},
             {"u-2", "Datrikk", "datrikk@playmatch.cl", hashDefault, "https://api.dicebear.com/7.x/bottts/svg?seed=Datrikk", "+56 9 7234 5678", "GAMER"},
@@ -509,7 +633,7 @@ public class GestorBaseDatos {
             ps.executeBatch();
         }
 
-        String sqlProfile = "INSERT INTO player_profiles (id, user_id, bio, country, region, toxic_level, reputation_score, preferred_schedule, steam_id, riot_id, discord_tag) VALUES (?, ?, ?, 'Chile', ?, ?, ?, ?, ?, ?, ?)";
+        String sqlProfile = "INSERT INTO player_profiles (id, user_id, bio, country, region, toxic_level, reputation_score, preferred_schedule, steam_id, riot_id, discord_tag, discord_id, discord_connected) VALUES (?, ?, ?, 'Chile', ?, ?, ?, ?, ?, ?, ?, '', 1)";
         Object[][] profiles = {
             {"p-1", "u-1", "Main Controller en Valorant. Busco escuadra seria para competir en torneos comunitarios y subir elo.", "Región Metropolitana (San Joaquín)", "ZERO_TOXIC", 100, "Noches (21:00 - 01:00)", "76561198000000001", "Jesus#CHI", "jesus_villasanti#0001"},
             {"p-2", "u-2", "Jugador de CS2 y Valorant. Chill, buena onda y comunicativo. Excelente sinergia de equipo.", "Los Lagos (Castro)", "ZERO_TOXIC", 98, "Tardes y Noches (19:00 - 23:30)", "76561198000000002", "Datrikk#SUR", "datrikk_cl#1234"},
@@ -775,10 +899,13 @@ public class GestorBaseDatos {
         return obtenerTodosLosUsuarios(null);
     }
 
+    private static final String COLS_USER_SELECT =
+            "id, username, email, password_hash, avatar_url, telefono, phone_verified, role, created_at";
+
     public List<Usuario> obtenerTodosLosUsuarios(String filtroBusqueda) {
         boolean tieneFiltro = filtroBusqueda != null && !filtroBusqueda.trim().isEmpty();
-        String sql = "SELECT id, username, email, password_hash, avatar_url, telefono, role, created_at FROM users " +
-                (tieneFiltro ? "WHERE LOWER(username) LIKE ? OR LOWER(email) LIKE ? OR LOWER(telefono) LIKE ? " : "") +
+        String sql = "SELECT " + COLS_USER_SELECT + " FROM users " +
+                (tieneFiltro ? "WHERE LOWER(username) LIKE ? OR LOWER(email) LIKE ? " : "") +
                 "ORDER BY created_at DESC, username ASC";
         List<Usuario> lista = new ArrayList<>();
         try (Connection conn = abrirConexion();
@@ -787,7 +914,6 @@ public class GestorBaseDatos {
                 String pattern = "%" + filtroBusqueda.trim().toLowerCase(Locale.ROOT) + "%";
                 ps.setString(1, pattern);
                 ps.setString(2, pattern);
-                ps.setString(3, pattern);
             }
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
@@ -806,7 +932,7 @@ public class GestorBaseDatos {
         String conGuion = raw.replace(" ", "_");
         String conEspacio = raw.replace("_", " ");
 
-        String sql = "SELECT id, username, email, password_hash, avatar_url, telefono, role, created_at " +
+        String sql = "SELECT " + COLS_USER_SELECT + " " +
                      "FROM users WHERE LOWER(username) = LOWER(?) OR LOWER(username) = LOWER(?) OR LOWER(REPLACE(username, '_', ' ')) = LOWER(?) LIMIT 1";
         try (Connection conn = abrirConexion();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -826,8 +952,7 @@ public class GestorBaseDatos {
 
     public Usuario buscarUsuarioPorEmail(String email) {
         if (email == null || email.trim().isEmpty()) return null;
-        String sql = "SELECT id, username, email, password_hash, avatar_url, telefono, role, created_at " +
-                     "FROM users WHERE LOWER(email) = LOWER(?) LIMIT 1";
+        String sql = "SELECT " + COLS_USER_SELECT + " FROM users WHERE LOWER(email) = LOWER(?) LIMIT 1";
         try (Connection conn = abrirConexion();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, email.trim());
@@ -867,7 +992,7 @@ public class GestorBaseDatos {
         try (Connection conn = abrirConexion()) {
             conn.setAutoCommit(false);
             try {
-                String sqlUser = "INSERT INTO users (id, username, email, password_hash, avatar_url, telefono, role) VALUES (?, ?, ?, ?, ?, ?, 'GAMER')";
+                String sqlUser = "INSERT INTO users (id, username, email, password_hash, avatar_url, telefono, phone_verified, role) VALUES (?, ?, ?, ?, ?, ?, 0, 'GAMER')";
                 try (PreparedStatement ps = conn.prepareStatement(sqlUser)) {
                     ps.setString(1, userId);
                     ps.setString(2, cleanUser);
@@ -879,13 +1004,14 @@ public class GestorBaseDatos {
                 }
 
                 String profileId = UUID.randomUUID().toString();
-                String sqlProfile = "INSERT INTO player_profiles (id, user_id, bio, country, region, toxic_level, reputation_score, preferred_schedule, steam_id, riot_id, discord_tag) VALUES (?, ?, ?, 'Chile', 'Región Metropolitana', 'ZERO_TOXIC', 100, 'Noches (21:00 - 01:00)', '', ?, ?)";
+                String cleanFavGame = (gameCode != null && !gameCode.trim().isEmpty()) ? gameCode.trim().toLowerCase(Locale.ROOT) : "valorant";
+                String sqlProfile = "INSERT INTO player_profiles (id, user_id, bio, country, region, toxic_level, reputation_score, preferred_schedule, steam_id, riot_id, discord_tag, discord_id, discord_connected, favorite_games, favorite_genres, play_preferences, star_rating, rating_count) VALUES (?, ?, ?, 'Chile', 'Región Metropolitana', 'ZERO_TOXIC', 95, 'Noches (21:00 - 01:00)', '', ?, '', '', 0, ?, '', 'Dúo,Con Micrófono', 4.5, 0)";
                 try (PreparedStatement ps = conn.prepareStatement(sqlProfile)) {
                     ps.setString(1, profileId);
                     ps.setString(2, userId);
                     ps.setString(3, "Nuevo jugador registrado en PlayMatch. Listo para competir.");
                     ps.setString(4, cleanUser + "#CHI");
-                    ps.setString(5, cleanUser);
+                    ps.setString(5, cleanFavGame);
                     ps.executeUpdate();
                 }
 
@@ -915,15 +1041,67 @@ public class GestorBaseDatos {
         Usuario u = buscarUsuarioPorUsername(username);
         if (u == null) return false;
 
-        String sql = "UPDATE users SET email = ?, telefono = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+        String emailFinal = (nuevoEmail != null && !nuevoEmail.trim().isEmpty())
+                ? nuevoEmail.trim().toLowerCase(Locale.ROOT)
+                : u.getEmail();
+        String telFinal = nuevoTelefono != null ? nuevoTelefono.trim() : u.getTelefono();
+        boolean phoneUnchanged = telFinal.equals(u.getTelefono() != null ? u.getTelefono().trim() : "");
+        int verifiedFlag = (phoneUnchanged && u.isTelefonoVerificado()) ? 1 : 0;
+
+        String sql = "UPDATE users SET email = ?, telefono = ?, phone_verified = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
         try (Connection conn = abrirConexion();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setString(1, nuevoEmail != null && !nuevoEmail.trim().isEmpty() ? nuevoEmail.trim().toLowerCase(Locale.ROOT) : u.getEmail());
-            ps.setString(2, nuevoTelefono != null ? nuevoTelefono.trim() : u.getTelefono());
-            ps.setString(3, u.getId());
+            ps.setString(1, emailFinal);
+            ps.setString(2, telFinal);
+            ps.setInt(3, verifiedFlag);
+            ps.setString(4, u.getId());
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
             throw new RuntimeException("Error actualizando datos de cuenta", e);
+        }
+    }
+
+    public synchronized boolean actualizarAvatarUsuario(String username, String nuevoAvatarUrl) {
+        Usuario u = buscarUsuarioPorUsername(username);
+        if (u == null) return false;
+
+        try (Connection conn = abrirConexion()) {
+            conn.setAutoCommit(false);
+            try {
+                try (PreparedStatement ps = conn.prepareStatement(
+                        "UPDATE users SET avatar_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")) {
+                    ps.setString(1, nuevoAvatarUrl.trim());
+                    ps.setString(2, u.getId());
+                    ps.executeUpdate();
+                }
+                try (PreparedStatement psMsg = conn.prepareStatement(
+                        "UPDATE chat_messages SET sender_avatar = ? WHERE sender_id = ? OR LOWER(sender_username) = LOWER(?)")) {
+                    psMsg.setString(1, nuevoAvatarUrl.trim());
+                    psMsg.setString(2, u.getId());
+                    psMsg.setString(3, u.getUsername());
+                    psMsg.executeUpdate();
+                }
+                conn.commit();
+                return true;
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error actualizando foto de perfil", e);
+        }
+    }
+
+    public synchronized boolean marcarTelefonoVerificado(String username) {
+        Usuario u = buscarUsuarioPorUsername(username);
+        if (u == null) return false;
+        String sql = "UPDATE users SET phone_verified = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+        try (Connection conn = abrirConexion();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, u.getId());
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            throw new RuntimeException("Error marcando teléfono como verificado", e);
         }
     }
 
@@ -953,6 +1131,7 @@ public class GestorBaseDatos {
             rs.getString("role"),
             rs.getString("avatar_url"),
             rs.getString("telefono"),
+            rs.getInt("phone_verified") == 1,
             limpiarTimestamp(rs.getString("created_at"))
         );
     }
@@ -961,43 +1140,51 @@ public class GestorBaseDatos {
     // 3. PERFILES DE JUGADORES Y BUSCADOR LFG
     // =========================================================================
 
-    public List<PerfilJugador> obtenerTodosLosPerfiles() {
-        return buscarPerfiles(null, null, null);
-    }
-
-    public List<PerfilJugador> buscarPerfiles(String filtroJuego, String filtroToxic, String busqueda) {
-        StringBuilder sql = new StringBuilder(
+    private static final String SQL_SELECT_PERFIL =
             "SELECT pp.id AS profile_id, u.id AS user_id, u.username, u.avatar_url, " +
             "pp.bio, pp.country, pp.region, pp.toxic_level, pp.reputation_score, pp.preferred_schedule, " +
-            "pp.steam_id, pp.riot_id, pp.discord_tag, " +
+            "pp.steam_id, pp.riot_id, pp.discord_tag, pp.discord_id, pp.discord_connected, " +
+            "COALESCE(pp.favorite_games, '') AS favorite_games, " +
+            "COALESCE(pp.favorite_genres, '') AS favorite_genres, " +
+            "COALESCE(pp.play_preferences, '') AS play_preferences, " +
+            "COALESCE(pp.star_rating, 4.8) AS star_rating, " +
+            "COALESCE(pp.rating_count, 0) AS rating_count, " +
             "COALESCE(g.code, 'valorant') AS game_code, COALESCE(g.name, 'Valorant') AS game_name, " +
             "COALESCE(pgs.in_game_rank, 'Sin Rango') AS in_game_rank, COALESCE(pgs.preferred_role, 'Flex') AS preferred_role, " +
             "COALESCE(pgs.playstyle, 'COMPETITIVE') AS playstyle " +
             "FROM player_profiles pp " +
             "JOIN users u ON pp.user_id = u.id " +
             "LEFT JOIN player_game_stats pgs ON pgs.user_id = u.id AND pgs.is_primary = 1 " +
-            "LEFT JOIN games g ON pgs.game_id = g.id " +
-            "WHERE 1=1 "
-        );
+            "LEFT JOIN games g ON pgs.game_id = g.id ";
+
+    public List<PerfilJugador> obtenerTodosLosPerfiles() {
+        return buscarPerfiles(null, null, null);
+    }
+
+    public List<PerfilJugador> buscarPerfiles(String filtroJuego, String filtroToxic, String busqueda) {
+        StringBuilder sql = new StringBuilder(SQL_SELECT_PERFIL).append("WHERE 1=1 ");
 
         List<String> params = new ArrayList<>();
         if (filtroJuego != null && !filtroJuego.trim().isEmpty() && !"all".equalsIgnoreCase(filtroJuego.trim())) {
-            sql.append("AND LOWER(g.code) = LOWER(?) ");
+            sql.append("AND (LOWER(g.code) = LOWER(?) OR LOWER(COALESCE(pp.favorite_games, '')) LIKE ?) ");
             params.add(filtroJuego.trim());
+            params.add("%" + filtroJuego.trim().toLowerCase(Locale.ROOT) + "%");
         }
         if (filtroToxic != null && !filtroToxic.trim().isEmpty()) {
             sql.append("AND UPPER(pp.toxic_level) = UPPER(?) ");
             params.add(filtroToxic.trim());
         }
         if (busqueda != null && !busqueda.trim().isEmpty()) {
-            sql.append("AND (LOWER(u.username) LIKE ? OR LOWER(pp.region) LIKE ? OR LOWER(pgs.preferred_role) LIKE ? OR LOWER(pgs.in_game_rank) LIKE ?) ");
+            sql.append("AND (LOWER(u.username) LIKE ? OR LOWER(pp.region) LIKE ? OR LOWER(pgs.preferred_role) LIKE ? OR LOWER(pgs.in_game_rank) LIKE ? OR LOWER(COALESCE(pp.favorite_games, '')) LIKE ? OR LOWER(COALESCE(pp.favorite_genres, '')) LIKE ?) ");
             String q = "%" + busqueda.trim().toLowerCase(Locale.ROOT) + "%";
             params.add(q);
             params.add(q);
             params.add(q);
             params.add(q);
+            params.add(q);
+            params.add(q);
         }
-        sql.append("ORDER BY pp.reputation_score DESC, u.username ASC");
+        sql.append("ORDER BY pp.star_rating DESC, pp.reputation_score DESC, u.username ASC");
 
         List<PerfilJugador> lista = new ArrayList<>();
         try (Connection conn = abrirConexion();
@@ -1022,16 +1209,7 @@ public class GestorBaseDatos {
         String conGuion = raw.replace(" ", "_");
         String conEspacio = raw.replace("_", " ");
 
-        String sql = "SELECT pp.id AS profile_id, u.id AS user_id, u.username, u.avatar_url, " +
-                     "pp.bio, pp.country, pp.region, pp.toxic_level, pp.reputation_score, pp.preferred_schedule, " +
-                     "pp.steam_id, pp.riot_id, pp.discord_tag, " +
-                     "COALESCE(g.code, 'valorant') AS game_code, COALESCE(g.name, 'Valorant') AS game_name, " +
-                     "COALESCE(pgs.in_game_rank, 'Sin Rango') AS in_game_rank, COALESCE(pgs.preferred_role, 'Flex') AS preferred_role, " +
-                     "COALESCE(pgs.playstyle, 'COMPETITIVE') AS playstyle " +
-                     "FROM player_profiles pp " +
-                     "JOIN users u ON pp.user_id = u.id " +
-                     "LEFT JOIN player_game_stats pgs ON pgs.user_id = u.id AND pgs.is_primary = 1 " +
-                     "LEFT JOIN games g ON pgs.game_id = g.id " +
+        String sql = SQL_SELECT_PERFIL +
                      "WHERE LOWER(u.username) = LOWER(?) OR LOWER(u.username) = LOWER(?) OR LOWER(REPLACE(u.username, '_', ' ')) = LOWER(?) LIMIT 1";
         try (Connection conn = abrirConexion();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -1049,6 +1227,22 @@ public class GestorBaseDatos {
         return null;
     }
 
+    public synchronized void actualizarConexionDiscord(String username, String discordTag, String discordId, boolean connected) {
+        Usuario u = buscarUsuarioPorUsername(username);
+        if (u == null) return;
+        String sql = "UPDATE player_profiles SET discord_tag = ?, discord_id = ?, discord_connected = ? WHERE user_id = ?";
+        try (Connection conn = abrirConexion();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, connected ? nullSafe(discordTag) : "");
+            ps.setString(2, connected ? nullSafe(discordId) : "");
+            ps.setInt(3, connected ? 1 : 0);
+            ps.setString(4, u.getId());
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Error actualizando conexión con Discord", e);
+        }
+    }
+
     public synchronized void actualizarPerfil(PerfilJugador actualizado) {
         Usuario u = buscarUsuarioPorUsername(actualizado.getUsername());
         if (u == null) return;
@@ -1057,7 +1251,8 @@ public class GestorBaseDatos {
             conn.setAutoCommit(false);
             try {
                 String sqlProf = "UPDATE player_profiles SET bio = ?, region = ?, preferred_schedule = ?, " +
-                                 "steam_id = ?, riot_id = ?, discord_tag = ?, toxic_level = COALESCE(?, toxic_level) " +
+                                 "steam_id = ?, riot_id = ?, discord_tag = ?, toxic_level = COALESCE(?, toxic_level), " +
+                                 "favorite_games = ?, favorite_genres = ?, play_preferences = ? " +
                                  "WHERE user_id = ?";
                 try (PreparedStatement ps = conn.prepareStatement(sqlProf)) {
                     ps.setString(1, nullSafe(actualizado.getBiografia()));
@@ -1071,7 +1266,10 @@ public class GestorBaseDatos {
                     } else {
                         ps.setString(7, actualizado.getNivelToxicidad());
                     }
-                    ps.setString(8, u.getId());
+                    ps.setString(8, nullSafe(actualizado.getFavoriteGames()));
+                    ps.setString(9, nullSafe(actualizado.getFavoriteGenres()));
+                    ps.setString(10, nullSafe(actualizado.getPlayPreferences()));
+                    ps.setString(11, u.getId());
                     ps.executeUpdate();
                 }
 
@@ -1110,8 +1308,73 @@ public class GestorBaseDatos {
         }
     }
 
+    public synchronized PerfilJugador calificarJugador(String raterUsername, String ratedUsername, int stars, String comment) {
+        if (stars < 1 || stars > 5) {
+            throw new IllegalArgumentException("La valoración debe estar entre 1 y 5 estrellas.");
+        }
+        Usuario rater = buscarUsuarioPorUsername(raterUsername);
+        Usuario rated = buscarUsuarioPorUsername(ratedUsername);
+        if (rater == null || rated == null) {
+            return null;
+        }
+        if (rater.getId().equals(rated.getId())) {
+            throw new IllegalArgumentException("No puedes valorar tu propio perfil.");
+        }
+
+        try (Connection conn = abrirConexion()) {
+            conn.setAutoCommit(false);
+            try {
+                String sqlUpsert = "INSERT INTO player_ratings (id, rater_user_id, rated_user_id, stars, comment, updated_at) " +
+                                   "VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP) " +
+                                   "ON CONFLICT(rater_user_id, rated_user_id) DO UPDATE SET " +
+                                   "stars = EXCLUDED.stars, comment = EXCLUDED.comment, updated_at = CURRENT_TIMESTAMP";
+                try (PreparedStatement ps = conn.prepareStatement(sqlUpsert)) {
+                    ps.setString(1, UUID.randomUUID().toString());
+                    ps.setString(2, rater.getId());
+                    ps.setString(3, rated.getId());
+                    ps.setInt(4, stars);
+                    ps.setString(5, comment != null ? comment.trim() : "");
+                    ps.executeUpdate();
+                }
+
+                double avg = stars;
+                int count = 1;
+                try (PreparedStatement psAvg = conn.prepareStatement(
+                        "SELECT COALESCE(AVG(stars), ?) AS avg_stars, COUNT(*) AS total_votes FROM player_ratings WHERE rated_user_id = ?")) {
+                    psAvg.setDouble(1, (double) stars);
+                    psAvg.setString(2, rated.getId());
+                    try (ResultSet rs = psAvg.executeQuery()) {
+                        if (rs.next()) {
+                            avg = rs.getDouble("avg_stars");
+                            count = rs.getInt("total_votes");
+                        }
+                    }
+                }
+
+                double avgRedondeado = Math.round(avg * 10.0) / 10.0;
+                int rep = (int) Math.min(100, Math.max(10, Math.round(avg * 20.0)));
+                try (PreparedStatement psUpd = conn.prepareStatement(
+                        "UPDATE player_profiles SET star_rating = ?, rating_count = ?, reputation_score = ? WHERE user_id = ?")) {
+                    psUpd.setDouble(1, avgRedondeado);
+                    psUpd.setInt(2, count);
+                    psUpd.setInt(3, rep);
+                    psUpd.setString(4, rated.getId());
+                    psUpd.executeUpdate();
+                }
+
+                conn.commit();
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error guardando valoración por estrellas", e);
+        }
+        return buscarPerfilPorUsername(rated.getUsername());
+    }
+
     private PerfilJugador mapearPerfil(ResultSet rs) throws SQLException {
-        return new PerfilJugador(
+        PerfilJugador p = new PerfilJugador(
             rs.getString("profile_id"),
             rs.getString("user_id"),
             rs.getString("username"),
@@ -1131,6 +1394,14 @@ public class GestorBaseDatos {
             rs.getString("playstyle"),
             rs.getString("avatar_url")
         );
+        p.setDiscordId(nullSafe(rs.getString("discord_id")));
+        p.setDiscordConnected(rs.getInt("discord_connected") == 1);
+        p.setFavoriteGames(nullSafe(rs.getString("favorite_games")));
+        p.setFavoriteGenres(nullSafe(rs.getString("favorite_genres")));
+        p.setPlayPreferences(nullSafe(rs.getString("play_preferences")));
+        p.setStarRating(rs.getDouble("star_rating"));
+        p.setRatingCount(rs.getInt("rating_count"));
+        return p;
     }
 
     // =========================================================================
@@ -1356,9 +1627,12 @@ public class GestorBaseDatos {
 
     public List<MensajeChat> obtenerMensajesChat(String canal) {
         boolean filtrarCanal = canal != null && !canal.trim().isEmpty() && !"all".equalsIgnoreCase(canal.trim());
-        String sql = "SELECT id, sender_username, sender_avatar, channel, content, sent_at FROM chat_messages " +
-                     (filtrarCanal ? "WHERE LOWER(channel) = LOWER(?) " : "") +
-                     "ORDER BY created_at ASC LIMIT 120";
+        String sql = "SELECT cm.id, cm.sender_username, COALESCE(u.avatar_url, cm.sender_avatar) AS sender_avatar, " +
+                     "cm.channel, cm.content, cm.sent_at " +
+                     "FROM chat_messages cm " +
+                     "LEFT JOIN users u ON (cm.sender_id = u.id OR (cm.sender_id IS NULL AND LOWER(cm.sender_username) = LOWER(u.username))) " +
+                     (filtrarCanal ? "WHERE LOWER(cm.channel) = LOWER(?) " : "") +
+                     "ORDER BY cm.created_at ASC LIMIT 120";
         List<MensajeChat> lista = new ArrayList<>();
         try (Connection conn = abrirConexion();
              PreparedStatement ps = conn.prepareStatement(sql)) {
