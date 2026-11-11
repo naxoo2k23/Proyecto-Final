@@ -23,6 +23,44 @@ public class JsonUtils {
                 .replace("\t", "\\t");
     }
 
+    /**
+     * Serializa objetos estándar de Java (Map, List, String, Number, Boolean, null) a JSON válido.
+     */
+    @SuppressWarnings("unchecked")
+    public static String toJson(Object value) {
+        if (value == null) return "null";
+        if (value instanceof Boolean || value instanceof Number) {
+            return String.valueOf(value);
+        }
+        if (value instanceof String) {
+            return "\"" + escape((String) value) + "\"";
+        }
+        if (value instanceof Map) {
+            StringBuilder sb = new StringBuilder("{");
+            boolean first = true;
+            for (Map.Entry<Object, Object> entry : ((Map<Object, Object>) value).entrySet()) {
+                if (!first) sb.append(",");
+                first = false;
+                sb.append("\"").append(escape(String.valueOf(entry.getKey()))).append("\":")
+                  .append(toJson(entry.getValue()));
+            }
+            sb.append("}");
+            return sb.toString();
+        }
+        if (value instanceof Iterable) {
+            StringBuilder sb = new StringBuilder("[");
+            boolean first = true;
+            for (Object item : (Iterable<Object>) value) {
+                if (!first) sb.append(",");
+                first = false;
+                sb.append(toJson(item));
+            }
+            sb.append("]");
+            return sb.toString();
+        }
+        return "\"" + escape(String.valueOf(value)) + "\"";
+    }
+
     public static Map<String, String> parseSimpleJsonObject(String json) {
         Map<String, String> map = new HashMap<>();
         if (json == null || json.trim().isEmpty()) return map;

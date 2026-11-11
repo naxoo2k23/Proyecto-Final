@@ -2,8 +2,11 @@ package com.playmatch.modelo;
 
 public class PartidaTorneo {
     private String id;
-    private String nombreRonda; // "Cuartos de Final", "Semifinal", "Gran Final"
+    private String nombreRonda; // "Octavos de Final", "Cuartos de Final", "Semifinal", "Gran Final"
+    private int roundIndex = 1;
     private int orden;
+    private int nextMatchOrder = 0;
+    private int nextSlot = 0;
     private String equipo1;
     private String equipo2;
     private int puntajeEquipo1;
@@ -30,8 +33,14 @@ public class PartidaTorneo {
     public void setId(String id) { this.id = id; }
     public String getNombreRonda() { return nombreRonda; }
     public void setNombreRonda(String nombreRonda) { this.nombreRonda = nombreRonda; }
+    public int getRoundIndex() { return roundIndex; }
+    public void setRoundIndex(int roundIndex) { this.roundIndex = roundIndex; }
     public int getOrden() { return orden; }
     public void setOrden(int orden) { this.orden = orden; }
+    public int getNextMatchOrder() { return nextMatchOrder; }
+    public void setNextMatchOrder(int nextMatchOrder) { this.nextMatchOrder = nextMatchOrder; }
+    public int getNextSlot() { return nextSlot; }
+    public void setNextSlot(int nextSlot) { this.nextSlot = nextSlot; }
     public String getEquipo1() { return equipo1; }
     public void setEquipo1(String equipo1) { this.equipo1 = equipo1; }
     public String getEquipo2() { return equipo2; }

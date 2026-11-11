@@ -2,6 +2,7 @@ package com.playmatch.modelo;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class Torneo {
     private String id;
@@ -13,14 +14,16 @@ public class Torneo {
     private String formato;        // "SINGLE_ELIMINATION"
     private int maxEquipos;
     private String fechaInicio;
-    private String estado;         // "OPEN_REGISTRATION", "IN_PROGRESS", "COMPLETED"
+    private String estado;         // "OPEN_REGISTRATION", "IN_PROGRESS", "FINISHED"
     private String reglas;
     private String bannerUrl;
     private List<String> equiposInscritos;
+    private List<Map<String, Object>> inscripciones;
     private List<PartidaTorneo> partidas;
 
     public Torneo() {
         this.equiposInscritos = new ArrayList<>();
+        this.inscripciones = new ArrayList<>();
         this.partidas = new ArrayList<>();
     }
 
@@ -40,6 +43,7 @@ public class Torneo {
         this.reglas = reglas;
         this.bannerUrl = bannerUrl;
         this.equiposInscritos = new ArrayList<>();
+        this.inscripciones = new ArrayList<>();
         this.partidas = new ArrayList<>();
     }
 
@@ -70,6 +74,8 @@ public class Torneo {
     public void setBannerUrl(String bannerUrl) { this.bannerUrl = bannerUrl; }
     public List<String> getEquiposInscritos() { return equiposInscritos; }
     public void setEquiposInscritos(List<String> equiposInscritos) { this.equiposInscritos = equiposInscritos; }
+    public List<Map<String, Object>> getInscripciones() { return inscripciones; }
+    public void setInscripciones(List<Map<String, Object>> inscripciones) { this.inscripciones = inscripciones; }
     public List<PartidaTorneo> getPartidas() { return partidas; }
     public void setPartidas(List<PartidaTorneo> partidas) { this.partidas = partidas; }
 }

@@ -36,3 +36,36 @@ INSERT INTO chat_messages (id, sender_id, sender_username, sender_avatar, channe
 ('msg-2', 'u-2', 'Datrikk', 'https://api.dicebear.com/7.x/bottts/svg?seed=Datrikk', 'scrims-valorant', 'Buscamos 1 Duelista o Iniciador rango Ascendente+ para scrim hoy a las 21:00.', '19:15'),
 ('msg-3', 'u-3', 'dididong', 'https://api.dicebear.com/7.x/bottts/svg?seed=dididong', 'duo-lol', 'Disponible para ranked Duo en servidor LAS como Support.', '19:22')
 ON CONFLICT DO NOTHING;
+
+-- 4. AMISTADES Y CHATS DIRECTOS INICIALES (BANDEJA ESTILO INSTAGRAM)
+INSERT INTO friendships (id, requester_id, addressee_id, status) VALUES
+('fr-1', 'u-1', 'u-5', 'ACCEPTED'),
+('fr-2', 'u-1', 'u-2', 'ACCEPTED'),
+('fr-3', 'u-1', 'u-4', 'ACCEPTED'),
+('fr-4', 'u-1', 'u-3', 'ACCEPTED'),
+('fr-5', 'u-6', 'u-1', 'PENDING')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO direct_messages (id, sender_id, receiver_id, content, is_read, sent_at, created_ms) VALUES
+('dm-1', 'u-5', 'u-1', 'Wena Jesus, ¿sale Valorant a las 21:00?', 1, '18:40', 1731200001000),
+('dm-2', 'u-1', 'u-5', 'De una! Estoy practicando smokes en Ascent.', 1, '18:42', 1731200002000),
+('dm-3', 'u-5', 'u-1', 'Estoy listo para jugar Valorant a las 21:00 🔥', 1, '18:45', 1731200003000),
+('dm-4', 'u-2', 'u-1', 'Buena partida recién! Mañana repetimos dúo', 1, '17:20', 1731200004000),
+('dm-5', 'u-4', 'u-1', 'Falta 1 para Premier CS2 a las 22:00, ¿te sumas?', 0, '19:18', 1731200005000)
+ON CONFLICT DO NOTHING;
+
+-- 5. LOBBIES DE ESCUADRA INICIALES CON CUPOS EN VIVO
+INSERT INTO squad_lobbies (id, host_user_id, game_id, title, mode, max_slots, roles_needed, schedule_label, status) VALUES
+('lob-1', 'u-5', 'g-val', 'Ranked Valorant Ascendente+ · Falta Sentinel', 'Escuadra 5v5', 5, 'Sentinel / Flex', 'Hoy 21:30 hrs', 'OPEN'),
+('lob-2', 'u-2', 'g-mr', 'Marvel Rivals Competitivo · Sin Tilt', 'Escuadra 6v6', 6, 'Vanguard / Strategist', 'Tardes / Noches', 'OPEN'),
+('lob-3', 'u-4', 'g-apex', 'Apex Legends Tríos · Micrófono activo', 'Trío', 3, 'Entry / Support', '22:00 hrs', 'OPEN')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO squad_lobby_members (id, lobby_id, user_id, role_note) VALUES
+('lm-1', 'lob-1', 'u-5', 'Duelista'),
+('lm-2', 'lob-1', 'u-1', 'Controlador'),
+('lm-3', 'lob-1', 'u-2', 'Iniciador'),
+('lm-4', 'lob-2', 'u-2', 'Flex'),
+('lm-5', 'lob-2', 'u-5', 'Duelista'),
+('lm-6', 'lob-3', 'u-4', 'Fragger')
+ON CONFLICT DO NOTHING;

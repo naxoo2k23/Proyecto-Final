@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PlayMatch · Arena Competitiva y Torneos</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#38bdf8">
   <link rel="stylesheet" href="css/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22,19 +24,19 @@
             <svg viewBox="0 0 64 64" fill="none" width="40" height="40">
               <defs>
                 <linearGradient id="pmShieldNav" x1="8" y1="4" x2="56" y2="60" gradientUnits="userSpaceOnUse">
-                  <stop offset="0%" stop-color="#8b5cf6"/>
-                  <stop offset="50%" stop-color="#a855f7"/>
-                  <stop offset="100%" stop-color="#22d3ee"/>
+                  <stop offset="0%" stop-color="#38bdf8"/>
+                  <stop offset="55%" stop-color="#0ea5e9"/>
+                  <stop offset="100%" stop-color="#fbbf24"/>
                 </linearGradient>
                 <linearGradient id="pmCoreNav" x1="12" y1="8" x2="52" y2="56" gradientUnits="userSpaceOnUse">
-                  <stop offset="0%" stop-color="#1f1442"/>
-                  <stop offset="100%" stop-color="#090612"/>
+                  <stop offset="0%" stop-color="#0f172a"/>
+                  <stop offset="100%" stop-color="#05080f"/>
                 </linearGradient>
               </defs>
               <path d="M32 3L57 16V41L32 61L7 41V16L32 3Z" fill="url(#pmCoreNav)" stroke="url(#pmShieldNav)" stroke-width="3" stroke-linejoin="round"/>
-              <path d="M32 11.5L36 15.5L32 19.5L28 15.5L32 11.5Z" fill="#22d3ee"/>
+              <path d="M32 11.5L36 15.5L32 19.5L28 15.5L32 11.5Z" fill="#fbbf24"/>
               <path d="M25.5 21.5L46 32L25.5 42.5L30.8 32L25.5 21.5Z" fill="#ffffff"/>
-              <path d="M18 24.5L23 22L20.2 32L23 42L18 39.5L20.4 32L18 24.5Z" fill="#c4b5fd"/>
+              <path d="M18 24.5L23 22L20.2 32L23 42L18 39.5L20.4 32L18 24.5Z" fill="#38bdf8"/>
             </svg>
           </div>
           <div class="pm-logo-text-wrap">
@@ -84,7 +86,7 @@
               <button class="nav-tab-btn" data-tab="chat">
                 <span class="nav-tab-btn-inner">
                   <svg class="icon" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"></path></svg>
-                  Sala de Coordinación
+                  Chats y Amigos
                 </span>
                 <span class="nav-count-badge" id="badge-invites-count">0</span>
               </button>
@@ -150,13 +152,35 @@
         </div>
 
         <div class="topbar-right">
+          <div class="presence-pill-select">
+            <select id="presence-status-select" class="presence-select" title="Estado de presencia en tiempo real">
+              <option value="ONLINE">🟢 En línea</option>
+              <option value="LOOKING">🔵 Buscando grupo</option>
+              <option value="INGAME">🟡 En partida</option>
+            </select>
+          </div>
           <div class="topbar-search">
             <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
             <input type="text" id="global-search-input" placeholder="Buscar jugador, juego o correo...">
           </div>
-          <button class="btn btn-secondary btn-sm" id="btn-quick-invites" title="Ver invitaciones y chat">
-            <svg class="icon" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg>
-            <span id="topbar-invites-text">Invitaciones</span>
+          <div class="notif-anchor">
+            <button class="btn btn-secondary btn-sm" id="btn-quick-invites" title="Notificaciones, DMs y Solicitudes">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg>
+              <span id="topbar-invites-text">Invitaciones</span>
+            </button>
+            <div id="notifications-popover" class="notif-popover" style="display:none;">
+              <div class="notif-popover-header">
+                <strong>Notificaciones en Vivo</strong>
+                <button type="button" id="btn-notif-close" class="btn-close" style="font-size:1.1rem;">&times;</button>
+              </div>
+              <div id="notif-popover-list" class="notif-popover-list"></div>
+              <div class="notif-popover-footer">
+                <button type="button" id="btn-notif-open-chat" class="btn btn-secondary btn-sm" style="width:100%;">Ir a Chats y Salas</button>
+              </div>
+            </div>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-install-pwa" style="display:none;" title="Instalar PlayMatch como App">
+            📲 Instalar App
           </button>
           <button class="btn btn-primary btn-sm" id="btn-quick-add-game">
             + Nuevo Juego
@@ -166,17 +190,13 @@
 
       <main class="container">
 
-        <!-- BENTO HEADER: HERO ARENA + TELEMETRÍA SQLITE -->
+        <!-- HERO PRINCIPAL DE ARENA -->
         <section class="bento-hero-grid" id="bento-overview">
           <div class="hero-banner">
             <div class="hero-content">
-              <span class="hero-tag">
-                <svg class="icon" style="width:13px;height:13px;" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-                Ecosistema Zero-Toxic
-              </span>
               <h2 class="hero-title">Conecta. Compite. Sube de rango.</h2>
               <p class="hero-subtitle">
-                Encuentra escuadras verificadas, explora el catálogo dinámico de juegos e inscríbete en torneos con respaldo relacional en tiempo real.
+                Encuentra escuadras compatibles, explora el catálogo dinámico de juegos e inscríbete en torneos con seguimiento en tiempo real.
               </p>
               <div class="hero-actions">
                 <button class="btn btn-primary btn-sm" onclick="switchTab('games')">Ver Catálogo de Juegos</button>
@@ -189,63 +209,28 @@
               <div class="hero-image-overlay"></div>
             </div>
           </div>
-
-          <div class="telemetry-bento">
-            <div>
-              <div class="telemetry-header">
-                <h3>
-                  <svg class="icon" style="color:var(--color-cyan);" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"></path></svg>
-                  Telemetría DB
-                </h3>
-                <span class="telemetry-engine-tag" id="telemetry-engine-tag">3NF · JDBC</span>
-              </div>
-
-              <div class="telemetry-grid">
-                <div class="telemetry-tile">
-                  <div class="telemetry-tile-val" id="stat-users">-</div>
-                  <div class="telemetry-tile-label">Usuarios Registrados</div>
-                </div>
-                <div class="telemetry-tile">
-                  <div class="telemetry-tile-val" id="stat-games">-</div>
-                  <div class="telemetry-tile-label">Juegos Disponibles</div>
-                </div>
-                <div class="telemetry-tile">
-                  <div class="telemetry-tile-val" id="stat-tournaments">-</div>
-                  <div class="telemetry-tile-label">Torneos Activos</div>
-                </div>
-                <div class="telemetry-tile">
-                  <div class="telemetry-tile-val" id="stat-messages">-</div>
-                  <div class="telemetry-tile-label">Mensajes Guardados</div>
-                </div>
-              </div>
-            </div>
-
-            <div class="telemetry-footer">
-              <span id="stat-db-meta">Conectando motor JDBC...</span>
-              <a href="#" style="color:var(--color-cyan);text-decoration:none;font-weight:600;" onclick="switchTab('database'); return false;">Explorar BD →</a>
-            </div>
-          </div>
         </section>
 
         <!-- SECCIÓN 1: BUSCADOR DE JUGADORES (LFG) -->
         <section id="section-lfg" class="app-section">
-          <!-- PANEL DE RECOMENDACIÓN POR IA (GEMINI) -->
+          <!-- PANEL DE JUGADORES RECOMENDADOS -->
           <div id="ai-recommendations-panel" class="ai-rec-panel">
             <div class="ai-rec-header">
               <div class="ai-rec-title-group">
-                <div class="ai-spark-badge" aria-hidden="true">IA</div>
+                <div class="ai-spark-badge" aria-hidden="true">
+                  <svg class="icon" style="width:20px;height:20px;" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                </div>
                 <div>
                   <h2 style="font-family:var(--font-display);font-size:1.08rem;color:#fff;margin:0;">
-                    Recomendados para Ti por IA
+                    Jugadores Recomendados para Ti
                   </h2>
                   <p id="ai-rec-summary" style="font-size:0.79rem;color:var(--text-secondary);margin:0.18rem 0 0;">
-                    Analizando tus juegos favoritos, gustos y valoración comunitaria...
+                    Sugerencias basadas en tus juegos favoritos, gustos y valoración.
                   </p>
                 </div>
               </div>
               <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;">
-                <span id="ai-engine-pill" class="telemetry-engine-tag">GEMINI IA</span>
-                <button type="button" id="btn-refresh-ai-rec" class="btn btn-secondary btn-sm">Recalcular Match IA</button>
+                <button type="button" id="btn-refresh-ai-rec" class="btn btn-secondary btn-sm">Actualizar recomendaciones</button>
               </div>
             </div>
 
@@ -257,6 +242,22 @@
             </div>
 
             <div id="ai-recommendations-grid" class="ai-rec-grid"></div>
+          </div>
+
+          <!-- LOBBIES ACTIVOS CON CUPOS EN VIVO -->
+          <div id="lobbies-panel" class="lobbies-panel">
+            <div class="lobbies-panel-header">
+              <div>
+                <h2 style="font-family:var(--font-display);font-size:1.05rem;color:#fff;margin:0;">
+                  Lobbies Activos de Escuadra
+                </h2>
+                <p style="font-size:0.78rem;color:var(--text-secondary);margin:0.15rem 0 0;">
+                  Únete a una sala con cupos en vivo o crea tu propia escuadra con chat grupal automático.
+                </p>
+              </div>
+              <button type="button" id="btn-open-create-lobby" class="btn btn-primary btn-sm">+ Crear Lobby</button>
+            </div>
+            <div id="lobbies-grid" class="lobbies-grid"></div>
           </div>
 
           <div class="section-toolbar">
@@ -272,7 +273,7 @@
 
               <select id="toxic-filter" class="form-select" style="width:auto;min-width:190px;">
                 <option value="">Todas las Conductas</option>
-                <option value="ZERO_TOXIC">Solo Zero-Toxic (97-100 Karma)</option>
+                <option value="ZERO_TOXIC">Alta Reputación (97-100 Karma)</option>
                 <option value="FRIENDLY">Comunidad Amigable</option>
               </select>
             </div>
@@ -311,23 +312,123 @@
           <div id="tournaments-grid" class="tournaments-grid"></div>
 
           <div class="bracket-panel">
-            <div class="bracket-panel-header">
+            <div class="bracket-panel-header" style="display:flex;justify-content:space-between;align-items:center;gap:0.75rem;flex-wrap:wrap;">
               <h3 id="bracket-tournament-title">Llaves de Eliminación Directa</h3>
+              <button type="button" id="btn-generate-bracket" class="btn btn-secondary btn-sm" style="display:none;">Generar Llaves</button>
             </div>
             <div id="bracket-view"></div>
           </div>
+
+          <div id="leaderboard-panel" class="leaderboard-panel">
+            <div class="bracket-panel-header">
+              <h3>Ranking Top Jugadores · Valoración &amp; Reputación</h3>
+            </div>
+            <div id="leaderboard-list" class="leaderboard-list"></div>
+          </div>
         </section>
 
-        <!-- SECCIÓN 4: SALA DE COORDINACIÓN Y BUZÓN DE INVITACIONES -->
+        <!-- SECCIÓN 4: MENSAJES DIRECTOS ESTILO IG + SALAS GENERALES -->
         <section id="section-chat" class="app-section" style="display:none;">
           <div class="section-toolbar">
             <div class="section-title">
               <svg class="icon" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"></path></svg>
-              Sala de Coordinación en Vivo
+              Mensajes y Salas PlayMatch
+            </div>
+            <div class="chat-mode-switcher">
+              <button type="button" class="chat-mode-btn active" id="btn-chat-mode-dm" data-chat-mode="dm">
+                Mensajes Directos (IG)
+                <span class="dm-unread-pill" id="dm-unread-pill" style="display:none;">0</span>
+              </button>
+              <button type="button" class="chat-mode-btn" id="btn-chat-mode-channels" data-chat-mode="channels">
+                Salas Generales e Invitaciones
+              </button>
             </div>
           </div>
 
-          <div class="chat-split-wrapper">
+          <!-- VISTA 1: CHAT ESTILO INSTAGRAM CON TODOS TUS AMIGOS -->
+          <div id="chat-dm-view" class="ig-dm-shell">
+            <aside class="ig-dm-sidebar">
+              <div class="ig-sidebar-top">
+                <div class="ig-self-title">
+                  <strong id="ig-self-handle">@jugador</strong>
+                  <span class="ig-verified-badge" title="Chats privados 1 a 1 persistidos en BD">Direct</span>
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-ig-new-chat" title="Buscar jugadores y agregar amigos">
+                  + Agregar
+                </button>
+              </div>
+
+              <div class="ig-search-box">
+                <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input type="text" id="ig-dm-search" placeholder="Buscar chat o amigo...">
+              </div>
+
+              <div class="ig-filter-tabs">
+                <button type="button" class="ig-tab-btn active" id="btn-ig-tab-chats" data-ig-tab="chats">
+                  Principal
+                </button>
+                <button type="button" class="ig-tab-btn" id="btn-ig-tab-requests" data-ig-tab="requests">
+                  Solicitudes
+                  <span class="ig-tab-count" id="ig-requests-badge" style="display:none;">0</span>
+                </button>
+              </div>
+
+              <div id="ig-dm-threads-list" class="ig-threads-scroll"></div>
+            </aside>
+
+            <div class="ig-dm-thread-area">
+              <div id="ig-dm-empty-placeholder" class="ig-dm-empty">
+                <div class="ig-empty-circle">
+                  <svg class="icon" viewBox="0 0 24 24"><path d="M22 2 11 13"></path><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                </div>
+                <h3>Tus mensajes privados</h3>
+                <p>Conversa 1 a 1 con tus amigos agregados, comparte horarios y coordina partidas al instante.</p>
+                <button type="button" class="btn btn-primary btn-sm" id="btn-ig-empty-find">Explorar y agregar amigos</button>
+              </div>
+
+              <div id="ig-dm-active-thread" class="ig-active-thread" style="display:none;">
+                <div class="ig-thread-header" id="ig-dm-header">
+                  <div class="ig-header-user">
+                    <img id="ig-chat-avatar" src="" alt="Amigo" class="ig-header-avatar">
+                    <div style="min-width:0;">
+                      <div style="display:flex;align-items:center;gap:0.45rem;">
+                        <strong id="ig-chat-username" class="clickable-player-handle" style="color:#fff;font-size:0.95rem;" title="Ver dossier público">@amigo</strong>
+                        <span id="ig-chat-discord" class="ig-discord-mini" style="display:none;"></span>
+                      </div>
+                      <span id="ig-chat-meta" class="ig-header-sub">En línea · PlayMatch</span>
+                    </div>
+                  </div>
+                  <div class="ig-header-actions">
+                    <button type="button" class="btn btn-secondary btn-sm" id="btn-dm-profile" title="Ver perfil público">Perfil</button>
+                    <button type="button" class="btn btn-primary btn-sm" id="btn-dm-invite">Invitar a jugar</button>
+                    <button type="button" class="btn btn-secondary btn-sm" id="btn-dm-rate" title="Valorar jugador">★</button>
+                    <button type="button" class="btn btn-secondary btn-sm" id="btn-dm-unfriend" title="Eliminar amistad">Quitar</button>
+                  </div>
+                </div>
+
+                <div id="ig-dm-messages" class="ig-messages-scroll"></div>
+                <div id="ig-typing-indicator" class="ig-typing-indicator" style="display:none;">escribiendo...</div>
+
+                <div class="ig-quick-replies">
+                  <button type="button" class="ig-quick-chip" data-quick-text="¡Hola! ¿Sale partida hoy? 👋">👋 ¡Hola!</button>
+                  <button type="button" class="ig-quick-chip" data-quick-text="¿Jugamos ranked ahora? 🎮">🎮 ¿Jugamos?</button>
+                  <button type="button" class="ig-quick-chip" data-quick-text="GG! Buena partida recién 🔥">🔥 GG!</button>
+                  <button type="button" class="ig-quick-chip" data-quick-text="Conéctate al Discord cuando estés listo 🎙️">🎙️ Discord</button>
+                </div>
+
+                <div class="ig-input-bar" id="ig-dm-input-bar">
+                  <button type="button" id="btn-dm-attach-image" class="btn btn-secondary btn-sm ig-tool-btn" title="Enviar imagen o GIF">📷</button>
+                  <input type="file" id="dm-image-file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+                  <button type="button" id="btn-dm-share-lobby" class="btn btn-secondary btn-sm ig-tool-btn" title="Compartir invitación a lobby">🎮</button>
+                  <input type="text" id="ig-dm-input" class="form-control ig-dm-input" placeholder="Envía un mensaje a tu amigo...">
+                  <button type="button" id="ig-dm-send-btn" class="btn btn-primary ig-dm-send-btn">Enviar</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- VISTA 2: SALAS GENERALES DE COMUNIDAD E INVITACIONES LFG -->
+          <div id="chat-channels-view" class="chat-split-wrapper" style="display:none;">
             <div class="chat-layout">
               <aside class="chat-sidebar">
                 <div class="chat-sidebar-header">Chat General (Todos)</div>
@@ -354,6 +455,9 @@
                 <button class="channel-list-item" data-channel="competitivo-cs2" data-label="# Competitivo CS2" data-desc="Salas de Premier, FACEIT y equipos competitivos de Counter-Strike 2.">
                   <span># Competitivo CS2</span>
                 </button>
+
+                <div class="chat-sidebar-header" style="margin-top:0.9rem;">Lobbies Grupales Activos</div>
+                <div id="lobby-channels-list"></div>
               </aside>
 
               <div class="chat-main-area">
@@ -397,34 +501,51 @@
             </div>
           </div>
 
-          <!-- TARJETA IDENTIDAD VISUAL / FOTO DE PERFIL -->
-          <div class="profile-avatar-card">
-            <div class="profile-avatar-preview-wrap">
-              <img id="prof-avatar-preview" src="" alt="Foto de perfil" class="profile-avatar-lg">
-              <div>
-                <h3 id="prof-avatar-username" style="font-family:var(--font-display);font-size:1.15rem;margin-bottom:0.35rem;">Jugador PlayMatch</h3>
-                <div class="profile-status-badges">
-                  <span id="prof-phone-badge" class="status-pill pending">Teléfono sin verificar</span>
-                  <span id="prof-discord-badge" class="status-pill offline">Discord sin conectar</span>
-                  <span id="prof-rating-badge" class="status-pill verified">4.8 ★ · Prioridad Alta</span>
+          <!-- TARJETA PRO PLAYER PASS: PORTADA + IDENTIDAD + FOTO DE PERFIL -->
+          <div class="profile-hero-pass">
+            <div class="profile-pass-cover">
+              <div class="profile-pass-cover-grid"></div>
+              <div class="profile-pass-cover-top">
+                <span class="profile-pass-tag">PLAYER DOSSIER</span>
+                <div class="profile-pass-game-badges">
+                  <span id="prof-pass-game-pill" class="badge-game valorant">Valorant</span>
+                  <span id="prof-pass-rank-pill" class="profile-rank-pill">Rango · Activo</span>
                 </div>
-                <p id="prof-rating-visibility-note" style="font-size:0.72rem;color:var(--text-muted);margin:0.4rem 0 0;"></p>
               </div>
             </div>
 
-            <div class="profile-avatar-controls">
-              <div class="avatar-action-row">
-                <label for="prof-avatar-file" class="btn btn-primary btn-sm" style="cursor:pointer;">Subir Imagen desde Equipo</label>
-                <input type="file" id="prof-avatar-file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
-                <button type="button" id="btn-reset-avatar" class="btn btn-secondary btn-sm">Restaurar Avatar</button>
+            <div class="profile-avatar-card profile-pass-body">
+              <div class="profile-avatar-preview-wrap">
+                <div class="profile-avatar-frame">
+                  <img id="prof-avatar-preview" src="" alt="Foto de perfil" class="profile-avatar-lg">
+                  <span class="profile-avatar-live-dot" title="Perfil Activo"></span>
+                </div>
+                <div>
+                  <h3 id="prof-avatar-username" class="profile-pass-username">Jugador PlayMatch</h3>
+                  <p id="prof-pass-sub" class="profile-pass-sub">Configura tu rol, rango y región competitiva</p>
+                  <div class="profile-status-badges">
+                    <span id="prof-phone-badge" class="status-pill pending">Teléfono sin verificar</span>
+                    <span id="prof-discord-badge" class="status-pill offline">Discord sin conectar</span>
+                    <span id="prof-rating-badge" class="status-pill verified">4.8 ★ · Prioridad Alta</span>
+                  </div>
+                  <p id="prof-rating-visibility-note" style="font-size:0.72rem;color:var(--text-muted);margin:0.45rem 0 0;"></p>
+                </div>
               </div>
-              <div class="avatar-url-row">
-                <input type="url" id="prof-avatar-url" class="form-control" placeholder="O pega el enlace directo de cualquier imagen (https://...)">
-                <button type="button" id="btn-apply-avatar-url" class="btn btn-secondary btn-sm">Aplicar URL</button>
+
+              <div class="profile-avatar-controls">
+                <div class="avatar-action-row">
+                  <label for="prof-avatar-file" class="btn btn-primary btn-sm" style="cursor:pointer;">Subir Imagen desde Equipo</label>
+                  <input type="file" id="prof-avatar-file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+                  <button type="button" id="btn-reset-avatar" class="btn btn-secondary btn-sm">Restaurar Avatar</button>
+                </div>
+                <div class="avatar-url-row">
+                  <input type="url" id="prof-avatar-url" class="form-control" placeholder="O pega el enlace directo de cualquier imagen (https://...)">
+                  <button type="button" id="btn-apply-avatar-url" class="btn btn-secondary btn-sm">Aplicar URL</button>
+                </div>
+                <p style="font-size:0.72rem;color:var(--text-muted);margin:0;">
+                  Formatos permitidos: PNG, JPG, WebP, GIF o enlace directo HTTPS. Se actualiza en LFG y chat al instante.
+                </p>
               </div>
-              <p style="font-size:0.72rem;color:var(--text-muted);margin:0;">
-                Formatos permitidos: PNG, JPG, WebP, GIF o enlace directo HTTPS. Se actualiza en LFG y chat al instante.
-              </p>
             </div>
           </div>
 
@@ -474,11 +595,11 @@
                 </div>
               </div>
 
-              <!-- TARJETA PERFIL GAMER (TABLA PLAYER_PROFILES) -->
+              <!-- TARJETA PERFIL GAMER -->
               <div class="profile-panel">
-                <h3 style="font-family:var(--font-display);font-size:1rem;margin-bottom:0.25rem;">Perfil Competitivo (<code>player_profiles</code>)</h3>
+                <h3 style="font-family:var(--font-display);font-size:1rem;margin-bottom:0.25rem;">Perfil Competitivo</h3>
                 <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:1.15rem;">
-                  Visible en el buscador LFG para formar escuadras y alimentar recomendaciones IA.
+                  Visible al buscar compañeros para formar escuadras compatibles.
                 </p>
 
                 <div class="form-group">
@@ -533,18 +654,17 @@
               </div>
             </div>
 
-            <!-- GUSTOS Y JUEGOS FAVORITOS PARA GEMINI IA -->
+            <!-- GUSTOS Y JUEGOS FAVORITOS -->
             <div id="profile-tastes-panel" class="tastes-panel">
               <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.85rem;">
                 <div>
                   <h3 style="font-family:var(--font-display);font-size:1.02rem;color:#fff;margin:0;">
-                    Mis Gustos y Juegos Favoritos (para Recomendación IA)
+                    Mis Gustos y Juegos Favoritos
                   </h3>
                   <p style="font-size:0.76rem;color:var(--text-secondary);margin:0.15rem 0 0;">
-                    Selecciona los juegos, géneros y preferencias que más disfrutas; Gemini IA usará esto y tu valoración (★) para emparejarte mejor.
+                    Selecciona los juegos, géneros y preferencias que más disfrutas; esto junto con tu valoración (★) mejora tus recomendaciones de compañeros.
                   </p>
                 </div>
-                <span class="telemetry-engine-tag">GEMINI · MATCH</span>
               </div>
 
               <div class="tastes-group">
@@ -607,8 +727,39 @@
               </div>
               <div class="discord-btn-group">
                 <button type="button" id="btn-connect-discord" class="btn btn-discord">Conectar Discord</button>
+                <button type="button" id="btn-discord-oauth" class="btn btn-secondary btn-sm">Conectar con Discord OAuth2</button>
                 <button type="button" id="btn-disconnect-discord" class="btn btn-secondary btn-sm" style="display:none;">Desconectar</button>
                 <a id="discord-profile-link" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="display:none;">Abrir Perfil</a>
+              </div>
+            </div>
+          </div>
+
+          <div class="profile-two-col" style="margin-top:1.15rem;">
+            <!-- USUARIOS BLOQUEADOS -->
+            <div id="blocked-users-panel" class="profile-panel">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem;">
+                <h3 style="font-family:var(--font-display);font-size:1rem;">Jugadores Bloqueados</h3>
+                <span class="privacy-pill">Moderación</span>
+              </div>
+              <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.85rem;">
+                Los jugadores bloqueados no pueden enviarte DMs, invitaciones ni aparecer en tus recomendaciones.
+              </p>
+              <div id="blocked-users-list" class="blocked-users-list"></div>
+            </div>
+
+            <!-- ESTADO DE INTEGRACIONES EN VIVO -->
+            <div id="profile-integrations-panel" class="profile-panel">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem;">
+                <h3 style="font-family:var(--font-display);font-size:1rem;">Estado de Conectores y Motor</h3>
+                <span class="status-pill verified" id="integrations-engine-pill">SQL</span>
+              </div>
+              <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.85rem;">
+                Estado real de las integraciones activas en tu entorno actual (<code>.env</code>).
+              </p>
+              <div id="integrations-status-grid" class="integrations-status-grid"></div>
+              <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.85rem;">
+                <button type="button" id="btn-enable-browser-push" class="btn btn-secondary btn-sm">Activar Notificaciones Push</button>
+                <button type="button" id="btn-profile-install-pwa" class="btn btn-primary btn-sm" style="display:none;">Instalar App (PWA)</button>
               </div>
             </div>
           </div>
@@ -714,7 +865,7 @@
             <button type="button" class="rate-star-btn active" data-stars="5">5 ★</button>
           </div>
           <p style="font-size:0.73rem;color:var(--text-muted);margin:0.45rem 0 0;">
-            Los jugadores que caen por debajo de <strong>2.0 ★</strong> aparecen con visibilidad reducida en las recomendaciones IA.
+            Los jugadores con menos de <strong>2.0 ★</strong> aparecen con visibilidad reducida en las recomendaciones.
           </p>
         </div>
         <div class="form-group">
@@ -800,7 +951,11 @@
           </div>
           <div class="form-group">
             <label class="form-label" for="new-t-max">Cupo Equipos</label>
-            <input type="number" id="new-t-max" class="form-control" value="8" min="2" max="32">
+            <select id="new-t-max" class="form-select">
+              <option value="4">4 Equipos (Semis → Final)</option>
+              <option value="8" selected>8 Equipos (Cuartos → Final)</option>
+              <option value="16">16 Equipos (Octavos → Final)</option>
+            </select>
           </div>
         </div>
         <div class="form-grid-2">
@@ -818,6 +973,193 @@
           <textarea id="new-t-rules" class="form-textarea" rows="2" placeholder="Formato Bo1/Bo3, tolerancia y reglamento..."></textarea>
         </div>
         <button type="submit" class="btn btn-primary" style="width:100%;">Publicar Torneo</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: DOSSIER PÚBLICO DEL JUGADOR -->
+  <div id="public-profile-modal" class="modal-overlay">
+    <div class="modal-card modal-card-wide">
+      <div class="dossier-cover">
+        <div class="dossier-cover-top">
+          <span class="profile-pass-tag">PLAYER DOSSIER</span>
+          <button id="public-profile-close-btn" class="btn-close">&times;</button>
+        </div>
+      </div>
+      <div class="dossier-body">
+        <div class="dossier-header-row">
+          <div class="dossier-avatar-wrap">
+            <img id="dossier-avatar" src="" alt="Jugador" class="dossier-avatar">
+            <span id="dossier-presence-dot" class="presence-dot-lg offline"></span>
+          </div>
+          <div class="dossier-identity">
+            <div style="display:flex;align-items:center;gap:0.55rem;flex-wrap:wrap;">
+              <h2 id="dossier-username" style="margin:0;font-size:1.35rem;color:#fff;">@jugador</h2>
+              <span id="dossier-verified-pill" class="status-pill pending" style="display:none;">Verificado</span>
+              <span id="dossier-presence-label" class="presence-text-pill">Desconectado</span>
+            </div>
+            <p id="dossier-submeta" style="color:var(--text-secondary);font-size:0.84rem;margin:0.25rem 0 0.45rem;">Juego · Rango · Rol</p>
+            <div id="dossier-badges-row" class="dossier-badges-row"></div>
+          </div>
+          <div class="dossier-rating-box">
+            <div id="dossier-star-score" class="dossier-star-score">4.8 ★</div>
+            <div id="dossier-rating-count" style="font-size:0.74rem;color:var(--text-muted);">0 reseñas</div>
+          </div>
+        </div>
+
+        <p id="dossier-bio" class="dossier-bio"></p>
+
+        <div id="dossier-trophies-row" class="dossier-trophies-row"></div>
+
+        <div id="dossier-tastes-row" class="dossier-tastes-row"></div>
+
+        <div class="dossier-ids-row" id="dossier-ids-row"></div>
+
+        <div class="dossier-actions-bar">
+          <button type="button" id="dossier-btn-chat" class="btn btn-secondary btn-sm">Chatear / Agregar</button>
+          <button type="button" id="dossier-btn-invite" class="btn btn-primary btn-sm">Invitar a Jugar</button>
+          <button type="button" id="dossier-btn-rate" class="btn btn-secondary btn-sm">Valorar ★</button>
+          <button type="button" id="dossier-btn-report" class="btn btn-secondary btn-sm">Reportar</button>
+          <button type="button" id="dossier-btn-block" class="btn btn-secondary btn-sm">Bloquear</button>
+        </div>
+
+        <div class="dossier-reviews-section">
+          <h4 style="margin:0 0 0.55rem;font-size:0.9rem;color:#fff;">Reseñas Recientes de Compañeros</h4>
+          <div id="dossier-reviews-list" class="dossier-reviews-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CREAR LOBBY DE ESCUADRA -->
+  <div id="create-lobby-modal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Crear Lobby de Escuadra</h3>
+        <button id="create-lobby-close-btn" class="btn-close">&times;</button>
+      </div>
+      <form id="create-lobby-form">
+        <div class="form-group">
+          <label class="form-label" for="lobby-title">Título del Lobby</label>
+          <input type="text" id="lobby-title" class="form-control" placeholder="Ej: Clash LAS 5v5 · Con Discord" required>
+        </div>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label" for="lobby-game">Juego</label>
+            <select id="lobby-game" class="form-select"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="lobby-slots">Cupos Totales</label>
+            <input type="number" id="lobby-slots" class="form-control" value="5" min="2" max="10" required>
+          </div>
+        </div>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label" for="lobby-mode">Modo</label>
+            <input type="text" id="lobby-mode" class="form-control" value="Ranked Escuadra">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="lobby-schedule">Horario</label>
+            <input type="text" id="lobby-schedule" class="form-control" value="Ahora · Hoy Noche">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="lobby-roles">Roles Buscados</label>
+          <input type="text" id="lobby-roles" class="form-control" placeholder="Ej: Controlador, Soporte, IGL">
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;">Publicar Lobby y Abrir Chat Grupal</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: COMPARTIR LOBBY EN DM -->
+  <div id="share-lobby-modal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Compartir Lobby en Chat</h3>
+        <button id="share-lobby-close-btn" class="btn-close">&times;</button>
+      </div>
+      <form id="share-lobby-form">
+        <div class="form-group">
+          <label class="form-label" for="share-lobby-select">Selecciona un Lobby Activo</label>
+          <select id="share-lobby-select" class="form-select" required></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="share-lobby-note">Mensaje opcional</label>
+          <input type="text" id="share-lobby-note" class="form-control" value="¡Únete a nuestra escuadra en PlayMatch!">
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;">Enviar Tarjeta de Lobby</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: ENVIAR IMAGEN POR ENLACE EN DM -->
+  <div id="dm-image-modal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Enviar Imagen en DM</h3>
+        <button id="dm-image-close-btn" class="btn-close">&times;</button>
+      </div>
+      <div style="display:grid;gap:0.75rem;">
+        <button type="button" id="btn-dm-pick-file" class="btn btn-primary" style="width:100%;">Subir Imagen desde mi Equipo</button>
+        <div style="text-align:center;font-size:0.75rem;color:var(--text-muted);">o pega un enlace directo HTTPS</div>
+        <form id="dm-image-url-form" style="display:flex;gap:0.5rem;">
+          <input type="url" id="dm-image-url-input" class="form-control" placeholder="https://.../imagen.png" required>
+          <button type="submit" class="btn btn-secondary">Enviar</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: REPORTAR JUGADOR -->
+  <div id="report-modal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="report-modal-title">Reportar Jugador</h3>
+        <button id="report-close-btn" class="btn-close">&times;</button>
+      </div>
+      <form id="report-form">
+        <input type="hidden" id="report-target-user">
+        <div class="form-group">
+          <label class="form-label" for="report-reason">Motivo del Reporte</label>
+          <select id="report-reason" class="form-select" required>
+            <option value="Toxicidad o insultos">Toxicidad o insultos</option>
+            <option value="Afk o abandono intencional">AFK / Abandono en partida</option>
+            <option value="Spam o estafa">Spam o enlaces maliciosos</option>
+            <option value="Comportamiento antideportivo">Comportamiento antideportivo</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="report-details">Detalles adicionales (opcional)</label>
+          <textarea id="report-details" class="form-textarea" rows="3" placeholder="Describe brevemente lo ocurrido..."></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;">Enviar Reporte</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: REGISTRAR RESULTADO DE PARTIDA (TORNEOS) -->
+  <div id="match-result-modal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="mr-modal-title">Registrar Resultado</h3>
+        <button id="mr-close-btn" class="btn-close">&times;</button>
+      </div>
+      <form id="match-result-form">
+        <input type="hidden" id="mr-tournament-id">
+        <input type="hidden" id="mr-match-id">
+        <p id="mr-match-label" style="font-size:0.84rem;color:var(--color-cyan);margin:0 0 0.85rem;font-weight:600;"></p>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label" id="mr-team1-label" for="mr-score1">Equipo 1</label>
+            <input type="number" id="mr-score1" class="form-control" min="0" value="2" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" id="mr-team2-label" for="mr-score2">Equipo 2</label>
+            <input type="number" id="mr-score2" class="form-control" min="0" value="0" required>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;">Guardar Resultado y Avanzar Llave</button>
       </form>
     </div>
   </div>

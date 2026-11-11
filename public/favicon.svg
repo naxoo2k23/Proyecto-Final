@@ -1,22 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
   <defs>
     <linearGradient id="pmShieldGrad" x1="8" y1="4" x2="56" y2="60" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#8b5cf6"/>
-      <stop offset="50%" stop-color="#a855f7"/>
-      <stop offset="100%" stop-color="#22d3ee"/>
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="55%" stop-color="#0ea5e9"/>
+      <stop offset="100%" stop-color="#fbbf24"/>
     </linearGradient>
     <linearGradient id="pmCoreGrad" x1="12" y1="8" x2="52" y2="56" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#191030"/>
-      <stop offset="100%" stop-color="#090612"/>
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#05080f"/>
     </linearGradient>
     <linearGradient id="pmWingGrad" x1="22" y1="20" x2="46" y2="42" gradientUnits="userSpaceOnUse">
       <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="100%" stop-color="#c4b5fd"/>
+      <stop offset="100%" stop-color="#bae6fd"/>
     </linearGradient>
   </defs>
   <path d="M32 3L57 16V41L32 61L7 41V16L32 3Z" fill="url(#pmCoreGrad)" stroke="url(#pmShieldGrad)" stroke-width="3" stroke-linejoin="round"/>
   <path d="M32 8L52.5 18.8V38.8L32 55.5L11.5 38.8V18.8L32 8Z" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
-  <path d="M32 11.5L36 15.5L32 19.5L28 15.5L32 11.5Z" fill="#22d3ee"/>
+  <path d="M32 11.5L36 15.5L32 19.5L28 15.5L32 11.5Z" fill="#fbbf24"/>
   <path d="M25.5 21.5L46 32L25.5 42.5L30.8 32L25.5 21.5Z" fill="url(#pmWingGrad)"/>
-  <path d="M18 24.5L23 22L20.2 32L23 42L18 39.5L20.4 32L18 24.5Z" fill="#a78bfa"/>
+  <path d="M18 24.5L23 22L20.2 32L23 42L18 39.5L20.4 32L18 24.5Z" fill="#38bdf8"/>
 </svg>

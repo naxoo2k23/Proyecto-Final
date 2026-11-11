@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PlayMatch · Iniciar Sesión</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#38bdf8">
   <link rel="stylesheet" href="css/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,84 +14,45 @@
 </head>
 <body style="margin:0;">
 
-  <div class="auth-split-wrapper">
-    <div class="auth-split-shell">
+  <div class="login-video-stage">
+    <!-- VIDEO GAMER DE FONDO EN BUCLE -->
+    <video id="login-bg-video" class="login-bg-video" autoplay muted loop playsinline poster="assets/video/gamer-bg-poster.jpg">
+      <source src="assets/video/gamer-bg.mp4" type="video/mp4">
+    </video>
+    <div class="login-video-overlay"></div>
 
-      <!-- PANEL IZQUIERDO: SHOWCASE DE MARCA Y NUEVO LOGO -->
-      <div class="auth-showcase">
-        <div class="auth-showcase-content">
-          <a href="#" class="pm-logo-link">
-            <div class="pm-logo-crest" style="width:46px;height:46px;">
-              <svg viewBox="0 0 64 64" fill="none" width="46" height="46">
-                <defs>
-                  <linearGradient id="pmS1" x1="8" y1="4" x2="56" y2="60" gradientUnits="userSpaceOnUse">
-                    <stop offset="0%" stop-color="#8b5cf6"/>
-                    <stop offset="50%" stop-color="#a855f7"/>
-                    <stop offset="100%" stop-color="#22d3ee"/>
-                  </linearGradient>
-                  <linearGradient id="pmC1" x1="12" y1="8" x2="52" y2="56" gradientUnits="userSpaceOnUse">
-                    <stop offset="0%" stop-color="#1f1442"/>
-                    <stop offset="100%" stop-color="#090612"/>
-                  </linearGradient>
-                </defs>
-                <path d="M32 3L57 16V41L32 61L7 41V16L32 3Z" fill="url(#pmC1)" stroke="url(#pmS1)" stroke-width="3" stroke-linejoin="round"/>
-                <path d="M32 11.5L36 15.5L32 19.5L28 15.5L32 11.5Z" fill="#22d3ee"/>
-                <path d="M25.5 21.5L46 32L25.5 42.5L30.8 32L25.5 21.5Z" fill="#ffffff"/>
-                <path d="M18 24.5L23 22L20.2 32L23 42L18 39.5L20.4 32L18 24.5Z" fill="#c4b5fd"/>
-              </svg>
-            </div>
-            <div class="pm-logo-text-wrap">
-              <span class="pm-wordmark" style="font-size:1.45rem;">PLAY<span class="pm-wordmark-accent">MATCH</span></span>
-              <span class="pm-wordmark-sub">Esports Network</span>
-            </div>
-          </a>
-
-          <h1 class="auth-showcase-title">Compite en escuadra.<br>Cero toxicidad.</h1>
-          <p class="auth-showcase-desc">
-            Encuentra compañeros afines, regístrate en torneos locales y coordina tus partidas con persistencia relacional en tiempo real.
-          </p>
-
-          <div class="auth-feature-list">
-            <div class="auth-feature-item">
-              <div class="auth-feature-icon">
-                <svg class="icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="m9 12 2 2 4-4"></path></svg>
-              </div>
-              <div>
-                <strong>Emparejamiento Zero-Toxic</strong>
-                <span>Filtra jugadores por karma conductual, rango competitivo y horario real.</span>
-              </div>
-            </div>
-            <div class="auth-feature-item">
-              <div class="auth-feature-icon">
-                <svg class="icon" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"></path></svg>
-              </div>
-              <div>
-                <strong>Base de Datos PostgreSQL & Pool JDBC</strong>
-                <span>Cuentas, correos, teléfonos, catálogo de juegos y torneos guardados con PBKDF2.</span>
-              </div>
-            </div>
-            <div class="auth-feature-item">
-              <div class="auth-feature-icon">
-                <svg class="icon" viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg>
-              </div>
-              <div>
-                <strong>Torneos y Brackets en Vivo</strong>
-                <span>Inscribe tu escuadra y sigue el progreso oficial hacia la Gran Final.</span>
-              </div>
-            </div>
-          </div>
+    <div class="login-center-container">
+      <!-- LOGO DE PLAYMATCH FLOTANTE SOBRE EL INICIO DE SESIÓN -->
+      <a href="#" class="login-brand-hero" onclick="return false;">
+        <div class="pm-logo-crest login-brand-crest">
+          <svg viewBox="0 0 64 64" fill="none" width="44" height="44">
+            <defs>
+              <linearGradient id="pmS1" x1="8" y1="4" x2="56" y2="60" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#38bdf8"/>
+                <stop offset="55%" stop-color="#0ea5e9"/>
+                <stop offset="100%" stop-color="#fbbf24"/>
+              </linearGradient>
+              <linearGradient id="pmC1" x1="12" y1="8" x2="52" y2="56" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#0f172a"/>
+                <stop offset="100%" stop-color="#05080f"/>
+              </linearGradient>
+            </defs>
+            <path d="M32 3L57 16V41L32 61L7 41V16L32 3Z" fill="url(#pmC1)" stroke="url(#pmS1)" stroke-width="3" stroke-linejoin="round"/>
+            <path d="M32 11.5L36 15.5L32 19.5L28 15.5L32 11.5Z" fill="#fbbf24"/>
+            <path d="M25.5 21.5L46 32L25.5 42.5L30.8 32L25.5 21.5Z" fill="#ffffff"/>
+            <path d="M18 24.5L23 22L20.2 32L23 42L18 39.5L20.4 32L18 24.5Z" fill="#38bdf8"/>
+          </svg>
         </div>
-
-        <div class="auth-showcase-footer">
-          <span class="pulse-dot"></span>
-          <span id="auth-db-footer">Motor Activo · Java 21 SE + PostgreSQL / SQLite JDBC</span>
+        <div class="pm-logo-text-wrap" style="text-align:left;">
+          <span class="pm-wordmark" style="font-size:1.7rem;letter-spacing:0.06em;">PLAY<span class="pm-wordmark-accent">MATCH</span></span>
+          <span class="pm-wordmark-sub" style="letter-spacing:0.22em;">Esports Network</span>
         </div>
-      </div>
+      </a>
 
-      <!-- PANEL DERECHO: FORMULARIO DE ACCESO -->
-      <div class="auth-form-panel">
-        <h2 class="auth-title">Iniciar Sesión</h2>
-        <p class="auth-subtitle">Ingresa tu usuario, gamertag o correo para acceder a la arena</p>
+      <!-- TARJETA CENTRAL DE LOGIN CON GLASSMORPHISM -->
+      <div class="login-glass-card">
+        <h1 class="auth-title" style="text-align:center;">Iniciar Sesión</h1>
+        <p class="auth-subtitle" style="text-align:center;">Ingresa tus credenciales para entrar a la arena</p>
 
         <div id="login-alert" class="auth-alert"></div>
 
@@ -116,7 +79,7 @@
             </label>
           </div>
 
-          <button type="submit" class="btn btn-primary" id="btn-submit-login" style="width:100%;padding:0.7rem;">
+          <button type="submit" class="btn btn-primary" id="btn-submit-login" style="width:100%;padding:0.74rem;font-size:0.95rem;">
             Acceder a PlayMatch
           </button>
         </form>
@@ -142,6 +105,10 @@
         </div>
       </div>
 
+      <div class="login-status-pill">
+        <span class="pulse-dot"></span>
+        <span id="auth-db-footer">Motor Activo · Java 21 SE + PostgreSQL / SQLite JDBC</span>
+      </div>
     </div>
   </div>
 

@@ -135,6 +135,7 @@ CREATE TABLE IF NOT EXISTS tournament_registrations (
     tournament_id VARCHAR(36) NOT NULL,
     team_id VARCHAR(36) NOT NULL,
     seed_number INT DEFAULT 1,
+    checked_in INT NOT NULL DEFAULT 0,
     registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE CASCADE,
     FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
@@ -146,7 +147,10 @@ CREATE TABLE IF NOT EXISTS tournament_matches (
     id VARCHAR(36) PRIMARY KEY,
     tournament_id VARCHAR(36) NOT NULL,
     round_name VARCHAR(50) NOT NULL,
+    round_index INT NOT NULL DEFAULT 1,
     match_order INT NOT NULL,
+    next_match_order INT DEFAULT 0,
+    next_slot INT DEFAULT 0,
     team1_name VARCHAR(100),
     team2_name VARCHAR(100),
     score_team1 INT DEFAULT 0,
@@ -169,6 +173,85 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
+-- 11. AMISTADES ENTRE JUGADORES
+CREATE TABLE IF NOT EXISTS friendships (
+    id VARCHAR(36) PRIMARY KEY,
+    requester_id VARCHAR(36) NOT NULL,
+    addressee_id VARCHAR(36) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING', -- 'PENDING', 'ACCEPTED', 'REJECTED'
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (requester_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (addressee_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(requester_id, addressee_id)
+);
+
+-- 12. MENSAJES DIRECTOS 1 A 1 ENTRE AMIGOS (ESTILO IG)
+CREATE TABLE IF NOT EXISTS direct_messages (
+    id VARCHAR(36) PRIMARY KEY,
+    sender_id VARCHAR(36) NOT NULL,
+    receiver_id VARCHAR(36) NOT NULL,
+    content TEXT NOT NULL,
+    msg_type VARCHAR(20) NOT NULL DEFAULT 'TEXT', -- 'TEXT', 'IMAGE', 'LOBBY_INVITE'
+    attachment_url TEXT,
+    meta_json TEXT,
+    is_read INT NOT NULL DEFAULT 0,
+    sent_at VARCHAR(30) NOT NULL,
+    created_ms BIGINT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- 13. LOBBIES / SALAS DE ESCUADRA CON CUPOS EN VIVO
+CREATE TABLE IF NOT EXISTS squad_lobbies (
+    id VARCHAR(36) PRIMARY KEY,
+    host_user_id VARCHAR(36) NOT NULL,
+    game_id VARCHAR(36) NOT NULL,
+    title VARCHAR(140) NOT NULL,
+    mode VARCHAR(40) NOT NULL DEFAULT 'Escuadra',
+    max_slots INT NOT NULL DEFAULT 5,
+    roles_needed VARCHAR(150) DEFAULT '',
+    schedule_label VARCHAR(80) DEFAULT 'Ahora',
+    status VARCHAR(20) NOT NULL DEFAULT 'OPEN', -- 'OPEN', 'FULL', 'CLOSED'
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (host_user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS squad_lobby_members (
+    id VARCHAR(36) PRIMARY KEY,
+    lobby_id VARCHAR(36) NOT NULL,
+    user_id VARCHAR(36) NOT NULL,
+    role_note VARCHAR(60) DEFAULT '',
+    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (lobby_id) REFERENCES squad_lobbies(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(lobby_id, user_id)
+);
+
+-- 14. MODERACIÓN: BLOQUEOS Y REPORTES DE JUGADORES
+CREATE TABLE IF NOT EXISTS user_blocks (
+    id VARCHAR(36) PRIMARY KEY,
+    blocker_id VARCHAR(36) NOT NULL,
+    blocked_id VARCHAR(36) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (blocker_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (blocked_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(blocker_id, blocked_id)
+);
+
+CREATE TABLE IF NOT EXISTS player_reports (
+    id VARCHAR(36) PRIMARY KEY,
+    reporter_id VARCHAR(36) NOT NULL,
+    reported_id VARCHAR(36) NOT NULL,
+    reason VARCHAR(80) NOT NULL,
+    details VARCHAR(300) DEFAULT '',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (reporter_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (reported_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 -- ÍNDICES PARA OPTIMIZACIÓN DE CONSULTAS
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
@@ -177,3 +260,9 @@ CREATE INDEX IF NOT EXISTS idx_chat_channel ON chat_messages(channel);
 CREATE INDEX IF NOT EXISTS idx_match_receiver ON match_requests(receiver_id);
 CREATE INDEX IF NOT EXISTS idx_tournaments_game ON tournaments(game_id);
 CREATE INDEX IF NOT EXISTS idx_ratings_rated ON player_ratings(rated_user_id);
+CREATE INDEX IF NOT EXISTS idx_friendships_req ON friendships(requester_id);
+CREATE INDEX IF NOT EXISTS idx_friendships_addr ON friendships(addressee_id);
+CREATE INDEX IF NOT EXISTS idx_dm_pair ON direct_messages(sender_id, receiver_id);
+CREATE INDEX IF NOT EXISTS idx_dm_receiver_read ON direct_messages(receiver_id, is_read);
+CREATE INDEX IF NOT EXISTS idx_lobbies_status ON squad_lobbies(status);
+CREATE INDEX IF NOT EXISTS idx_blocks_pair ON user_blocks(blocker_id, blocked_id);

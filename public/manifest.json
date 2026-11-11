@@ -1,0 +1,31 @@
+{
+  "name": "PlayMatch · Arena Competitiva y Torneos",
+  "short_name": "PlayMatch",
+  "description": "Plataforma competitiva LFG, chats en tiempo real, lobbies de escuadra y torneos.",
+  "start_url": "/index.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#070b14",
+  "theme_color": "#38bdf8",
+  "categories": ["games", "social", "sports"],
+  "icons": [
+    {
+      "src": "/assets/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

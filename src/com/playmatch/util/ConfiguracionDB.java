@@ -24,6 +24,13 @@ public class ConfiguracionDB {
     private boolean postgresConfigured;
     private String geminiApiKey;
     private String geminiModel;
+    private String discordClientId;
+    private String discordClientSecret;
+    private String discordRedirectUri;
+    private String smsProvider;
+    private String twilioAccountSid;
+    private String twilioAuthToken;
+    private String twilioFromNumber;
 
     private ConfiguracionDB() {}
 
@@ -45,6 +52,16 @@ public class ConfiguracionDB {
         } else {
             cfg.geminiModel = rawModel;
         }
+
+        cfg.discordClientId = obtenerParam(dotEnv, "discord.client.id", "DISCORD_CLIENT_ID");
+        cfg.discordClientSecret = obtenerParam(dotEnv, "discord.client.secret", "DISCORD_CLIENT_SECRET");
+        String dUri = obtenerParam(dotEnv, "discord.redirect.uri", "DISCORD_REDIRECT_URI");
+        cfg.discordRedirectUri = (dUri != null && !dUri.isEmpty()) ? dUri : "http://localhost:8080/api/auth/discord/callback";
+        String smsProv = obtenerParam(dotEnv, "playmatch.sms.provider", "SMS_PROVIDER");
+        cfg.smsProvider = (smsProv != null && !smsProv.isEmpty()) ? smsProv : "DEMO";
+        cfg.twilioAccountSid = obtenerParam(dotEnv, "twilio.account.sid", "TWILIO_ACCOUNT_SID");
+        cfg.twilioAuthToken = obtenerParam(dotEnv, "twilio.auth.token", "TWILIO_AUTH_TOKEN");
+        cfg.twilioFromNumber = obtenerParam(dotEnv, "twilio.from.number", "TWILIO_FROM_NUMBER");
 
         // Si las pruebas explícitas piden -Dplaymatch.db.path=..., forzar ruta SQLite
         String sysSqlite = System.getProperty("playmatch.db.path");
@@ -170,6 +187,22 @@ public class ConfiguracionDB {
     public String getGeminiApiKey() { return geminiApiKey; }
     public String getGeminiModel() { return geminiModel != null ? geminiModel : "gemini-3.8-flash"; }
     public boolean isGeminiConfigured() { return geminiApiKey != null && !geminiApiKey.trim().isEmpty(); }
+    public String getDiscordClientId() { return discordClientId; }
+    public String getDiscordClientSecret() { return discordClientSecret; }
+    public String getDiscordRedirectUri() { return discordRedirectUri; }
+    public boolean isDiscordOAuthConfigured() {
+        return discordClientId != null && !discordClientId.trim().isEmpty()
+                && discordClientSecret != null && !discordClientSecret.trim().isEmpty();
+    }
+    public String getSmsProvider() { return smsProvider != null ? smsProvider : "DEMO"; }
+    public String getTwilioAccountSid() { return twilioAccountSid; }
+    public String getTwilioAuthToken() { return twilioAuthToken; }
+    public String getTwilioFromNumber() { return twilioFromNumber; }
+    public boolean isTwilioConfigured() {
+        return twilioAccountSid != null && !twilioAccountSid.trim().isEmpty()
+                && twilioAuthToken != null && !twilioAuthToken.trim().isEmpty()
+                && twilioFromNumber != null && !twilioFromNumber.trim().isEmpty();
+    }
 
     public String getSafePostgresTarget() {
         if (!postgresConfigured || jdbcUrl == null) return "";
