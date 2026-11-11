@@ -54,7 +54,10 @@ const state = {
   dmTypingDebounce: null,
   matchesInvitesCache: [],
   dossierUsername: null,
-  dossierIsBlocked: false
+  dossierIsBlocked: false,
+  previousTabBeforeProfile: 'lfg',
+  viewingProfileUsername: null,
+  viewingProfileData: null
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -154,6 +157,50 @@ function getGameCoverArtwork(gameCode) {
     minecraft: '/assets/games/minecraft.jpg'
   };
   return map[clean] || '/assets/games/valorant.jpg';
+}
+
+const FALLBACK_GAME_NAMES = {
+  valorant: 'Valorant',
+  lol: 'League of Legends',
+  cs2: 'Counter-Strike 2',
+  'rocket-league': 'Rocket League',
+  'marvel-rivals': 'Marvel Rivals',
+  overwatch: 'Overwatch 2',
+  'apex-legends': 'Apex Legends',
+  fortnite: 'Fortnite',
+  roblox: 'Roblox',
+  minecraft: 'Minecraft'
+};
+
+function resolveGameDisplayName(codeOrName) {
+  const raw = String(codeOrName || '').trim();
+  if (!raw) return '';
+  const lower = raw.toLowerCase();
+  const cached = (state.gamesCache || []).find(
+    g => (g.code || '').toLowerCase() === lower || (g.name || '').toLowerCase() === lower
+  );
+  if (cached && cached.name) return cached.name;
+  if (FALLBACK_GAME_NAMES[lower]) return FALLBACK_GAME_NAMES[lower];
+  return raw.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function resolveGameNamesList(primaryGame, csvGames, limit = 3) {
+  const names = [];
+  const seen = new Set();
+  const pushGame = (val) => {
+    const label = resolveGameDisplayName(val);
+    const key = label.toLowerCase();
+    if (!label || seen.has(key)) return;
+    seen.add(key);
+    names.push(label);
+  };
+  String(csvGames || '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean)
+    .forEach(pushGame);
+  if (primaryGame) pushGame(primaryGame);
+  return names.slice(0, limit);
 }
 
 function getRankTierClass(rankStr) {
@@ -496,11 +543,19 @@ function setupNavigation() {
   document.getElementById('btn-open-create-lobby')?.addEventListener('click', openCreateLobbyModal);
 }
 
-function switchTab(tabId) {
+function switchTab(tabId, options = {}) {
+  const isVisitorProfile = (tabId === 'profile' && Boolean(options.visitorUsername));
+  if (!isVisitorProfile) {
+    state.viewingProfileUsername = null;
+    state.viewingProfileData = null;
+    if (typeof setProfileReadOnlyMode === 'function') {
+      setProfileReadOnlyMode(false);
+    }
+  }
   state.currentTab = tabId;
 
   document.querySelectorAll('.nav-tab-btn').forEach(b => {
-    b.classList.toggle('active', b.dataset.tab === tabId);
+    b.classList.toggle('active', !isVisitorProfile && b.dataset.tab === tabId);
   });
 
   document.querySelectorAll('.app-section').forEach(sec => {
@@ -540,7 +595,9 @@ function switchTab(tabId) {
   } else if (tabId === 'database') {
     loadDatabaseExplorer();
   } else if (tabId === 'profile') {
-    loadProfileData();
+    if (!options.visitorUsername) {
+      loadProfileData();
+    }
   }
 }
 
@@ -613,14 +670,16 @@ function syncGameDropdowns(games) {
 function renderFavGamesChips(games = state.gamesCache) {
   const wrap = document.getElementById('prof-fav-games-chips');
   if (!wrap || !games || games.length === 0) return;
+  const isVisitor = Boolean(state.viewingProfileUsername);
   wrap.innerHTML = games.map(g => {
     const code = String(g.code || '').toLowerCase();
     const isAct = state.favGamesSelected.has(code);
-    return `<button type="button" class="taste-chip ${isAct ? 'active' : ''}" data-value="${escapeHtml(code)}">${escapeHtml(g.name)}</button>`;
+    return `<button type="button" class="taste-chip ${isAct ? 'active' : ''}" data-value="${escapeHtml(code)}" ${isVisitor ? 'disabled' : ''}>${escapeHtml(g.name)}</button>`;
   }).join('');
 
   wrap.querySelectorAll('.taste-chip').forEach(btn => {
     btn.addEventListener('click', () => {
+      if (state.viewingProfileUsername) return;
       const code = String(btn.dataset.value || '').toLowerCase();
       if (!code) return;
       if (state.favGamesSelected.has(code)) {
@@ -774,22 +833,21 @@ function renderRecommendations(data) {
   recs.slice(0, 6).forEach(rec => {
     const isLow = Boolean(rec.lowRatedPenalty || Number(rec.starRating) < 2.0 || rec.visibilityTier === 'REDUCIDA');
     const frameInfo = getFrameInfo(rec.cardFrame);
+    const cachedPlayer = (state.allPlayersCache || []).find(
+      p => p.username && p.username.toLowerCase() === String(rec.username || '').toLowerCase()
+    );
     const card = document.createElement('div');
     card.className = `ai-rec-card ${frameInfo.cls} ${isLow ? 'low-rated' : ''}`;
 
-    const gNameLower = String(rec.gameName || rec.game || '').trim().toLowerCase();
-    const seenTags = new Set([gNameLower]);
-    const rawTags = Array.isArray(rec.sharedTags) ? rec.sharedTags : [];
-    const cleanTags = [];
-    for (const rawT of rawTags) {
-      const k = String(rawT || '').trim().toLowerCase();
-      if (!k || seenTags.has(k)) continue;
-      seenTags.add(k);
-      const formatted = String(rawT).trim().replace(/\b\w/g, c => c.toUpperCase());
-      cleanTags.push(formatted);
-      if (cleanTags.length >= 2) break;
-    }
-
+    const favGamesList = resolveGameNamesList(
+      rec.gameName || rec.game,
+      rec.favoriteGames || (cachedPlayer ? cachedPlayer.favoriteGames : ''),
+      3
+    );
+    const bioText = String(rec.bio || (cachedPlayer ? cachedPlayer.bio : '') || rec.reason || 'Disponible para coordinar partida.').trim();
+    const gamerTitle = String(rec.equippedTitle || (cachedPlayer ? cachedPlayer.equippedTitle : '') || 'Héroe de Internet').trim();
+    const stars = Number(rec.starRating || 0);
+    const ratingCount = cachedPlayer && cachedPlayer.ratingCount !== undefined ? Number(cachedPlayer.ratingCount) : null;
     const scoreNum = Math.max(0, Math.min(100, Number(rec.matchScore || 0)));
 
     card.innerHTML = `
@@ -801,20 +859,23 @@ function renderRecommendations(data) {
               <span class="presence-dot-mini ${getPresenceInfo(rec.username).cls}" data-presence-user="${escapeHtml(rec.username)}"></span>
               @${escapeHtml(rec.username)}
             </strong>
-            <div style="font-size:0.72rem;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-              ${escapeHtml(rec.gameName || rec.game)} · <span class="${getRankTierClass(rec.rank)}">${escapeHtml(rec.rank || 'Competitivo')}</span> · ${Number(rec.starRating || 0).toFixed(1)}★
-              ${isLow ? '<span style="color:#fca5a5;"> · Reducida</span>' : ''}
+            <div class="rec-gamer-title">${escapeHtml(gamerTitle)}</div>
+            <div class="rec-rating-row">
+              <span class="star-rating-pill ${isLow ? 'low' : ''}">
+                ★ ${stars.toFixed(1)}${ratingCount !== null ? ` (${ratingCount})` : ''}
+              </span>
+              ${isLow ? '<span class="rec-low-vis-tag">Reducida</span>' : ''}
             </div>
           </div>
         </div>
         <span class="rec-match-badge ${isLow ? 'low' : ''}">${scoreNum}%</span>
       </div>
 
-      <p class="ai-rec-reason">${escapeHtml(rec.equippedTitle ? `${rec.equippedTitle} · ${rec.reason}` : rec.reason)}</p>
+      <p class="ai-rec-reason rec-bio-snippet">${escapeHtml(bioText)}</p>
 
-      <div class="player-chips-row" style="margin-bottom:0.15rem;">
+      <div class="player-chips-row rec-games-chips" style="margin-bottom:0.15rem;">
         ${frameInfo.pillCls ? `<span class="frame-tier-pill ${frameInfo.pillCls}">${escapeHtml(frameInfo.label)}</span>` : ''}
-        ${cleanTags.map(t => `<span class="chip-plat">${escapeHtml(t)}</span>`).join('')}
+        ${favGamesList.map(gName => `<span class="chip-plat rec-fav-game-chip">${escapeHtml(gName)}</span>`).join('')}
       </div>
 
       <div class="ai-rec-actions">
@@ -951,174 +1012,147 @@ function openLobbyGroupChat(lobbyId, title) {
   selectChatChannel(ch, label, desc, existingBtn || null);
 }
 
+function populateProfileFormFields(profile) {
+  if (!profile) return;
+  const setVal = (id, val) => {
+    const el = document.getElementById(id);
+    if (el && val !== undefined && val !== null) el.value = val;
+  };
+  setVal('prof-bio', profile.bio || '');
+  setVal('prof-region', profile.region || '');
+  setVal('prof-game', profile.game || 'valorant');
+  setVal('prof-rank', profile.rank || '');
+  setVal('prof-role', profile.role || '');
+  setVal('prof-riot', profile.riotId || '');
+  setVal('prof-playstyle', profile.playstyle || 'COMPETITIVE');
+  setVal('prof-schedule', profile.preferredSchedule || '');
+
+  state.favGamesSelected = new Set(
+    String(profile.favoriteGames || '')
+      .split(',')
+      .map(s => s.trim().toLowerCase())
+      .filter(Boolean)
+  );
+  renderFavGamesChips();
+  applyTasteChipsSelection('prof-fav-genres-chips', profile.favoriteGenres || '');
+  applyTasteChipsSelection('prof-play-prefs-chips', profile.playPreferences || '');
+}
+
+function renderVisitorTrophiesAndReviews(data) {
+  const trophiesWrap = document.getElementById('prof-trophies-strip');
+  const reviewsWrap = document.getElementById('prof-reviews-list');
+  if (trophiesWrap) {
+    const trophies = Array.isArray(data?.trophies) ? data.trophies : [];
+    trophiesWrap.innerHTML = trophies.length > 0
+      ? trophies.map(tr => `
+          <span class="trophy-badge" title="${escapeHtml(tr.gameName || '')} · Equipo ${escapeHtml(tr.teamName || '')}">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55-.47.98-.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+            Campeón · ${escapeHtml(tr.title || tr.tournamentTitle || '')}
+          </span>
+        `).join('')
+      : '<span style="font-size:0.78rem;color:var(--text-muted);">Sin trofeos de torneo registrados aún.</span>';
+  }
+  if (reviewsWrap) {
+    const reviews = Array.isArray(data?.reviews) ? data.reviews : [];
+    reviewsWrap.innerHTML = reviews.length > 0
+      ? reviews.map(rv => `
+          <div class="dossier-review-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.2rem;">
+              <strong style="font-size:0.8rem;color:#fff;">@${escapeHtml(rv.rater)}</strong>
+              <span style="color:#fbbf24;font-weight:700;font-size:0.8rem;">${'★'.repeat(Number(rv.stars || 5))} (${Number(rv.stars)})</span>
+            </div>
+            <div style="font-size:0.78rem;color:var(--text-secondary);">${escapeHtml(rv.comment || 'Sin comentario adicional.')}</div>
+          </div>
+        `).join('')
+      : '<div style="font-size:0.8rem;color:var(--text-muted);">Aún no hay reseñas escritas para este jugador.</div>';
+  }
+}
+
+function syncVisitorBarActions(data) {
+  const chatBtn = document.getElementById('prof-vis-chat');
+  if (chatBtn && data) {
+    if (data.friendshipStatus === 'ACCEPTED') chatBtn.innerText = 'Abrir Chat Directo';
+    else if (data.friendshipStatus === 'PENDING_OUTGOING') chatBtn.innerText = 'Solicitud Enviada';
+    else if (data.friendshipStatus === 'PENDING_INCOMING') chatBtn.innerText = 'Aceptar Amigo';
+    else chatBtn.innerText = '+ Agregar Amigo';
+  }
+  const blkBtn = document.getElementById('prof-vis-block');
+  if (blkBtn && data) {
+    blkBtn.innerText = data.isBlocked ? 'Desbloquear' : 'Bloquear';
+  }
+}
+
 async function openPublicProfile(username) {
   if (!username) return;
+  closeModalById('public-profile-modal');
+
+  const isSelf = Boolean(state.currentUser && username.toLowerCase() === state.currentUser.username.toLowerCase());
+  if (isSelf) {
+    switchTab('profile');
+    return;
+  }
+
+  if (state.currentTab && state.currentTab !== 'profile') {
+    state.previousTabBeforeProfile = state.currentTab;
+  }
+
   try {
     const viewer = state.currentUser?.username || '';
-    const { ok, data } = await API.getPlayerDossier(username, viewer);
-    if (!ok || !data) {
-      showToast('No se pudo cargar el dossier del jugador.', true);
+    const [dossierRes, achRes, statsRes] = await Promise.all([
+      API.getPlayerDossier(username, viewer),
+      API.getPlayerAchievements(username).catch(() => ({ ok: false })),
+      API.getPlayerAnalytics(username).catch(() => ({ ok: false }))
+    ]);
+
+    if (!dossierRes || !dossierRes.ok || !dossierRes.data) {
+      showToast('No se pudo cargar el perfil del jugador.', true);
       return;
     }
+
+    const data = dossierRes.data;
+    state.viewingProfileUsername = data.username;
+    state.viewingProfileData = data;
     state.dossierUsername = data.username;
     state.dossierIsBlocked = Boolean(data.isBlocked);
     if (data.presenceStatus) {
       state.presenceMap[data.username.toLowerCase()] = { status: data.presenceStatus, activity: data.presenceActivity || '' };
     }
 
-    const pres = getPresenceInfo(data.username);
-    const frameInfo = getFrameInfo(data.cardFrame);
-    const dossierCard = document.getElementById('public-profile-card');
-    if (dossierCard) {
-      Object.values(FRAME_META).forEach(m => dossierCard.classList.remove(m.cls));
-      dossierCard.classList.add(frameInfo.cls);
-    }
-    const dossierCover = document.getElementById('dossier-cover');
-    if (dossierCover) {
-      dossierCover.style.backgroundImage = `linear-gradient(180deg, rgba(10, 15, 27, 0.28), rgba(10, 15, 27, 0.94)), url("${getGameCoverArtwork(data.game)}")`;
-    }
+    switchTab('profile', { visitorUsername: data.username });
 
-    document.getElementById('dossier-avatar').src = data.avatarUrl || defaultAvatarUrl(data.username);
-    const dot = document.getElementById('dossier-presence-dot');
-    dot.className = `presence-dot-lg ${pres.cls}`;
-    document.getElementById('dossier-username').innerText = `@${data.username}`;
-    const dossierTitleEl = document.getElementById('dossier-title-pill');
-    if (dossierTitleEl) {
-      if (data.equippedTitle) {
-        dossierTitleEl.innerText = data.equippedTitle;
-        dossierTitleEl.style.display = 'inline-flex';
-      } else {
-        dossierTitleEl.style.display = 'none';
-      }
-    }
-    document.getElementById('dossier-presence-label').innerText = pres.label;
-    const verPill = document.getElementById('dossier-verified-pill');
-    if (verPill) {
-      verPill.style.display = data.phoneVerified ? 'inline-flex' : 'none';
-      verPill.className = 'status-pill verified';
-      verPill.innerText = 'Cuenta Verificada';
-    }
-    document.getElementById('dossier-submeta').innerText =
-      `${data.gameName || data.game || 'PlayMatch'} · ${data.rank || 'Competitivo'} · ${data.role || 'Flexible'} · ${data.region || 'LATAM'}`;
+    const kicker = document.getElementById('topbar-kicker');
+    if (kicker) kicker.innerText = 'Perfil Público · Solo Lectura';
+    const titleEl = document.getElementById('topbar-title');
+    if (titleEl) titleEl.innerText = `Perfil de @${data.username}`;
 
-    const badgesRow = document.getElementById('dossier-badges-row');
-    badgesRow.innerHTML = `
-      <span class="badge-game ${escapeHtml(data.game || '')}">${escapeHtml(data.gameName || 'Multi-Juego')}</span>
-      ${frameInfo.pillCls ? `<span class="frame-tier-pill ${frameInfo.pillCls}">Marco ${escapeHtml(frameInfo.label)}</span>` : ''}
-      <span class="chip-plat ${getRankTierClass(data.rank)}">${escapeHtml(data.rank || 'Competitivo')}</span>
-      <span class="chip-plat">Estilo: ${escapeHtml(data.playstyle || 'COMPETITIVE')}</span>
-      <span class="chip-plat">Horario: ${escapeHtml(data.preferredSchedule || 'Noches')}</span>
-      <span class="chip-plat">Reputación: ${Number(data.reputationScore || 100)} pts</span>
-    `;
+    setProfileReadOnlyMode(true, data);
+    renderProfileIdentityBadges(data, { isVisitor: true });
+    populateProfileFormFields(data);
+    renderVisitorTrophiesAndReviews(data);
+    syncVisitorBarActions(data);
 
-    document.getElementById('dossier-star-score').innerText = `${Number(data.starRating || 4.8).toFixed(1)} ★`;
-    document.getElementById('dossier-rating-count').innerText = `${Number(data.ratingCount || 0)} reseñas`;
-    document.getElementById('dossier-bio').innerText = data.bio || 'Jugador activo en la arena competitiva PlayMatch.';
-
-    const trophiesRow = document.getElementById('dossier-trophies-row');
-    if (trophiesRow) {
-      const trophies = Array.isArray(data.trophies) ? data.trophies : [];
-      if (trophies.length > 0) {
-        trophiesRow.style.display = 'flex';
-        trophiesRow.innerHTML = trophies.map(tr =>
-          `<span class="trophy-badge" title="${escapeHtml(tr.gameName)} · Equipo ${escapeHtml(tr.teamName)}"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg> Campeón · ${escapeHtml(tr.title)}</span>`
-        ).join('');
-      } else {
-        trophiesRow.style.display = 'none';
-        trophiesRow.innerHTML = '';
-      }
-    }
-
-    const tastesRow = document.getElementById('dossier-tastes-row');
-    const seenTastes = new Set();
-    const tasteTags = [];
-    [data.favoriteGames, data.favoriteGenres, data.playPreferences].forEach(csv => {
-      String(csv || '').split(',').filter(Boolean).slice(0, 4).forEach(raw => {
-        const clean = raw.trim();
-        const key = clean.toLowerCase();
-        if (clean && !seenTastes.has(key)) {
-          seenTastes.add(key);
-          const pretty = clean.replace(/(^|\s|-)\S/g, ch => ch.toUpperCase()).replace(/-/g, ' ');
-          tasteTags.push(pretty);
-        }
-      });
-    });
-    tastesRow.innerHTML = tasteTags.slice(0, 8).map(t => `<span class="chip-plat">${escapeHtml(t)}</span>`).join('');
-
-    const idsRow = document.getElementById('dossier-ids-row');
-    idsRow.innerHTML = `
-      ${(data.discordConnected || data.discordTag) ? `<button type="button" class="chip-discord" id="dossier-copy-dc">Discord: @${escapeHtml(data.discordTag)}</button>` : ''}
-      ${data.riotId ? `<span class="chip-plat">Riot ID: ${escapeHtml(data.riotId)}</span>` : ''}
-      ${data.steamId ? `<span class="chip-plat">Steam: ${escapeHtml(data.steamId)}</span>` : ''}
-    `;
-    document.getElementById('dossier-copy-dc')?.addEventListener('click', () => {
-      if (data.discordTag && navigator.clipboard?.writeText) {
-        navigator.clipboard.writeText(data.discordTag).then(() => showToast(`Discord @${data.discordTag} copiado.`));
-      }
-    });
-
-    const isSelf = state.currentUser && data.username.toLowerCase() === state.currentUser.username.toLowerCase();
-    const actBar = document.querySelector('.dossier-actions-bar');
-    if (actBar) actBar.style.display = isSelf ? 'none' : 'flex';
-
-    const chatBtn = document.getElementById('dossier-btn-chat');
-    if (chatBtn) {
-      if (data.friendshipStatus === 'ACCEPTED') chatBtn.innerText = 'Abrir Chat Directo';
-      else if (data.friendshipStatus === 'PENDING_OUTGOING') chatBtn.innerText = 'Solicitud Enviada';
-      else if (data.friendshipStatus === 'PENDING_INCOMING') chatBtn.innerText = 'Aceptar Amigo';
-      else chatBtn.innerText = '+ Agregar Amigo';
-    }
-    const blkBtn = document.getElementById('dossier-btn-block');
-    if (blkBtn) blkBtn.innerText = data.isBlocked ? 'Desbloquear' : 'Bloquear';
-
-    const clipsSec = document.getElementById('dossier-clips-section');
-    const clipsList = document.getElementById('dossier-clips-list');
-    if (clipsSec && clipsList) {
-      const clips = Array.isArray(data.clips) ? data.clips : [];
-      if (clips.length === 0) {
-        clipsSec.style.display = 'none';
-        clipsList.innerHTML = '';
-      } else {
-        clipsSec.style.display = 'block';
-        clipsList.innerHTML = clips.map(cl => {
-          const meta = extractClipMeta(cl.clipUrl);
-          return `
-            <div class="dossier-clip-card">
-              ${meta.thumbUrl ? `
-                <div class="clip-thumb-wrap">
-                  <img src="${escapeHtml(meta.thumbUrl)}" alt="${escapeHtml(cl.title)}" onerror="this.style.display='none'">
-                </div>
-              ` : ''}
-              <div style="display:flex;justify-content:space-between;align-items:center;gap:0.4rem;">
-                <span class="clip-play-tag">${escapeHtml(meta.platform)}</span>
-                <span style="font-size:0.7rem;color:var(--text-muted);">${escapeHtml(cl.gameName || cl.gameCode)}</span>
-              </div>
-              <strong style="font-size:0.82rem;color:#fff;display:block;">${escapeHtml(cl.title)}</strong>
-              <a href="${escapeHtml(cl.clipUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="width:100%;justify-content:center;">Ver Highlight</a>
-            </div>
-          `;
-        }).join('');
-      }
-    }
-
-    const revWrap = document.getElementById('dossier-reviews-list');
-    const reviews = Array.isArray(data.reviews) ? data.reviews : [];
-    if (reviews.length === 0) {
-      revWrap.innerHTML = '<div style="font-size:0.8rem;color:var(--text-muted);">Aún no hay reseñas escritas para este jugador.</div>';
+    if (achRes && achRes.ok && achRes.data) {
+      renderProfileAchievements(achRes.data, { readOnly: true });
     } else {
-      revWrap.innerHTML = reviews.map(rv => `
-        <div class="dossier-review-card">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.2rem;">
-            <strong style="font-size:0.8rem;color:#fff;">@${escapeHtml(rv.rater)}</strong>
-            <span style="color:#fbbf24;font-weight:700;font-size:0.8rem;">${'★'.repeat(Number(rv.stars || 5))} (${Number(rv.stars)})</span>
-          </div>
-          <div style="font-size:0.78rem;color:var(--text-secondary);">${escapeHtml(rv.comment || 'Sin comentario adicional.')}</div>
-        </div>
-      `).join('');
+      renderProfileAchievements({ equippedTitle: data.equippedTitle || '', achievements: [] }, { readOnly: true });
+    }
+    if (statsRes && statsRes.ok && statsRes.data) {
+      renderProfileAnalyticsAndClips(statsRes.data, { readOnly: true });
+    } else {
+      renderProfileAnalyticsAndClips({
+        clips: data.clips || [],
+        tournamentsJoined: 0,
+        matchesWon: 0,
+        friendsCount: 0,
+        clipsCount: (data.clips || []).length,
+        winRate: 0
+      }, { readOnly: true });
     }
 
-    document.getElementById('public-profile-modal').style.display = 'flex';
+    setProfileReadOnlyMode(true, data);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   } catch (err) {
+    console.error('Error abriendo perfil público:', err);
     showToast('Error abriendo perfil público.', true);
   }
 }
@@ -1142,6 +1176,9 @@ async function loadLfgPlayers() {
     }
     if (state.selectedGameFilter === 'all' && !state.selectedToxicFilter && !q) {
       state.allPlayersCache = Array.isArray(players) ? players : [];
+      if (state.lastRecommendationsData) {
+        renderRecommendations(state.lastRecommendationsData);
+      }
     }
     container.innerHTML = '';
 
@@ -1168,7 +1205,8 @@ function createPlayerCard(player) {
   const stars = Number(player.starRating !== undefined ? player.starRating : 4.8);
   const isLowRating = stars < 2.0;
   const coverUrl = getGameCoverArtwork(player.game);
-  const rankTierCls = getRankTierClass(player.rank);
+  const gamerTitle = String(player.equippedTitle || 'Héroe de Internet').trim();
+  const favGamesList = resolveGameNamesList(player.gameName || player.game, player.favoriteGames, 3);
 
   div.innerHTML = `
     <div class="player-card-cover" data-game="${escapeHtml(player.game)}" style="background-image: linear-gradient(180deg, rgba(16, 11, 18, 0.42), rgba(16, 11, 18, 0.94)), url('${escapeHtml(coverUrl)}');">
@@ -1188,20 +1226,16 @@ function createPlayerCard(player) {
           <span class="player-avatar-dot ${getPresenceInfo(player.username).cls}" data-presence-user="${escapeHtml(player.username)}" title="${getPresenceInfo(player.username).label}"></span>
         </div>
         <div style="min-width:0;">
-          <h3 class="clickable-player-handle" data-profile-user="${escapeHtml(player.username)}">${escapeHtml(player.username)}</h3>
-          ${player.equippedTitle ? `<span class="title-pill-inline">${escapeHtml(player.equippedTitle)}</span>` : ''}
+          <h3 class="clickable-player-handle" data-profile-user="${escapeHtml(player.username)}">@${escapeHtml(player.username)}</h3>
+          <div class="rec-gamer-title">${escapeHtml(gamerTitle)}</div>
           <p class="player-meta-text">${escapeHtml(player.region || 'Chile')} · ${getPresenceInfo(player.username).label}</p>
         </div>
       </div>
 
-      <div class="player-specs-minimal">
-        <div class="player-spec-item">
-          <span>Rango</span>
-          <strong class="${rankTierCls}">${escapeHtml(player.rank)}</strong>
-        </div>
+      <div class="player-specs-minimal two-col">
         <div class="player-spec-item">
           <span>Rol</span>
-          <strong>${escapeHtml(player.role)}</strong>
+          <strong>${escapeHtml(player.role || 'Flexible')}</strong>
         </div>
         <div class="player-spec-item">
           <span>Horario</span>
@@ -1212,6 +1246,7 @@ function createPlayerCard(player) {
       <p class="player-bio-snippet">${escapeHtml(player.bio || 'Disponible para coordinar partida.')}</p>
 
       <div class="player-chips-row">
+        ${favGamesList.map(gName => `<span class="chip-plat rec-fav-game-chip">${escapeHtml(gName)}</span>`).join('')}
         ${player.riotId ? `<span class="chip-plat">ID: ${escapeHtml(player.riotId)}</span>` : ''}
         ${(player.discordConnected || player.discordTag) ? `<button type="button" class="chip-discord" data-copy-discord="${escapeHtml(player.discordTag)}">Discord: @${escapeHtml(player.discordTag)}</button>` : ''}
       </div>
@@ -2535,11 +2570,79 @@ function syncProfileCardFrameUi(rawFrame) {
   });
 }
 
-function renderProfileIdentityBadges(profile = null) {
-  const user = state.currentUser;
-  if (!user) return;
-  const defaultAvatar = defaultAvatarUrl(user.username);
-  const avatarSrc = user.avatar || defaultAvatar;
+const VISITOR_LOCKED_FIELD_IDS = [
+  'prof-bio',
+  'prof-region',
+  'prof-schedule',
+  'prof-game',
+  'prof-rank',
+  'prof-role',
+  'prof-riot',
+  'prof-playstyle'
+];
+
+function setProfileReadOnlyMode(isVisitor, targetData = null) {
+  const locked = Boolean(isVisitor);
+  const sec = document.getElementById('section-profile');
+  if (sec) sec.classList.toggle('visitor-readonly', locked);
+
+  const visitorBar = document.getElementById('profile-visitor-bar');
+  if (visitorBar) visitorBar.style.display = locked ? 'flex' : 'none';
+
+  const visitorLbl = document.getElementById('prof-visitor-label');
+  if (visitorLbl && locked && targetData) {
+    visitorLbl.innerText = `Viendo perfil público de @${targetData.username} · Solo lectura`;
+  }
+
+  const mainHeading = document.getElementById('profile-section-heading');
+  if (mainHeading) {
+    mainHeading.innerText = locked && targetData
+      ? `Perfil de @${targetData.username} (Solo lectura)`
+      : 'Personalización de Perfil, Privacidad y Discord';
+  }
+
+  const tastesHeading = document.getElementById('profile-tastes-heading');
+  if (tastesHeading) {
+    tastesHeading.innerText = locked
+      ? 'Gustos de Juegos, Géneros y Preferencias'
+      : 'Personaliza tus Gustos de Juegos, Géneros y Preferencias Social';
+  }
+
+  const ownerDisplay = locked ? 'none' : '';
+  ['profile-account-card', 'profile-avatar-controls', 'prof-submit-row', 'profile-clip-add-wrap', 'profile-mod-integ-row'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = ownerDisplay;
+  });
+
+  const reviewsPanel = document.getElementById('profile-reviews-panel');
+  if (reviewsPanel) reviewsPanel.style.display = locked ? 'block' : 'none';
+
+  VISITOR_LOCKED_FIELD_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.disabled = locked;
+    if ('readOnly' in el) el.readOnly = locked;
+  });
+
+  if (locked) {
+    ['prof-email', 'prof-phone', 'prof-username-readonly', 'prof-account-role'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+  }
+
+  document.querySelectorAll('#prof-card-frame-picker .frame-swatch, #prof-fav-games-chips .taste-chip, #prof-fav-genres-chips .taste-chip, #prof-play-prefs-chips .taste-chip, #prof-title-picker .achievement-card').forEach(btn => {
+    btn.disabled = locked;
+  });
+}
+
+function renderProfileIdentityBadges(profile = null, options = {}) {
+  const isVisitor = Boolean(options.isVisitor);
+  const subject = isVisitor ? (profile || state.viewingProfileData) : state.currentUser;
+  if (!subject) return;
+  const uname = subject.username;
+  const defaultAvatar = defaultAvatarUrl(uname);
+  const avatarSrc = (isVisitor ? subject.avatarUrl : (subject.avatar || subject.avatarUrl)) || defaultAvatar;
 
   const passCover = document.getElementById('profile-pass-cover');
   if (passCover && (profile?.game || !passCover.style.backgroundImage)) {
@@ -2549,19 +2652,27 @@ function renderProfileIdentityBadges(profile = null) {
   const prevImg = document.getElementById('prof-avatar-preview');
   if (prevImg) prevImg.src = avatarSrc;
   const nameEl = document.getElementById('prof-avatar-username');
-  if (nameEl) nameEl.innerText = `@${user.username}`;
-  const urlInp = document.getElementById('prof-avatar-url');
-  if (urlInp && !avatarSrc.startsWith('data:image/')) {
-    urlInp.value = avatarSrc;
+  if (nameEl) nameEl.innerText = `@${uname}`;
+  if (!isVisitor) {
+    const urlInp = document.getElementById('prof-avatar-url');
+    if (urlInp && !avatarSrc.startsWith('data:image/')) {
+      urlInp.value = avatarSrc;
+    }
   }
 
-  const verified = Boolean(user.phoneVerified);
-  ['prof-phone-badge', 'prof-phone-status-pill'].forEach(id => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.className = `status-pill ${verified ? 'verified' : 'pending'}`;
-    el.innerText = verified ? 'Cuenta Verificada (Privado)' : 'Teléfono sin verificar';
-  });
+  const verified = Boolean(subject.phoneVerified);
+  const phoneBadge = document.getElementById('prof-phone-badge');
+  if (phoneBadge) {
+    phoneBadge.className = `status-pill ${verified ? 'verified' : 'pending'}`;
+    phoneBadge.innerText = verified ? 'Cuenta Verificada (Privado)' : 'Teléfono sin verificar';
+  }
+  if (!isVisitor) {
+    const phoneStatus = document.getElementById('prof-phone-status-pill');
+    if (phoneStatus) {
+      phoneStatus.className = `status-pill ${verified ? 'verified' : 'pending'}`;
+      phoneStatus.innerText = verified ? 'Cuenta Verificada (Privado)' : 'Teléfono sin verificar';
+    }
+  }
 
   if (profile !== null) {
     const connected = Boolean(profile.discordConnected || (profile.discordTag && profile.discordTag.trim()));
@@ -2573,26 +2684,28 @@ function renderProfileIdentityBadges(profile = null) {
       profBadge.className = `status-pill ${connected ? 'discord' : 'offline'}`;
       profBadge.innerText = connected ? `Discord: @${dTag}` : 'Discord sin conectar';
     }
-    const cardBadge = document.getElementById('discord-status-badge');
-    if (cardBadge) {
-      cardBadge.className = `status-pill ${connected ? 'discord' : 'offline'}`;
-      cardBadge.innerText = connected ? `Conectado: @${dTag}` : 'Sin conectar';
-    }
+    if (!isVisitor) {
+      const cardBadge = document.getElementById('discord-status-badge');
+      if (cardBadge) {
+        cardBadge.className = `status-pill ${connected ? 'discord' : 'offline'}`;
+        cardBadge.innerText = connected ? `Conectado: @${dTag}` : 'Sin conectar';
+      }
 
-    const dUserInp = document.getElementById('discord-username-input');
-    if (dUserInp) dUserInp.value = dTag;
-    const dIdInp = document.getElementById('discord-id-input');
-    if (dIdInp) dIdInp.value = dId;
+      const dUserInp = document.getElementById('discord-username-input');
+      if (dUserInp) dUserInp.value = dTag;
+      const dIdInp = document.getElementById('discord-id-input');
+      if (dIdInp) dIdInp.value = dId;
 
-    const btnDisconnect = document.getElementById('btn-disconnect-discord');
-    if (btnDisconnect) btnDisconnect.style.display = connected ? 'inline-flex' : 'none';
-    const profileLink = document.getElementById('discord-profile-link');
-    if (profileLink) {
-      if (connected && /^[0-9]{17,22}$/.test(dId)) {
-        profileLink.href = `https://discord.com/users/${encodeURIComponent(dId)}`;
-        profileLink.style.display = 'inline-flex';
-      } else {
-        profileLink.style.display = 'none';
+      const btnDisconnect = document.getElementById('btn-disconnect-discord');
+      if (btnDisconnect) btnDisconnect.style.display = connected ? 'inline-flex' : 'none';
+      const profileLink = document.getElementById('discord-profile-link');
+      if (profileLink) {
+        if (connected && /^[0-9]{17,22}$/.test(dId)) {
+          profileLink.href = `https://discord.com/users/${encodeURIComponent(dId)}`;
+          profileLink.style.display = 'inline-flex';
+        } else {
+          profileLink.style.display = 'none';
+        }
       }
     }
 
@@ -2606,9 +2719,15 @@ function renderProfileIdentityBadges(profile = null) {
     }
     const visNote = document.getElementById('prof-rating-visibility-note');
     if (visNote) {
-      visNote.innerText = lowVis
-        ? 'Tu valoración está bajo 2.0★: aparecerás menos recomendado hasta subir tu puntuación.'
-        : 'Con 2.0★ o más tu perfil aparece con prioridad normal en las recomendaciones.';
+      if (isVisitor) {
+        visNote.innerText = lowVis
+          ? 'Valoración bajo 2.0★: aparece con visibilidad reducida en recomendaciones.'
+          : 'Con 2.0★ o más mantiene visibilidad normal en las recomendaciones.';
+      } else {
+        visNote.innerText = lowVis
+          ? 'Tu valoración está bajo 2.0★: aparecerás menos recomendado hasta subir tu puntuación.'
+          : 'Con 2.0★ o más tu perfil aparece con prioridad normal en las recomendaciones.';
+      }
     }
 
     const passGame = document.getElementById('prof-pass-game-pill');
@@ -2676,6 +2795,8 @@ function collectTasteChipsSelection(containerId) {
 
 async function loadProfileData() {
   if (!state.currentUser) return;
+  if (state.viewingProfileUsername) return;
+  setProfileReadOnlyMode(false);
 
   const setVal = (id, val) => {
     const el = document.getElementById(id);
@@ -2694,6 +2815,8 @@ async function loadProfileData() {
       API.getMyAccount(state.currentUser.username).catch(() => ({ ok: false, data: null }))
     ]);
 
+    if (state.viewingProfileUsername) return;
+
     const myAccount = meRes && meRes.ok && meRes.data && meRes.data.user ? meRes.data.user : null;
     if (myAccount) {
       setVal('prof-email', myAccount.email || '');
@@ -2704,24 +2827,7 @@ async function loadProfileData() {
 
     const myProfile = players.find(p => p.username.toLowerCase() === state.currentUser.username.toLowerCase());
     if (myProfile) {
-      setVal('prof-bio', myProfile.bio || '');
-      setVal('prof-region', myProfile.region || '');
-      setVal('prof-game', myProfile.game || 'valorant');
-      setVal('prof-rank', myProfile.rank || '');
-      setVal('prof-role', myProfile.role || '');
-      setVal('prof-riot', myProfile.riotId || '');
-      setVal('prof-playstyle', myProfile.playstyle || 'COMPETITIVE');
-      setVal('prof-schedule', myProfile.preferredSchedule || '');
-
-      state.favGamesSelected = new Set(
-        String(myProfile.favoriteGames || '')
-          .split(',')
-          .map(s => s.trim().toLowerCase())
-          .filter(Boolean)
-      );
-      renderFavGamesChips();
-      applyTasteChipsSelection('prof-fav-genres-chips', myProfile.favoriteGenres || '');
-      applyTasteChipsSelection('prof-play-prefs-chips', myProfile.playPreferences || '');
+      populateProfileFormFields(myProfile);
       renderProfileIdentityBadges(myProfile);
     }
 
@@ -2731,28 +2837,30 @@ async function loadProfileData() {
   }
 }
 
-async function loadProfileAchievementsAndAnalytics() {
-  if (!state.currentUser) return;
+async function loadProfileAchievementsAndAnalytics(targetUsername = null, readOnly = false) {
+  const uname = targetUsername || state.viewingProfileUsername || state.currentUser?.username;
+  if (!uname) return;
   try {
     const [achRes, statsRes] = await Promise.all([
-      API.getPlayerAchievements(state.currentUser.username).catch(() => ({ ok: false })),
-      API.getPlayerAnalytics(state.currentUser.username).catch(() => ({ ok: false }))
+      API.getPlayerAchievements(uname).catch(() => ({ ok: false })),
+      API.getPlayerAnalytics(uname).catch(() => ({ ok: false }))
     ]);
 
     if (achRes && achRes.ok && achRes.data) {
-      renderProfileAchievements(achRes.data);
+      renderProfileAchievements(achRes.data, { readOnly: Boolean(readOnly || state.viewingProfileUsername) });
     }
     if (statsRes && statsRes.ok && statsRes.data) {
-      renderProfileAnalyticsAndClips(statsRes.data);
+      renderProfileAnalyticsAndClips(statsRes.data, { readOnly: Boolean(readOnly || state.viewingProfileUsername) });
     }
   } catch (err) {
     console.error('Error cargando logros y analíticas:', err);
   }
 }
 
-function renderProfileAchievements(data) {
+function renderProfileAchievements(data, options = {}) {
   const grid = document.getElementById('prof-title-picker');
   if (!grid) return;
+  const isReadOnly = Boolean(options.readOnly || state.viewingProfileUsername);
   const list = Array.isArray(data.achievements) ? data.achievements : [];
   const activeTitle = String(data.equippedTitle || '').trim();
   syncProfileTitleUi(activeTitle);
@@ -2761,7 +2869,7 @@ function renderProfileAchievements(data) {
     const unlocked = Boolean(ach.unlocked);
     const isActive = unlocked && activeTitle === ach.title;
     return `
-      <button type="button" class="achievement-card ${unlocked ? '' : 'locked'} ${isActive ? 'active' : ''}" data-title="${escapeHtml(ach.title)}" data-unlocked="${unlocked ? '1' : '0'}">
+      <button type="button" class="achievement-card ${unlocked ? '' : 'locked'} ${isActive ? 'active' : ''}" data-title="${escapeHtml(ach.title)}" data-unlocked="${unlocked ? '1' : '0'}" ${isReadOnly ? 'disabled' : ''}>
         <div class="achievement-card-top">
           <span class="achievement-title">${escapeHtml(ach.title)}</span>
           <span class="achievement-state ${unlocked ? 'unlocked' : 'locked'}">${unlocked ? (isActive ? 'Equipado' : 'Desbloqueado') : escapeHtml(ach.progress || 'Bloqueado')}</span>
@@ -2773,6 +2881,7 @@ function renderProfileAchievements(data) {
 
   grid.querySelectorAll('.achievement-card').forEach(btn => {
     btn.addEventListener('click', async () => {
+      if (isReadOnly || state.viewingProfileUsername) return;
       if (btn.dataset.unlocked !== '1') {
         showToast('Aún no cumples el requisito para este título.', true);
         return;
@@ -2801,7 +2910,8 @@ function renderProfileAchievements(data) {
   });
 }
 
-function renderProfileAnalyticsAndClips(stats) {
+function renderProfileAnalyticsAndClips(stats, options = {}) {
+  const isReadOnly = Boolean(options.readOnly || state.viewingProfileUsername);
   const setText = (id, val) => {
     const el = document.getElementById(id);
     if (el) el.innerText = val;
@@ -2833,7 +2943,7 @@ function renderProfileAnalyticsAndClips(stats) {
   if (matesWrap) {
     const mates = Array.isArray(stats.recentTeammates) ? stats.recentTeammates : [];
     if (mates.length === 0) {
-      matesWrap.innerHTML = '<span style="font-size:0.75rem;color:var(--text-muted);">Aún no agregas compañeros en tu escuadra.</span>';
+      matesWrap.innerHTML = '<span style="font-size:0.75rem;color:var(--text-muted);">Aún no hay compañeros recientes registrados.</span>';
     } else {
       matesWrap.innerHTML = mates.map(m => `
         <span class="mate-chip clickable-player-handle" data-profile-user="${escapeHtml(m.username)}">
@@ -2851,7 +2961,9 @@ function renderProfileAnalyticsAndClips(stats) {
   if (clipsWrap) {
     const clips = Array.isArray(stats.clips) ? stats.clips : [];
     if (clips.length === 0) {
-      clipsWrap.innerHTML = '<div style="font-size:0.78rem;color:var(--text-muted);">No has subido clips o highlights todavía.</div>';
+      clipsWrap.innerHTML = isReadOnly
+        ? '<div style="font-size:0.78rem;color:var(--text-muted);">Este jugador aún no ha subido clips o highlights.</div>'
+        : '<div style="font-size:0.78rem;color:var(--text-muted);">No has subido clips o highlights todavía.</div>';
     } else {
       clipsWrap.innerHTML = clips.map(cl => {
         const meta = extractClipMeta(cl.clipUrl);
@@ -2866,20 +2978,23 @@ function renderProfileAnalyticsAndClips(stats) {
             </div>
             <div style="display:flex;gap:0.35rem;flex-shrink:0;">
               <a href="${escapeHtml(cl.clipUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm">Ver</a>
-              <button type="button" class="btn btn-danger btn-sm btn-del-clip" data-cid="${escapeHtml(cl.id)}">&times;</button>
+              ${!isReadOnly ? `<button type="button" class="btn btn-danger btn-sm btn-del-clip" data-cid="${escapeHtml(cl.id)}">&times;</button>` : ''}
             </div>
           </div>
         `;
       }).join('');
-      clipsWrap.querySelectorAll('.btn-del-clip').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const res = await API.deletePlayerClip(state.currentUser.username, btn.dataset.cid);
-          if (res.ok) {
-            showToast('Clip eliminado.');
-            loadProfileAchievementsAndAnalytics();
-          }
+      if (!isReadOnly) {
+        clipsWrap.querySelectorAll('.btn-del-clip').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            if (state.viewingProfileUsername) return;
+            const res = await API.deletePlayerClip(state.currentUser.username, btn.dataset.cid);
+            if (res.ok) {
+              showToast('Clip eliminado.');
+              loadProfileAchievementsAndAnalytics();
+            }
+          });
         });
-      });
+      }
     }
   }
 }
@@ -3033,7 +3148,7 @@ function setupProfileForm() {
   // 1b. Selector interactivo de Marcos LoL para perfil y tarjetas
   document.querySelectorAll('#prof-card-frame-picker .frame-swatch').forEach(btn => {
     btn.addEventListener('click', async () => {
-      if (!state.currentUser) return;
+      if (!state.currentUser || state.viewingProfileUsername) return;
       const frame = String(btn.dataset.frame || 'NONE').toUpperCase();
       const info = getFrameInfo(frame);
       syncProfileCardFrameUi(frame);
@@ -3169,14 +3284,17 @@ function setupProfileForm() {
   // 4. Chips interactivos de gustos (géneros y preferencias sociales)
   ['prof-fav-genres-chips', 'prof-play-prefs-chips'].forEach(containerId => {
     document.getElementById(containerId)?.querySelectorAll('.taste-chip').forEach(btn => {
-      btn.addEventListener('click', () => btn.classList.toggle('active'));
+      btn.addEventListener('click', () => {
+        if (state.viewingProfileUsername) return;
+        btn.classList.toggle('active');
+      });
     });
   });
 
   // 5. Guardar cambios generales de cuenta privada, gustos y perfil competitivo
   document.getElementById('profile-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (!state.currentUser) return;
+    if (!state.currentUser || state.viewingProfileUsername) return;
 
     const payload = {
       username: state.currentUser.username,
@@ -3219,7 +3337,7 @@ function setupProfileForm() {
 
   // 6. Subir Highlight / Clip al Dossier Público
   document.getElementById('btn-add-clip')?.addEventListener('click', async () => {
-    if (!state.currentUser) return;
+    if (!state.currentUser || state.viewingProfileUsername) return;
     const titleInp = document.getElementById('clip-title-input');
     const urlInp = document.getElementById('clip-url-input');
     const gameSel = document.getElementById('clip-game-select');
@@ -3325,8 +3443,8 @@ function setupModals() {
   document.getElementById('report-close-btn')?.addEventListener('click', () => closeModalById('report-modal'));
   document.getElementById('mr-close-btn')?.addEventListener('click', () => closeModalById('match-result-modal'));
 
-  document.getElementById('dossier-btn-chat')?.addEventListener('click', async () => {
-    const target = state.dossierUsername;
+  const handleDossierOrVisitorChat = async () => {
+    const target = state.viewingProfileUsername || state.dossierUsername;
     if (!target) return;
     const st = getFriendStatus(target);
     if (st === 'ACCEPTED') {
@@ -3339,23 +3457,24 @@ function setupModals() {
       await handleAddFriend(target);
       openPublicProfile(target);
     }
-  });
-  document.getElementById('dossier-btn-invite')?.addEventListener('click', () => {
-    const target = state.dossierUsername;
+  };
+  const handleDossierOrVisitorInvite = () => {
+    const target = state.viewingProfileUsername || state.dossierUsername;
     if (!target) return;
+    const gameName = state.viewingProfileData?.gameName || state.viewingProfileData?.game || 'Valorant';
     closeModalById('public-profile-modal');
-    openMatchModal(target, 'Valorant');
-  });
-  document.getElementById('dossier-btn-rate')?.addEventListener('click', () => {
-    const target = state.dossierUsername;
+    openMatchModal(target, gameName);
+  };
+  const handleDossierOrVisitorRate = () => {
+    const target = state.viewingProfileUsername || state.dossierUsername;
     if (target) openRateModal(target);
-  });
-  document.getElementById('dossier-btn-report')?.addEventListener('click', () => {
-    const target = state.dossierUsername;
+  };
+  const handleDossierOrVisitorReport = () => {
+    const target = state.viewingProfileUsername || state.dossierUsername;
     if (target) openReportModal(target);
-  });
-  document.getElementById('dossier-btn-block')?.addEventListener('click', async () => {
-    const target = state.dossierUsername;
+  };
+  const handleDossierOrVisitorBlock = async () => {
+    const target = state.viewingProfileUsername || state.dossierUsername;
     if (!target || !state.currentUser) return;
     if (state.dossierIsBlocked) {
       const res = await API.unblockUser(state.currentUser.username, target);
@@ -3369,6 +3488,9 @@ function setupModals() {
       if (res.ok) {
         showToast(`Has bloqueado a @${target}.`);
         closeModalById('public-profile-modal');
+        if (state.viewingProfileUsername && state.viewingProfileUsername.toLowerCase() === target.toLowerCase()) {
+          switchTab(state.previousTabBeforeProfile || 'lfg');
+        }
         if (state.activeDmFriend && state.activeDmFriend.toLowerCase() === target.toLowerCase()) {
           state.activeDmFriend = null;
           document.getElementById('ig-dm-active-thread').style.display = 'none';
@@ -3377,7 +3499,22 @@ function setupModals() {
         await Promise.all([loadFriendsInbox(), loadBlockedUsers(), loadLfgPlayers(), loadRecommendations(), loadLobbies(), loadLeaderboard()]);
       }
     }
+  };
+
+  document.getElementById('btn-profile-back')?.addEventListener('click', () => {
+    switchTab(state.previousTabBeforeProfile || 'lfg');
   });
+  document.getElementById('prof-vis-chat')?.addEventListener('click', handleDossierOrVisitorChat);
+  document.getElementById('prof-vis-invite')?.addEventListener('click', handleDossierOrVisitorInvite);
+  document.getElementById('prof-vis-rate')?.addEventListener('click', handleDossierOrVisitorRate);
+  document.getElementById('prof-vis-report')?.addEventListener('click', handleDossierOrVisitorReport);
+  document.getElementById('prof-vis-block')?.addEventListener('click', handleDossierOrVisitorBlock);
+
+  document.getElementById('dossier-btn-chat')?.addEventListener('click', handleDossierOrVisitorChat);
+  document.getElementById('dossier-btn-invite')?.addEventListener('click', handleDossierOrVisitorInvite);
+  document.getElementById('dossier-btn-rate')?.addEventListener('click', handleDossierOrVisitorRate);
+  document.getElementById('dossier-btn-report')?.addEventListener('click', handleDossierOrVisitorReport);
+  document.getElementById('dossier-btn-block')?.addEventListener('click', handleDossierOrVisitorBlock);
 
   document.getElementById('create-lobby-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -3465,8 +3602,10 @@ function setupModals() {
       document.getElementById('rate-comment-input').value = '';
       showToast(`Valoración de ${stars}★ guardada para @${ratedUsername}.`);
       await Promise.all([loadLfgPlayers(), loadRecommendations(), loadLeaderboard()]);
-      if (document.getElementById('public-profile-modal')?.style.display === 'flex' &&
-          state.dossierUsername && state.dossierUsername.toLowerCase() === ratedUsername.toLowerCase()) {
+      if ((document.getElementById('public-profile-modal')?.style.display === 'flex' &&
+          state.dossierUsername && state.dossierUsername.toLowerCase() === ratedUsername.toLowerCase()) ||
+          (state.currentTab === 'profile' && state.viewingProfileUsername &&
+          state.viewingProfileUsername.toLowerCase() === ratedUsername.toLowerCase())) {
         openPublicProfile(ratedUsername);
       }
     } catch (err) {

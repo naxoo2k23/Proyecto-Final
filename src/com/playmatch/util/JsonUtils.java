@@ -152,23 +152,40 @@ public class JsonUtils {
         for (int i = 0; i < res.length(); i++) {
             char c = res.charAt(i);
             if (c == '\\' && i + 1 < res.length()) {
-                char next = res.charAt(i + 1);
-                switch (next) {
-                    case '"': out.append('"'); i++; break;
-                    case '\\': out.append('\\'); i++; break;
-                    case '/': out.append('/'); i++; break;
-                    case 'n': out.append('\n'); i++; break;
-                    case 'r': out.append('\r'); i++; break;
-                    case 't': out.append('\t'); i++; break;
-                    case 'b': out.append('\b'); i++; break;
-                    case 'f': out.append('\f'); i++; break;
-                    default: out.append(c); break;
+                int consumed = appendEscapedChar(res, i + 1, out);
+                if (consumed == 0) {
+                    out.append(c);
+                } else {
+                    i += consumed;
                 }
             } else {
                 out.append(c);
             }
         }
         return out.toString();
+    }
+
+    private static int appendEscapedChar(String src, int escIdx, StringBuilder out) {
+        char next = src.charAt(escIdx);
+        switch (next) {
+            case '"': out.append('"'); return 1;
+            case '\\': out.append('\\'); return 1;
+            case '/': out.append('/'); return 1;
+            case 'n': out.append('\n'); return 1;
+            case 'r': out.append('\r'); return 1;
+            case 't': out.append('\t'); return 1;
+            case 'b': out.append('\b'); return 1;
+            case 'f': out.append('\f'); return 1;
+            case 'u':
+                if (escIdx + 4 < src.length()) {
+                    try {
+                        out.append((char) Integer.parseInt(src.substring(escIdx + 1, escIdx + 5), 16));
+                    } catch (NumberFormatException ignored) {}
+                    return 5;
+                }
+                return 0;
+            default: return 0;
+        }
     }
 
     public static Object parseJson(String json) {
@@ -266,26 +283,11 @@ public class JsonUtils {
                 char c = s.charAt(pos++);
                 if (c == '"') break;
                 if (c == '\\' && pos < s.length()) {
-                    char esc = s.charAt(pos++);
-                    switch (esc) {
-                        case '"': sb.append('"'); break;
-                        case '\\': sb.append('\\'); break;
-                        case '/': sb.append('/'); break;
-                        case 'b': sb.append('\b'); break;
-                        case 'f': sb.append('\f'); break;
-                        case 'n': sb.append('\n'); break;
-                        case 'r': sb.append('\r'); break;
-                        case 't': sb.append('\t'); break;
-                        case 'u':
-                            if (pos + 4 <= s.length()) {
-                                String hex = s.substring(pos, pos + 4);
-                                try {
-                                    sb.append((char) Integer.parseInt(hex, 16));
-                                } catch (NumberFormatException ignored) {}
-                                pos += 4;
-                            }
-                            break;
-                        default: sb.append(esc); break;
+                    int consumed = appendEscapedChar(s, pos, sb);
+                    if (consumed > 0) {
+                        pos += consumed;
+                    } else {
+                        sb.append(s.charAt(pos++));
                     }
                 } else {
                     sb.append(c);

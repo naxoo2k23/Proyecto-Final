@@ -69,20 +69,35 @@ public class GestorBaseDatos {
 
     private void inicializarMotorYEsquema() {
         if (configDB.isPostgresConfigured()) {
-            try {
-                iniciarPoolPostgreSQL();
-                this.motorActivo = MotorDB.POSTGRESQL;
-                this.notaEstadoMotor = "Pool HikariCP activo (10 conexiones)";
-                inicializarBaseDatos();
-                return;
-            } catch (Exception e) {
-                cerrarPool();
-                if (configDB.isStrictPostgres()) {
-                    throw new IllegalStateException("Fallo conexión obligatoria a PostgreSQL (DB_STRICT=true): " + e.getMessage(), e);
+            Exception ultimoError = null;
+            for (int intento = 1; intento <= 5; intento++) {
+                try {
+                    iniciarPoolPostgreSQL();
+                    this.motorActivo = MotorDB.POSTGRESQL;
+                    this.notaEstadoMotor = "Pool HikariCP activo (10 conexiones)";
+                    inicializarBaseDatos();
+                    return;
+                } catch (Exception e) {
+                    ultimoError = e;
+                    cerrarPool();
+                    if (intento < 5) {
+                        System.err.println("[BaseDatos] Esperando a PostgreSQL (intento " + intento + "/5): " + e.getMessage());
+                        try {
+                            Thread.sleep(2500L);
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                            break;
+                        }
+                    }
                 }
-                System.err.println("[BaseDatos] Aviso: No se pudo conectar a PostgreSQL (" + e.getMessage() + "). Activando respaldo local SQLite.");
-                this.notaEstadoMotor = "Respaldo SQLite local (PostgreSQL inaccesible)";
             }
+            if (configDB.isStrictPostgres()) {
+                throw new IllegalStateException("Fallo conexión obligatoria a PostgreSQL (DB_STRICT=true): "
+                        + (ultimoError != null ? ultimoError.getMessage() : "desconocido"), ultimoError);
+            }
+            System.err.println("[BaseDatos] Aviso: No se pudo conectar a PostgreSQL ("
+                    + (ultimoError != null ? ultimoError.getMessage() : "desconocido") + "). Activando respaldo local SQLite.");
+            this.notaEstadoMotor = "Respaldo SQLite local (PostgreSQL inaccesible)";
         } else {
             this.notaEstadoMotor = "Modo local SQLite (configura .env DATABASE_URL para PostgreSQL)";
         }
@@ -316,11 +331,13 @@ public class GestorBaseDatos {
                     sembrarClipsIniciales(conn);
                 }
             }
-            // Asignar titulos desbloqueados de muestra si recien se migro equipped_title
+            // Asignar titulos desbloqueados de muestra si recien se migro equipped_title o actualizar titulo base
+            st.execute("UPDATE player_profiles SET equipped_title = 'Héroe de Internet' WHERE equipped_title = 'Jugador Activo';");
             if (contarFilasConTitulo(conn) == 0 && contarFilas(conn, "users") > 0) {
                 String[][] titulosDemo = {
-                    {"p-1", "Cero Tilt"}, {"p-2", "Dúo Confiable"},
-                    {"p-4", "Cero Tilt"}, {"p-5", "Comandante Social"}
+                    {"p-1", "Héroe de Internet"}, {"p-2", "Dúo Confiable"},
+                    {"p-3", "Héroe de Internet"}, {"p-4", "Cero Tilt"},
+                    {"p-5", "Comandante Social"}, {"p-6", "Héroe de Internet"}
                 };
                 try (PreparedStatement pt = conn.prepareStatement("UPDATE player_profiles SET equipped_title = ? WHERE id = ? AND (equipped_title IS NULL OR equipped_title = '')")) {
                     for (String[] td : titulosDemo) {
@@ -330,6 +347,8 @@ public class GestorBaseDatos {
                     }
                     pt.executeBatch();
                 }
+            } else {
+                st.execute("UPDATE player_profiles SET equipped_title = 'Héroe de Internet' WHERE id IN ('p-3','p-6') AND (equipped_title IS NULL OR equipped_title = '');");
             }
             // Migrar avatares robots antiguos al nuevo avatar SVG propio /api/avatar
             try (PreparedStatement pu = conn.prepareStatement("SELECT id, username FROM users WHERE avatar_url IS NULL OR avatar_url = '' OR avatar_url LIKE '%dicebear.com/7.x/bottts%'");
@@ -3633,7 +3652,7 @@ public class GestorBaseDatos {
         boolean champOk = trophiesCount >= 1;
 
         List<Map<String, Object>> achievements = new ArrayList<>();
-        achievements.add(crearLogro("starter", "Perfil Activo", "Jugador Activo",
+        achievements.add(crearLogro("starter", "Perfil Activo", "Héroe de Internet",
                 "Completa tu biografía y juego principal en tu perfil.", starterOk, starterOk ? "1 / 1" : "0 / 1"));
         achievements.add(crearLogro("clean", "Conducta Ejemplar", "Cero Tilt",
                 "Mantén 4.5★+ con valoraciones positivas en comunidad.", cleanOk,

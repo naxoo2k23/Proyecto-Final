@@ -103,21 +103,13 @@
         </div>
 
         <div>
-          <div class="nav-group-label">Cuenta y Persistencia</div>
+          <div class="nav-group-label">Mi Cuenta</div>
           <ul class="nav-tabs">
             <li>
               <button class="nav-tab-btn" data-tab="profile">
                 <span class="nav-tab-btn-inner">
                   <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"></circle><path d="M20 21a8 8 0 1 0-16 0"></path></svg>
                   Mi Perfil y Cuenta
-                </span>
-              </button>
-            </li>
-            <li>
-              <button class="nav-tab-btn" data-tab="database">
-                <span class="nav-tab-btn-inner">
-                  <svg class="icon" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"></path></svg>
-                  Base de Datos (SQL)
                 </span>
               </button>
             </li>
@@ -229,7 +221,9 @@
             </div>
 
             <div class="hero-image-wrapper">
-              <img src="https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1000&q=80" alt="PlayMatch Arena" class="hero-image">
+              <video id="hero-games-video" class="hero-image hero-video" autoplay muted loop playsinline preload="auto" poster="assets/video/hero-edit-poster.jpg">
+                <source src="assets/video/hero-games-edit.mp4" type="video/mp4">
+              </video>
               <div class="hero-image-overlay"></div>
             </div>
           </div>
@@ -522,7 +516,22 @@
           <div class="section-toolbar">
             <div class="section-title">
               <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"></circle><path d="M20 21a8 8 0 1 0-16 0"></path></svg>
-              Personalización de Perfil, Privacidad y Discord
+              <span id="profile-section-heading">Personalización de Perfil, Privacidad y Discord</span>
+            </div>
+          </div>
+
+          <!-- BARRA MODO VISITANTE (SOLO LECTURA AL PINCHAR NOMBRE DE OTRO USUARIO) -->
+          <div id="profile-visitor-bar" class="profile-visitor-bar" style="display:none;">
+            <div style="display:flex;align-items:center;gap:0.65rem;flex-wrap:wrap;">
+              <button type="button" id="btn-profile-back" class="btn btn-secondary btn-sm">← Volver</button>
+              <span id="prof-visitor-label" style="font-size:0.84rem;color:#fff;font-weight:600;">Perfil público · Solo lectura</span>
+            </div>
+            <div class="profile-visitor-actions">
+              <button type="button" id="prof-vis-invite" class="btn btn-primary btn-sm">Invitar a Jugar</button>
+              <button type="button" id="prof-vis-chat" class="btn btn-secondary btn-sm">Chatear / + Amigo</button>
+              <button type="button" id="prof-vis-rate" class="btn btn-secondary btn-sm">Valorar ★</button>
+              <button type="button" id="prof-vis-report" class="btn btn-secondary btn-sm">Reportar</button>
+              <button type="button" id="prof-vis-block" class="btn btn-secondary btn-sm">Bloquear</button>
             </div>
           </div>
 
@@ -560,7 +569,7 @@
                 </div>
               </div>
 
-              <div class="profile-avatar-controls">
+              <div id="profile-avatar-controls" class="profile-avatar-controls">
                 <div class="avatar-action-row">
                   <label for="prof-avatar-file" class="btn btn-primary btn-sm" style="cursor:pointer;">Subir Imagen desde Equipo</label>
                   <input type="file" id="prof-avatar-file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
@@ -578,9 +587,9 @@
           </div>
 
           <form id="profile-form">
-            <div class="profile-two-col">
+            <div class="profile-two-col" id="profile-top-two-col">
               <!-- TARJETA CUENTA PRIVADA (TABLA USERS) -->
-              <div class="profile-panel">
+              <div class="profile-panel" id="profile-account-card">
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;margin-bottom:0.25rem;">
                   <h3 style="font-family:var(--font-display);font-size:1rem;">Cuenta Privada y Verificación</h3>
                   <span class="privacy-pill">Privado</span>
@@ -624,7 +633,7 @@
               </div>
 
               <!-- TARJETA PERFIL GAMER -->
-              <div class="profile-panel">
+              <div class="profile-panel" id="profile-competitive-card">
                 <h3 style="font-family:var(--font-display);font-size:1rem;margin-bottom:0.25rem;">Perfil Competitivo</h3>
                 <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:1.15rem;">
                   Visible al buscar compañeros para formar escuadras compatibles.
@@ -676,7 +685,7 @@
                   </div>
                 </div>
 
-                <div style="margin-top:1.35rem;display:flex;justify-content:flex-end;">
+                <div id="prof-submit-row" style="margin-top:1.35rem;display:flex;justify-content:flex-end;">
                   <button type="submit" class="btn btn-primary">Guardar Cambios y Gustos</button>
                 </div>
               </div>
@@ -686,7 +695,7 @@
             <div id="profile-tastes-panel" class="tastes-panel">
               <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.85rem;">
                 <div>
-                  <h3 style="font-family:var(--font-display);font-size:1.02rem;color:#fff;margin:0;">
+                  <h3 id="profile-tastes-heading" style="font-family:var(--font-display);font-size:1.02rem;color:#fff;margin:0;">
                     Mis Gustos y Juegos Favoritos
                   </h3>
                   <p style="font-size:0.76rem;color:var(--text-secondary);margin:0.15rem 0 0;">
@@ -815,7 +824,7 @@
               <p style="font-size:0.76rem;color:var(--text-muted);margin-bottom:0.75rem;">
                 Comparte jugadas de YouTube, Twitch o Medal para destacar en tu perfil público.
               </p>
-              <div class="clip-add-form">
+              <div id="profile-clip-add-wrap" class="clip-add-form">
                 <input type="text" id="clip-title-input" class="form-control" placeholder="Ej: Clutch 1v3 Ascent · Omen">
                 <div class="clip-add-row">
                   <input type="url" id="clip-url-input" class="form-control" placeholder="https://www.youtube.com/watch?v=...">
@@ -862,7 +871,15 @@
             </div>
           </div>
 
-          <div class="profile-two-col" style="margin-top:1.15rem;">
+          <div id="profile-reviews-panel" class="profile-panel" style="margin-top:1.15rem;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.55rem;flex-wrap:wrap;gap:0.5rem;">
+              <h3 style="font-family:var(--font-display);font-size:1rem;">Trofeos y Reseñas de Compañeros</h3>
+              <div id="prof-trophies-strip" class="dossier-trophies-row" style="margin-bottom:0;"></div>
+            </div>
+            <div id="prof-reviews-list" class="dossier-reviews-list"></div>
+          </div>
+
+          <div id="profile-mod-integ-row" class="profile-two-col" style="margin-top:1.15rem;">
             <!-- USUARIOS BLOQUEADOS -->
             <div id="blocked-users-panel" class="profile-panel">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem;">

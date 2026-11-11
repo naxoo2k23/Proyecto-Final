@@ -132,6 +132,12 @@ public class ServidorPlayMatch {
 
     public static void main(String[] args) throws IOException {
         int puerto = PUERTO_POR_DEFECTO;
+        String envPort = System.getenv("PORT");
+        if (envPort != null && !envPort.trim().isEmpty()) {
+            try {
+                puerto = Integer.parseInt(envPort.trim());
+            } catch (NumberFormatException ignored) {}
+        }
         if (args.length > 0) {
             try {
                 puerto = Integer.parseInt(args[0]);

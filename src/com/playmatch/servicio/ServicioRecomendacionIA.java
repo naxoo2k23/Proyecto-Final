@@ -113,6 +113,7 @@ public class ServicioRecomendacionIA {
             sb.append("{")
               .append("\"username\":\"").append(JsonUtils.escape(p.getUsername())).append("\",")
               .append("\"avatarUrl\":\"").append(JsonUtils.escape(p.getAvatarUrl())).append("\",")
+              .append("\"bio\":\"").append(JsonUtils.escape(nullSafe(p.getBiografia()))).append("\",")
               .append("\"game\":\"").append(JsonUtils.escape(p.getJuego())).append("\",")
               .append("\"gameName\":\"").append(JsonUtils.escape(p.getNombreJuego())).append("\",")
               .append("\"rank\":\"").append(JsonUtils.escape(p.getRango())).append("\",")

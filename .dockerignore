@@ -1,0 +1,9 @@
+.git
+.env
+bin
+data
+Fase_2
+*.db
+*.db-wal
+*.db-shm
+*.log

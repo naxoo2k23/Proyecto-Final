@@ -15,10 +15,39 @@
 <body style="margin:0;">
 
   <div class="login-video-stage">
-    <!-- VIDEO GAMER DE FONDO EN BUCLE -->
-    <video id="login-bg-video" class="login-bg-video" autoplay muted loop playsinline poster="assets/video/gamer-bg-poster.jpg">
-      <source src="assets/video/gamer-bg.mp4" type="video/mp4">
-    </video>
+    <!-- COLLAGE DE VIDEOS ESPORTS Y GAMERS EN VIVO -->
+    <div class="login-video-collage" aria-hidden="true">
+      <div class="collage-tile collage-tile-1">
+        <video id="login-bg-video" class="collage-video" autoplay muted loop playsinline preload="auto" poster="assets/video/gamer-bg-poster.jpg">
+          <source src="assets/video/gamer-bg.mp4" type="video/mp4">
+        </video>
+      </div>
+      <div class="collage-tile collage-tile-2">
+        <video class="collage-video" autoplay muted loop playsinline preload="auto">
+          <source src="assets/video/clip-kb.mp4" type="video/mp4">
+        </video>
+      </div>
+      <div class="collage-tile collage-tile-3">
+        <video class="collage-video" autoplay muted loop playsinline preload="auto">
+          <source src="assets/video/clip-squad.mp4" type="video/mp4">
+        </video>
+      </div>
+      <div class="collage-tile collage-tile-4">
+        <video class="collage-video" autoplay muted loop playsinline preload="auto">
+          <source src="assets/video/clip-aim.mp4" type="video/mp4">
+        </video>
+      </div>
+      <div class="collage-tile collage-tile-5">
+        <video class="collage-video" autoplay muted loop playsinline preload="auto">
+          <source src="assets/video/clip-comp.mp4" type="video/mp4">
+        </video>
+      </div>
+      <div class="collage-tile collage-tile-6">
+        <video class="collage-video" autoplay muted loop playsinline preload="auto">
+          <source src="assets/video/clip-win.mp4" type="video/mp4">
+        </video>
+      </div>
+    </div>
     <div class="login-video-overlay"></div>
 
     <div class="login-center-container">
@@ -214,6 +243,11 @@
           submitBtn.disabled = false;
           submitBtn.innerText = 'Acceder a PlayMatch';
         }
+      });
+      document.querySelectorAll('.collage-video').forEach((v, idx) => {
+        v.muted = true;
+        v.playbackRate = idx % 2 === 0 ? 1.05 : 0.95;
+        v.play().catch(() => {});
       });
     });
   </script>
