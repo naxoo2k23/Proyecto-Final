@@ -30,11 +30,11 @@ ON CONFLICT DO NOTHING;
 
 -- 3. MENSAJES INICIALES EN LOS 3 APARTADOS DE CHAT GENERAL + SALAS POR JUEGO
 INSERT INTO chat_messages (id, sender_id, sender_username, sender_avatar, channel, content, sent_at) VALUES
-('msg-1', 'u-1', 'Jesus_Villasanti', 'https://api.dicebear.com/7.x/bottts/svg?seed=Jesus_Villasanti', 'global', 'Bienvenidos a PlayMatch. Todas las partidas, registros y torneos quedan persistidos en base de datos.', '19:00'),
-('msg-4', 'u-5', 'jaeliug', 'https://api.dicebear.com/7.x/bottts/svg?seed=jaeliug', 'general-duo', '¡Chat abierto para encontrar dúo! Deja tu juego (Valorant, Marvel Rivals, Fortnite, Apex, etc.), rango y horario.', '19:08'),
-('msg-5', 'u-2', 'Datrikk', 'https://api.dicebear.com/7.x/bottts/svg?seed=Datrikk', 'general-escuadra', '¿Buscas armar squad o grupo completo? Coordina aquí escuadras para Marvel Rivals, Overwatch 2, Roblox, Minecraft o CS2.', '19:12'),
-('msg-2', 'u-2', 'Datrikk', 'https://api.dicebear.com/7.x/bottts/svg?seed=Datrikk', 'scrims-valorant', 'Buscamos 1 Duelista o Iniciador rango Ascendente+ para scrim hoy a las 21:00.', '19:15'),
-('msg-3', 'u-3', 'dididong', 'https://api.dicebear.com/7.x/bottts/svg?seed=dididong', 'duo-lol', 'Disponible para ranked Duo en servidor LAS como Support.', '19:22')
+('msg-1', 'u-1', 'Jesus_Villasanti', '/api/avatar?u=Jesus_Villasanti', 'global', 'Bienvenidos a PlayMatch. Todas las partidas, registros y torneos quedan persistidos en base de datos.', '19:00'),
+('msg-4', 'u-5', 'jaeliug', '/api/avatar?u=jaeliug', 'general-duo', '¡Chat abierto para encontrar dúo! Deja tu juego (Valorant, Marvel Rivals, Fortnite, Apex, etc.), rango y horario.', '19:08'),
+('msg-5', 'u-2', 'Datrikk', '/api/avatar?u=Datrikk', 'general-escuadra', '¿Buscas armar squad o grupo completo? Coordina aquí escuadras para Marvel Rivals, Overwatch 2, Roblox, Minecraft o CS2.', '19:12'),
+('msg-2', 'u-2', 'Datrikk', '/api/avatar?u=Datrikk', 'scrims-valorant', 'Buscamos 1 Duelista o Iniciador rango Ascendente+ para scrim hoy a las 21:00.', '19:15'),
+('msg-3', 'u-3', 'dididong', '/api/avatar?u=dididong', 'duo-lol', 'Disponible para ranked Duo en servidor LAS como Support.', '19:22')
 ON CONFLICT DO NOTHING;
 
 -- 4. AMISTADES Y CHATS DIRECTOS INICIALES (BANDEJA ESTILO INSTAGRAM)

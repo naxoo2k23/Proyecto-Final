@@ -97,6 +97,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   initRealtimeEvents();
   setupPwaAndPush();
+  setupCardSpotlight();
 
   // Heartbeat de presencia cada 30s y respaldo de chat si SSE no está conectado
   state.chatInterval = setInterval(() => {
@@ -117,18 +118,99 @@ document.addEventListener('DOMContentLoaded', async () => {
   }, 30000);
 });
 
+const FRAME_META = {
+  NONE: { cls: 'card-frame-none', pillCls: '', label: 'Titanio Base' },
+  GOLD: { cls: 'card-frame-gold', pillCls: 'gold', label: 'Oro' },
+  EMERALD: { cls: 'card-frame-emerald', pillCls: 'emerald', label: 'Esmeralda' },
+  RUBY: { cls: 'card-frame-ruby', pillCls: 'ruby', label: 'Rubí' },
+  DIAMOND: { cls: 'card-frame-diamond', pillCls: 'diamond', label: 'Diamante' },
+  CHALLENGER: { cls: 'card-frame-challenger', pillCls: 'challenger', label: 'Retador' }
+};
+
+function getFrameInfo(raw) {
+  const key = String(raw || 'NONE').trim().toUpperCase();
+  return FRAME_META[key] || FRAME_META.NONE;
+}
+
+function defaultAvatarUrl(username) {
+  return `/api/avatar?u=${encodeURIComponent(username || 'PlayMatch')}`;
+}
+
+function getGameCoverArtwork(gameCode) {
+  const clean = String(gameCode || '').trim().toLowerCase();
+  const cached = (state.gamesCache || []).find(g => (g.code || '').toLowerCase() === clean);
+  if (cached && cached.bannerUrl) return cached.bannerUrl;
+  const map = {
+    valorant: '/assets/games/valorant.jpg',
+    lol: '/assets/games/lol.jpg',
+    cs2: '/assets/games/cs2.jpg',
+    'rocket-league': '/assets/games/rocket-league.jpg',
+    'marvel-rivals': '/assets/games/marvel-rivals.jpg',
+    overwatch: '/assets/games/overwatch.jpg',
+    'apex-legends': '/assets/games/apex-legends.jpg',
+    apex: '/assets/games/apex-legends.jpg',
+    fortnite: '/assets/games/fortnite.jpg',
+    roblox: '/assets/games/roblox.jpg',
+    minecraft: '/assets/games/minecraft.jpg'
+  };
+  return map[clean] || '/assets/games/valorant.jpg';
+}
+
+function getRankTierClass(rankStr) {
+  const r = String(rankStr || '').toLowerCase();
+  if (r.includes('radiant') || r.includes('retador') || r.includes('challenger') || r.includes('maestro')) return 'rank-tier-radiant';
+  if (r.includes('inmortal') || r.includes('immortal')) return 'rank-tier-immortal';
+  if (r.includes('ascendente') || r.includes('esmeralda') || r.includes('emerald')) return 'rank-tier-ascendant';
+  if (r.includes('diamante') || r.includes('diamond')) return 'rank-tier-diamond';
+  if (r.includes('platino') || r.includes('platinum')) return 'rank-tier-platinum';
+  if (r.includes('oro') || r.includes('gold') || r.includes('faceit')) return 'rank-tier-gold';
+  return '';
+}
+
+function renderSkeletonCards(container, count = 3) {
+  if (!container) return;
+  container.innerHTML = Array.from({ length: count }).map(() => `
+    <div class="skeleton-card">
+      <div style="display:flex;align-items:center;gap:0.75rem;">
+        <div class="skeleton-avatar"></div>
+        <div style="flex:1;display:grid;gap:0.45rem;">
+          <div class="skeleton-line" style="height:14px;width:55%;"></div>
+          <div class="skeleton-line" style="height:11px;width:38%;"></div>
+        </div>
+      </div>
+      <div class="skeleton-line" style="height:56px;width:100%;"></div>
+      <div class="skeleton-line" style="height:28px;width:82%;"></div>
+    </div>
+  `).join('');
+}
+
+function setupCardSpotlight() {
+  document.addEventListener('mousemove', (e) => {
+    const card = e.target.closest?.('.player-card, .ai-rec-card, .lobby-card');
+    if (!card) return;
+    const rect = card.getBoundingClientRect();
+    card.style.setProperty('--mx', `${Math.round(e.clientX - rect.left)}px`);
+    card.style.setProperty('--my', `${Math.round(e.clientY - rect.top)}px`);
+  });
+}
+
 function updateAuthUI() {
   const navName = document.getElementById('nav-user-name');
   const navAvatar = document.getElementById('nav-user-avatar');
   const navRole = document.getElementById('nav-user-role');
   const igHandle = document.getElementById('ig-self-handle');
+  const topDot = document.getElementById('topbar-presence-dot');
 
   const stLabels = { ONLINE: 'En línea', LOOKING: 'Buscando grupo', INGAME: 'En partida', OFFLINE: 'Desconectado' };
+  const stCls = { ONLINE: 'online', LOOKING: 'looking', INGAME: 'ingame', OFFLINE: 'offline' };
   const stText = stLabels[state.myPresenceStatus] || 'En línea';
 
+  if (topDot) {
+    topDot.className = `presence-dot-mini ${stCls[state.myPresenceStatus] || 'online'}`;
+  }
   if (state.currentUser) {
     if (navName) navName.innerText = state.currentUser.username;
-    if (navAvatar) navAvatar.src = state.currentUser.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(state.currentUser.username)}`;
+    if (navAvatar) navAvatar.src = state.currentUser.avatar || defaultAvatarUrl(state.currentUser.username);
     if (navRole) navRole.innerText = `${state.currentUser.role || 'GAMER'} · ${stText}`;
     if (igHandle) igHandle.innerText = `@${state.currentUser.username}`;
   }
@@ -473,6 +555,9 @@ async function loadStats() {
     setText('badge-players-count', stats.profiles ?? stats.users);
     setText('badge-games-count', stats.games);
     setText('badge-tournaments-count', stats.tournaments);
+    setText('hero-stat-players', stats.profiles ?? stats.users);
+    setText('hero-stat-lobbies', stats.lobbies ?? state.lobbiesCache?.length ?? 0);
+    setText('hero-stat-tournaments', stats.tournaments);
 
     const liveLabel = document.getElementById('db-live-label');
     if (liveLabel) {
@@ -624,6 +709,7 @@ async function loadRecommendations(showFeedback = false) {
   if (!state.currentUser) return;
   const grid = document.getElementById('ai-recommendations-grid');
   if (!grid) return;
+  if (!grid.children.length) renderSkeletonCards(grid, 3);
 
   try {
     const data = await API.getRecommendations(state.currentUser.username);
@@ -668,11 +754,30 @@ function renderRecommendations(data) {
   }
 
   grid.innerHTML = '';
+  const ringR = 20;
+  const ringCirc = 2 * Math.PI * ringR;
   recs.slice(0, 6).forEach(rec => {
     const isLow = Boolean(rec.lowRatedPenalty || Number(rec.starRating) < 2.0 || rec.visibilityTier === 'REDUCIDA');
+    const frameInfo = getFrameInfo(rec.cardFrame);
     const card = document.createElement('div');
-    card.className = `ai-rec-card ${isLow ? 'low-rated' : ''}`;
-    const tags = Array.isArray(rec.sharedTags) ? rec.sharedTags.slice(0, 4) : [];
+    card.className = `ai-rec-card ${frameInfo.cls} ${isLow ? 'low-rated' : ''}`;
+
+    const gNameLower = String(rec.gameName || rec.game || '').trim().toLowerCase();
+    const seenTags = new Set([gNameLower]);
+    const rawTags = Array.isArray(rec.sharedTags) ? rec.sharedTags : [];
+    const cleanTags = [];
+    for (const rawT of rawTags) {
+      const k = String(rawT || '').trim().toLowerCase();
+      if (!k || seenTags.has(k)) continue;
+      seenTags.add(k);
+      const formatted = String(rawT).trim().replace(/\b\w/g, c => c.toUpperCase());
+      cleanTags.push(formatted);
+      if (cleanTags.length >= 3) break;
+    }
+
+    const scoreNum = Math.max(0, Math.min(100, Number(rec.matchScore || 0)));
+    const dashOffset = ringCirc * (1 - scoreNum / 100);
+    const strokeCol = isLow ? '#ef4444' : (scoreNum >= 85 ? '#38bdf8' : '#10b981');
 
     card.innerHTML = `
       <div class="ai-rec-card-top">
@@ -684,20 +789,26 @@ function renderRecommendations(data) {
               @${escapeHtml(rec.username)}
             </strong>
             <span class="star-rating-pill ${isLow ? 'low' : ''}">
-              ${Number(rec.starRating || 0).toFixed(1)} ★ (${Number(rec.ratingCount) || 0}) ${isLow ? '· Baja visibilidad' : ''}
+              ${Number(rec.starRating || 0).toFixed(1)} ★ (${Number(rec.ratingCount) || 0}) ${isLow ? '· Reducida' : ''}
             </span>
           </div>
         </div>
-        <span class="ai-score-badge ${isLow ? 'low' : ''}">
-          ${isLow ? `${Number(rec.matchScore)}% · <2★ Reducido` : `${Number(rec.matchScore)}% Compatible`}
-        </span>
+        <div class="ai-ring-wrap" title="${isLow ? 'Visibilidad reducida por valoración < 2.0★' : `${scoreNum}% de compatibilidad`}">
+          <svg class="ai-ring-svg" viewBox="0 0 52 52">
+            <circle class="ai-ring-track" cx="26" cy="26" r="${ringR}"></circle>
+            <circle class="ai-ring-progress ${isLow ? 'low' : ''}" cx="26" cy="26" r="${ringR}"
+              style="stroke:${strokeCol};stroke-dasharray:${ringCirc.toFixed(1)};stroke-dashoffset:${dashOffset.toFixed(1)};"></circle>
+          </svg>
+          <span class="ai-ring-text ${isLow ? 'low' : ''}">${scoreNum}%</span>
+        </div>
       </div>
 
       <p class="ai-rec-reason">${escapeHtml(rec.reason)}</p>
 
       <div class="player-chips-row" style="margin-bottom:0.2rem;">
         <span class="badge-game ${escapeHtml(rec.game)}">${escapeHtml(rec.gameName || rec.game)}</span>
-        ${tags.map(t => `<span class="chip-plat">${escapeHtml(t)}</span>`).join('')}
+        ${frameInfo.pillCls ? `<span class="frame-tier-pill ${frameInfo.pillCls}">${escapeHtml(frameInfo.label)}</span>` : ''}
+        ${cleanTags.map(t => `<span class="chip-plat">${escapeHtml(t)}</span>`).join('')}
       </div>
 
       <div class="ai-rec-actions">
@@ -724,6 +835,7 @@ function renderRecommendations(data) {
 
 async function loadLobbies() {
   const grid = document.getElementById('lobbies-grid');
+  if (grid && !grid.children.length) renderSkeletonCards(grid, 3);
   try {
     const viewer = state.currentUser?.username || '';
     const lobbies = await API.getLobbies(state.selectedGameFilter || 'all', viewer);
@@ -849,7 +961,18 @@ async function openPublicProfile(username) {
     }
 
     const pres = getPresenceInfo(data.username);
-    document.getElementById('dossier-avatar').src = data.avatarUrl;
+    const frameInfo = getFrameInfo(data.cardFrame);
+    const dossierCard = document.getElementById('public-profile-card');
+    if (dossierCard) {
+      Object.values(FRAME_META).forEach(m => dossierCard.classList.remove(m.cls));
+      dossierCard.classList.add(frameInfo.cls);
+    }
+    const dossierCover = document.getElementById('dossier-cover');
+    if (dossierCover) {
+      dossierCover.style.backgroundImage = `linear-gradient(180deg, rgba(10, 15, 27, 0.28), rgba(10, 15, 27, 0.94)), url("${getGameCoverArtwork(data.game)}")`;
+    }
+
+    document.getElementById('dossier-avatar').src = data.avatarUrl || defaultAvatarUrl(data.username);
     const dot = document.getElementById('dossier-presence-dot');
     dot.className = `presence-dot-lg ${pres.cls}`;
     document.getElementById('dossier-username').innerText = `@${data.username}`;
@@ -866,6 +989,8 @@ async function openPublicProfile(username) {
     const badgesRow = document.getElementById('dossier-badges-row');
     badgesRow.innerHTML = `
       <span class="badge-game ${escapeHtml(data.game || '')}">${escapeHtml(data.gameName || 'Multi-Juego')}</span>
+      ${frameInfo.pillCls ? `<span class="frame-tier-pill ${frameInfo.pillCls}">Marco ${escapeHtml(frameInfo.label)}</span>` : ''}
+      <span class="chip-plat ${getRankTierClass(data.rank)}">${escapeHtml(data.rank || 'Competitivo')}</span>
       <span class="chip-plat">Estilo: ${escapeHtml(data.playstyle || 'COMPETITIVE')}</span>
       <span class="chip-plat">Horario: ${escapeHtml(data.preferredSchedule || 'Noches')}</span>
       <span class="chip-plat">Reputación: ${Number(data.reputationScore || 100)} pts</span>
@@ -881,7 +1006,7 @@ async function openPublicProfile(username) {
       if (trophies.length > 0) {
         trophiesRow.style.display = 'flex';
         trophiesRow.innerHTML = trophies.map(tr =>
-          `<span class="trophy-badge" title="${escapeHtml(tr.gameName)} · Equipo ${escapeHtml(tr.teamName)}">🏆 Campeón · ${escapeHtml(tr.title)}</span>`
+          `<span class="trophy-badge" title="${escapeHtml(tr.gameName)} · Equipo ${escapeHtml(tr.teamName)}"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg> Campeón · ${escapeHtml(tr.title)}</span>`
         ).join('');
       } else {
         trophiesRow.style.display = 'none';
@@ -890,11 +1015,20 @@ async function openPublicProfile(username) {
     }
 
     const tastesRow = document.getElementById('dossier-tastes-row');
+    const seenTastes = new Set();
     const tasteTags = [];
-    String(data.favoriteGames || '').split(',').filter(Boolean).slice(0, 4).forEach(g => tasteTags.push(g.trim().toUpperCase()));
-    String(data.favoriteGenres || '').split(',').filter(Boolean).slice(0, 4).forEach(g => tasteTags.push(g.trim()));
-    String(data.playPreferences || '').split(',').filter(Boolean).slice(0, 4).forEach(g => tasteTags.push(g.trim()));
-    tastesRow.innerHTML = tasteTags.map(t => `<span class="chip-plat">${escapeHtml(t)}</span>`).join('');
+    [data.favoriteGames, data.favoriteGenres, data.playPreferences].forEach(csv => {
+      String(csv || '').split(',').filter(Boolean).slice(0, 4).forEach(raw => {
+        const clean = raw.trim();
+        const key = clean.toLowerCase();
+        if (clean && !seenTastes.has(key)) {
+          seenTastes.add(key);
+          const pretty = clean.replace(/(^|\s|-)\S/g, ch => ch.toUpperCase()).replace(/-/g, ' ');
+          tasteTags.push(pretty);
+        }
+      });
+    });
+    tastesRow.innerHTML = tasteTags.slice(0, 8).map(t => `<span class="chip-plat">${escapeHtml(t)}</span>`).join('');
 
     const idsRow = document.getElementById('dossier-ids-row');
     idsRow.innerHTML = `
@@ -914,7 +1048,7 @@ async function openPublicProfile(username) {
 
     const chatBtn = document.getElementById('dossier-btn-chat');
     if (chatBtn) {
-      if (data.friendshipStatus === 'ACCEPTED') chatBtn.innerText = 'Abrir DM 💬';
+      if (data.friendshipStatus === 'ACCEPTED') chatBtn.innerText = 'Abrir Chat Directo';
       else if (data.friendshipStatus === 'PENDING_OUTGOING') chatBtn.innerText = 'Solicitud Enviada';
       else if (data.friendshipStatus === 'PENDING_INCOMING') chatBtn.innerText = 'Aceptar Amigo';
       else chatBtn.innerText = '+ Agregar Amigo';
@@ -948,7 +1082,7 @@ async function loadLfgPlayers() {
   const container = document.getElementById('players-grid');
   if (!container) return;
 
-  container.innerHTML = '<div style="color:var(--text-secondary);grid-column:1/-1;text-align:center;padding:2rem;">Consultando jugadores en la base de datos...</div>';
+  renderSkeletonCards(container, 6);
 
   try {
     const q = (state.currentTab === 'lfg') ? state.globalSearch : '';
@@ -983,23 +1117,29 @@ async function loadLfgPlayers() {
 
 function createPlayerCard(player) {
   const div = document.createElement('div');
-  div.className = 'player-card';
+  const frameInfo = getFrameInfo(player.cardFrame);
+  div.className = `player-card ${frameInfo.cls}`;
   const isCurrentUser = Boolean(state.currentUser && player.username.toLowerCase() === state.currentUser.username.toLowerCase());
   const stars = Number(player.starRating !== undefined ? player.starRating : 4.8);
   const isLowRating = stars < 2.0;
+  const coverUrl = getGameCoverArtwork(player.game);
+  const rankTierCls = getRankTierClass(player.rank);
 
   div.innerHTML = `
-    <div class="player-card-cover" data-game="${escapeHtml(player.game)}">
+    <div class="player-card-cover" data-game="${escapeHtml(player.game)}" style="background-image: linear-gradient(180deg, rgba(10, 15, 27, 0.25), rgba(10, 15, 27, 0.88)), url('${escapeHtml(coverUrl)}');">
       <span class="badge-game ${escapeHtml(player.game)}">${escapeHtml(player.gameName || player.game)}</span>
-      <span class="star-rating-pill ${isLowRating ? 'low' : ''}">
-        ${stars.toFixed(1)} ★ (${Number(player.ratingCount) || 0})
-      </span>
+      <div style="display:flex;align-items:center;gap:0.35rem;flex-wrap:wrap;justify-content:flex-end;">
+        ${frameInfo.pillCls ? `<span class="frame-tier-pill ${frameInfo.pillCls}">${escapeHtml(frameInfo.label)}</span>` : ''}
+        <span class="star-rating-pill ${isLowRating ? 'low' : ''}">
+          ${stars.toFixed(1)} ★ (${Number(player.ratingCount) || 0})
+        </span>
+      </div>
     </div>
 
     <div class="player-card-body">
       <div class="player-card-header">
         <div class="player-avatar-wrap clickable-player-handle" data-profile-user="${escapeHtml(player.username)}">
-          <img src="${escapeHtml(player.avatarUrl)}" class="player-avatar" alt="${escapeHtml(player.username)}">
+          <img src="${escapeHtml(player.avatarUrl || defaultAvatarUrl(player.username))}" class="player-avatar" alt="${escapeHtml(player.username)}">
           <span class="player-avatar-dot ${getPresenceInfo(player.username).cls}" data-presence-user="${escapeHtml(player.username)}" title="${getPresenceInfo(player.username).label}"></span>
         </div>
         <div style="min-width:0;">
@@ -1011,7 +1151,7 @@ function createPlayerCard(player) {
       <div class="player-data-table">
         <div class="player-data-cell">
           <span>Rango</span>
-          <strong>${escapeHtml(player.rank)}</strong>
+          <strong class="${rankTierCls}">${escapeHtml(player.rank)}</strong>
         </div>
         <div class="player-data-cell">
           <span>Rol</span>
@@ -1237,24 +1377,37 @@ async function renderTournamentBracket(tournamentId) {
 
     const roundsHtml = sortedRoundKeys.map((rk, posIdx) => {
       const colMatches = roundsMap.get(rk);
+      let connectorHtml = '';
+      if (posIdx < totalR - 1) {
+        const pairCount = Math.max(1, Math.floor(colMatches.length / 2));
+        connectorHtml = `<div class="bracket-connectors-col">${'<div class="bracket-connector-pair"></div>'.repeat(pairCount)}</div>`;
+      } else {
+        connectorHtml = '<div class="bracket-connectors-col"><div class="bracket-connector-single"></div></div>';
+      }
       return `
         <div class="bracket-round-column">
           <div class="round-name-tag">${escapeHtml(roundLabelFor(colMatches, posIdx))}</div>
           ${colMatches.map(m => createMatchBoxHtml(m, canManage)).join('')}
         </div>
-        <div style="color:var(--text-muted);font-weight:bold;">➔</div>
+        ${connectorHtml}
       `;
     }).join('');
 
     bracketContainer.innerHTML = `
       <div class="bracket-container ${totalR >= 3 ? 'wide-bracket' : ''}">
         ${roundsHtml}
-        <div class="bracket-round-column" style="max-width:190px;text-align:center;">
+        <div class="bracket-round-column" style="max-width:200px;text-align:center;">
           <div class="round-name-tag">Campeón</div>
-          <div class="match-box-item" style="padding:1rem;background:rgba(16,185,129,0.12);border-color:var(--color-success);">
-            <strong style="color:var(--text-primary);display:block;">
+          <div class="match-box-item champion-trophy-card">
+            <div style="display:flex;justify-content:center;margin-bottom:0.45rem;color:#fbbf24;">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+            </div>
+            <strong style="color:#fffbeb;display:block;font-size:0.95rem;">
               ${escapeHtml(finalMatch?.winner || 'Por Definir')}
             </strong>
+            <span style="display:block;font-size:0.68rem;color:#fde68a;opacity:0.85;margin-top:0.2rem;text-transform:uppercase;letter-spacing:0.06em;">
+              ${finalMatch?.winner ? 'Campeón Oficial' : 'Esperando Final'}
+            </span>
           </div>
         </div>
       </div>
@@ -1316,17 +1469,20 @@ async function loadLeaderboard() {
         state.presenceMap[row.username.toLowerCase()] = { status: row.presenceStatus, activity: row.presenceActivity || '' };
       }
       const pInfo = getPresenceInfo(row.username);
+      const frameInfo = getFrameInfo(row.cardFrame);
+      const rankCls = getRankTierClass(row.rank);
       return `
-        <div class="leaderboard-row">
+        <div class="leaderboard-row ${frameInfo.cls}">
           <span class="leaderboard-pos ${topCls}">#${pos}</span>
           <div style="display:flex;align-items:center;gap:0.6rem;min-width:0;">
-            <img src="${escapeHtml(row.avatarUrl)}" alt="${escapeHtml(row.username)}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;">
+            <img src="${escapeHtml(row.avatarUrl || defaultAvatarUrl(row.username))}" alt="${escapeHtml(row.username)}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;">
             <div style="min-width:0;">
               <strong class="clickable-player-handle" data-profile-user="${escapeHtml(row.username)}" style="color:#fff;font-size:0.88rem;display:flex;align-items:center;gap:0.35rem;">
                 <span class="presence-dot-mini ${pInfo.cls}" data-presence-user="${escapeHtml(row.username)}"></span>
                 @${escapeHtml(row.username)}
+                ${frameInfo.pillCls ? `<span class="frame-tier-pill ${frameInfo.pillCls}">${escapeHtml(frameInfo.label)}</span>` : ''}
               </strong>
-              <span style="font-size:0.74rem;color:var(--text-muted);">${escapeHtml(row.rank)}</span>
+              <span class="${rankCls}" style="font-size:0.74rem;color:var(--text-muted);">${escapeHtml(row.rank)}</span>
             </div>
           </div>
           <span class="badge-game ${escapeHtml(row.game || '')}" style="justify-self:start;">${escapeHtml(row.gameName)}</span>
@@ -1355,7 +1511,7 @@ function buildFriendActionButtonHtml(username) {
   const safe = escapeHtml(username);
   const st = getFriendStatus(username);
   if (st === 'ACCEPTED') {
-    return `<button type="button" class="btn btn-secondary btn-sm btn-dm-friend" data-user="${safe}">Chatear 💬</button>`;
+    return `<button type="button" class="btn btn-secondary btn-sm btn-dm-friend" data-user="${safe}" style="display:inline-flex;align-items:center;gap:0.3rem;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Chatear</button>`;
   }
   if (st === 'PENDING_INCOMING') {
     return `<button type="button" class="btn btn-success btn-sm btn-accept-friend-inline" data-user="${safe}">Aceptar Amigo</button>`;
@@ -1821,7 +1977,7 @@ function renderActiveDmMessages(friend, messages, shouldScroll) {
 
   container.innerHTML = `
     <div class="ig-profile-intro">
-      <img src="${escapeHtml(friend.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(friend.username || '')}`)}" alt="${escapeHtml(friend.username || '')}">
+      <img src="${escapeHtml(friend.avatarUrl || defaultAvatarUrl(friend.username))}" alt="${escapeHtml(friend.username || '')}">
       <h4>@${escapeHtml(friend.username || '')}</h4>
       <p>Amigos en PlayMatch · ${escapeHtml(friend.gameName || 'Multi-Juego')} ${friend.rank ? `(${escapeHtml(friend.rank)})` : ''}</p>
     </div>
@@ -1830,7 +1986,7 @@ function renderActiveDmMessages(friend, messages, shouldScroll) {
   if (!messages || messages.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'chat-empty-state';
-    empty.innerHTML = 'Todavía no hay mensajes entre ustedes.<br>Envía el primer saludo estilo IG 👋';
+    empty.innerHTML = 'Todavía no hay mensajes entre ustedes.<br>Envía el primer mensaje directo para coordinar partida.';
     container.appendChild(empty);
     return;
   }
@@ -2216,7 +2372,10 @@ function renderNotificationsPopover() {
   unreadFriends.forEach(f => {
     items.push(`
       <div class="notif-popover-item">
-        <div class="notif-popover-item-title">💬 ${Number(f.unreadCount)} mensaje(s) sin leer de @${escapeHtml(f.username)}</div>
+        <div class="notif-popover-item-title" style="display:flex;align-items:center;gap:0.4rem;">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--color-cyan)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span>${Number(f.unreadCount)} mensaje(s) sin leer de @${escapeHtml(f.username)}</span>
+        </div>
         <div class="notif-popover-item-sub">${escapeHtml(f.lastMessage || 'Nuevo mensaje directo')}</div>
         <div class="notif-popover-actions">
           <button type="button" class="btn btn-primary btn-sm btn-notif-open-dm" data-user="${escapeHtml(f.username)}">Abrir chat</button>
@@ -2230,7 +2389,10 @@ function renderNotificationsPopover() {
     const reqId = r.friendshipId || r.requestId || '';
     items.push(`
       <div class="notif-popover-item">
-        <div class="notif-popover-item-title">🤝 Solicitud de amistad de @${escapeHtml(r.username)}</div>
+        <div class="notif-popover-item-title" style="display:flex;align-items:center;gap:0.4rem;">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--color-success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+          <span>Solicitud de amistad de @${escapeHtml(r.username)}</span>
+        </div>
         <div class="notif-popover-item-sub">${escapeHtml(r.gameName || 'PlayMatch')} · ${Number(r.starRating || 4.8).toFixed(1)}★</div>
         <div class="notif-popover-actions">
           <button type="button" class="btn btn-success btn-sm btn-notif-accept-fr" data-id="${escapeHtml(reqId)}" data-user="${escapeHtml(r.username)}">Aceptar</button>
@@ -2246,7 +2408,10 @@ function renderNotificationsPopover() {
   pendingInv.forEach(inv => {
     items.push(`
       <div class="notif-popover-item">
-        <div class="notif-popover-item-title">🎮 Invitación LFG de @${escapeHtml(inv.sender)}</div>
+        <div class="notif-popover-item-title" style="display:flex;align-items:center;gap:0.4rem;">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="15" y1="13" x2="15.01" y2="13"/><line x1="18" y1="11" x2="18.01" y2="11"/><rect x="2" y="6" width="20" height="12" rx="2"/></svg>
+          <span>Invitación LFG de @${escapeHtml(inv.sender)}</span>
+        </div>
         <div class="notif-popover-item-sub">${escapeHtml(inv.game)} · "${escapeHtml(inv.message || 'Sin mensaje')}"</div>
         <div class="notif-popover-actions">
           <button type="button" class="btn btn-success btn-sm btn-notif-accept-inv" data-id="${escapeHtml(inv.id)}">Aceptar</button>
@@ -2308,11 +2473,39 @@ function syncProfileSession(userObj) {
   updateAuthUI();
 }
 
+function syncProfileCardFrameUi(rawFrame) {
+  const key = FRAME_META[String(rawFrame || 'NONE').trim().toUpperCase()]
+    ? String(rawFrame).trim().toUpperCase()
+    : 'NONE';
+  const info = getFrameInfo(key);
+
+  const hiddenInp = document.getElementById('prof-card-frame-value');
+  if (hiddenInp) hiddenInp.value = key;
+  const labelEl = document.getElementById('prof-card-frame-active-label');
+  if (labelEl) labelEl.innerText = `Marco activo: ${info.label}`;
+
+  document.querySelectorAll('#prof-card-frame-picker .frame-swatch').forEach(btn => {
+    btn.classList.toggle('active', String(btn.dataset.frame || '').toUpperCase() === key);
+  });
+
+  ['profile-hero-pass', 'profile-avatar-frame'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    Object.values(FRAME_META).forEach(m => el.classList.remove(m.cls));
+    el.classList.add(info.cls);
+  });
+}
+
 function renderProfileIdentityBadges(profile = null) {
   const user = state.currentUser;
   if (!user) return;
-  const defaultAvatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(user.username)}`;
+  const defaultAvatar = defaultAvatarUrl(user.username);
   const avatarSrc = user.avatar || defaultAvatar;
+
+  const passCover = document.getElementById('profile-pass-cover');
+  if (passCover && (profile?.game || !passCover.style.backgroundImage)) {
+    passCover.style.backgroundImage = `linear-gradient(180deg, rgba(10, 15, 27, 0.25), rgba(10, 15, 27, 0.92)), url("${getGameCoverArtwork(profile?.game || 'valorant')}")`;
+  }
 
   const prevImg = document.getElementById('prof-avatar-preview');
   if (prevImg) prevImg.src = avatarSrc;
@@ -2386,12 +2579,14 @@ function renderProfileIdentityBadges(profile = null) {
     }
     const passRank = document.getElementById('prof-pass-rank-pill');
     if (passRank) {
+      passRank.className = `chip-plat ${getRankTierClass(profile.rank)}`;
       passRank.innerText = `${profile.rank || 'Sin rango'} · ${profile.role || 'Competitivo'}`;
     }
     const passSub = document.getElementById('prof-pass-sub');
     if (passSub) {
       passSub.innerText = `${profile.region || 'Chile'} · ${profile.preferredSchedule || 'Horario flexible'}`;
     }
+    syncProfileCardFrameUi(profile.cardFrame || 'NONE');
   }
 }
 
@@ -2618,8 +2813,43 @@ function setupProfileForm() {
 
   document.getElementById('btn-reset-avatar')?.addEventListener('click', async () => {
     if (!state.currentUser) return;
-    const defaultUrl = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(state.currentUser.username)}`;
+    const defaultUrl = defaultAvatarUrl(state.currentUser.username);
     await persistAvatarChange(defaultUrl);
+  });
+
+  // 1b. Selector interactivo de Marcos LoL para perfil y tarjetas
+  document.querySelectorAll('#prof-card-frame-picker .frame-swatch').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!state.currentUser) return;
+      const frame = String(btn.dataset.frame || 'NONE').toUpperCase();
+      const info = getFrameInfo(frame);
+      syncProfileCardFrameUi(frame);
+      try {
+        const { ok, data } = await API.updateProfile({
+          username: state.currentUser.username,
+          cardFrame: frame
+        });
+        if (!ok) {
+          showToast((data && data.error) || 'No se pudo equipar el marco.', true);
+          return;
+        }
+        if (data && data.profile) syncProfileCardFrameUi(data.profile.cardFrame || frame);
+        showToast(`Marco "${info.label}" equipado en tu perfil y tarjetas.`);
+        loadLfgPlayers();
+        loadRecommendations();
+        loadLeaderboard();
+      } catch (err) {
+        showToast('Error al guardar el marco personalizado.', true);
+      }
+    });
+  });
+
+  // Vista previa instantanea de portada al cambiar de juego principal
+  document.getElementById('prof-game')?.addEventListener('change', (e) => {
+    const passCover = document.getElementById('profile-pass-cover');
+    if (passCover) {
+      passCover.style.backgroundImage = `linear-gradient(180deg, rgba(10, 15, 27, 0.25), rgba(10, 15, 27, 0.92)), url("${getGameCoverArtwork(e.target.value)}")`;
+    }
   });
 
   // 2. Verificación privada de teléfono
@@ -2747,6 +2977,7 @@ function setupProfileForm() {
       riotId: document.getElementById('prof-riot').value.trim(),
       playstyle: document.getElementById('prof-playstyle')?.value || 'COMPETITIVE',
       preferredSchedule: document.getElementById('prof-schedule').value.trim(),
+      cardFrame: document.getElementById('prof-card-frame-value')?.value || 'NONE',
       favoriteGames: [...state.favGamesSelected].join(','),
       favoriteGenres: collectTasteChipsSelection('prof-fav-genres-chips'),
       playPreferences: collectTasteChipsSelection('prof-play-prefs-chips')

@@ -20,6 +20,7 @@ public class PerfilJugador {
     private String playPreferences;
     private double starRating = 4.8;
     private int ratingCount = 0;
+    private String cardFrame = "NONE";
     private String juego;          // "valorant", "lol", "cs2"
     private String nombreJuego;    // "Valorant", "League of Legends", "CS2"
     private String rango;          // ej. "Inmortal 1", "Diamante IV"
@@ -50,7 +51,7 @@ public class PerfilJugador {
         this.rango = rango;
         this.rol = rol;
         this.estiloJuego = estiloJuego;
-        this.avatarUrl = avatarUrl != null ? avatarUrl : "https://api.dicebear.com/7.x/bottts/svg?seed=" + username;
+        this.avatarUrl = avatarUrl != null ? avatarUrl : "/api/avatar?u=" + username;
     }
 
     public String getId() { return id; }
@@ -91,6 +92,8 @@ public class PerfilJugador {
     public void setStarRating(double starRating) { this.starRating = starRating; }
     public int getRatingCount() { return ratingCount; }
     public void setRatingCount(int ratingCount) { this.ratingCount = ratingCount; }
+    public String getCardFrame() { return cardFrame != null ? cardFrame : "NONE"; }
+    public void setCardFrame(String cardFrame) { this.cardFrame = cardFrame; }
     public String getJuego() { return juego; }
     public void setJuego(String juego) { this.juego = juego; }
     public String getNombreJuego() { return nombreJuego; }

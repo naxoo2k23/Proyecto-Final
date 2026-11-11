@@ -38,7 +38,7 @@ public class Usuario {
         this.email = email;
         this.passwordHash = passwordHash;
         this.rol = rol != null ? rol : "GAMER";
-        this.avatarUrl = avatarUrl != null ? avatarUrl : "https://api.dicebear.com/7.x/bottts/svg?seed=" + username;
+        this.avatarUrl = avatarUrl != null ? avatarUrl : "/api/avatar?u=" + username;
         this.telefono = telefono != null ? telefono : "";
         this.telefonoVerificado = telefonoVerificado;
         this.fechaCreacion = fechaCreacion != null ? fechaCreacion : "";

@@ -123,6 +123,7 @@ public class ServicioRecomendacionIA {
               .append("\"toxicLevel\":\"").append(JsonUtils.escape(p.getNivelToxicidad())).append("\",")
               .append("\"starRating\":").append(String.format(Locale.US, "%.1f", p.getStarRating())).append(",")
               .append("\"ratingCount\":").append(p.getRatingCount()).append(",")
+              .append("\"cardFrame\":\"").append(JsonUtils.escape(p.getCardFrame())).append("\",")
               .append("\"lowRatedPenalty\":").append(p.getStarRating() < 2.0).append(",")
               .append("\"discordTag\":\"").append(JsonUtils.escape(p.getDiscordTag())).append("\",")
               .append("\"discordConnected\":").append(p.isDiscordConnected()).append(",")

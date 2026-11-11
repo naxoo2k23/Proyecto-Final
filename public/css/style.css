@@ -363,20 +363,21 @@ body {
   position: sticky;
   top: 0;
   z-index: 40;
-  background: rgba(9, 7, 19, 0.82);
+  background: rgba(9, 7, 19, 0.85);
   backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--border-color);
-  padding: 0.85rem 2rem;
+  padding: 0.78rem 1.75rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.85rem;
 }
 
 .topbar-left {
   display: flex;
   align-items: center;
-  gap: 0.9rem;
+  gap: 0.85rem;
+  min-width: 0;
 }
 
 .mobile-menu-btn {
@@ -392,32 +393,38 @@ body {
 .topbar-breadcrumb {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .topbar-kicker {
-  font-size: 0.68rem;
+  font-size: 0.66rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--color-cyan);
   font-weight: 700;
+  line-height: 1.2;
 }
 
 .topbar-title {
   font-family: var(--font-display);
-  font-size: 1.15rem;
+  font-size: 1.08rem;
   font-weight: 700;
   color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .topbar-right {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.55rem;
+  flex-shrink: 0;
 }
 
 .topbar-search {
   position: relative;
-  width: 250px;
+  width: 210px;
 }
 
 .topbar-search .icon {
@@ -786,16 +793,17 @@ body {
 }
 
 .player-card-cover {
-  height: 52px;
-  padding: 0 1.15rem;
+  height: 68px;
+  padding: 0.5rem 1.05rem;
   display: flex;
-  align-items: center;
-  justify-content: flex-end;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 0.45rem;
-  background:
-    linear-gradient(125deg, rgba(14, 165, 233, 0.24) 0%, rgba(15, 23, 42, 0.9) 58%, rgba(251, 191, 36, 0.14) 100%),
-    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.025) 0 2px, transparent 2px 10px);
+  background-color: #0b1224;
+  background-size: cover;
+  background-position: center;
   border-bottom: 1px solid rgba(56, 189, 248, 0.22);
+  position: relative;
 }
 
 .player-card-body {
@@ -803,14 +811,22 @@ body {
   display: flex;
   flex-direction: column;
   flex: 1;
+  position: relative;
+  z-index: 2;
 }
 
 .player-card-header {
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 0.85rem;
-  margin-top: -26px;
-  margin-bottom: 0.95rem;
+  margin-top: -28px;
+  margin-bottom: 0.85rem;
+}
+
+.player-card-header > div:last-child {
+  padding-top: 34px;
+  min-width: 0;
+  flex: 1;
 }
 
 .player-avatar-wrap {
@@ -3695,3 +3711,430 @@ body {
     display: none;
   }
 }
+
+/* =====================================================================
+   PACK VISUAL PRO ESPORTS + MARCOS PERSONALIZADOS ESTILO LOL
+   ===================================================================== */
+
+/* Presence selector unificado con punto CSS + select limpio */
+.presence-pill-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.32rem 0.68rem;
+  border-radius: 99px;
+  background: rgba(12, 19, 34, 0.92);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+}
+
+.presence-pill-select .presence-select {
+  background: transparent;
+  border: none;
+  padding: 0;
+  box-shadow: none;
+}
+
+.presence-pill-select .presence-select option {
+  background: #0d1424;
+  color: #f8fafc;
+}
+
+/* Hero mini-metricas en vivo */
+.hero-live-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-bottom: 1.1rem;
+}
+
+.hero-stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.34rem 0.72rem;
+  border-radius: 10px;
+  background: rgba(8, 13, 25, 0.78);
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+}
+
+.hero-stat-pill strong {
+  color: var(--color-cyan);
+  font-family: var(--font-display);
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+/* Portadas reales con artwork de juegos en Dossier y Pro Pass */
+.profile-pass-cover,
+.dossier-cover {
+  background-size: cover;
+  background-position: center;
+}
+
+/* Mouse spotlight hover micro-interaccion en tarjetas */
+.player-card,
+.ai-rec-card,
+.lobby-card {
+  position: relative;
+}
+
+.player-card::after,
+.ai-rec-card::after,
+.lobby-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(380px circle at var(--mx, 50%) var(--my, 50%), rgba(56, 189, 248, 0.09), transparent 45%);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+
+.player-card:hover::after,
+.ai-rec-card:hover::after,
+.lobby-card:hover::after {
+  opacity: 1;
+}
+
+/* Anillo SVG radial de compatibilidad en Recomendados */
+.ai-ring-wrap {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.ai-ring-svg {
+  width: 52px;
+  height: 52px;
+  transform: rotate(-90deg);
+}
+
+.ai-ring-track {
+  fill: none;
+  stroke: rgba(148, 163, 184, 0.16);
+  stroke-width: 4.5;
+}
+
+.ai-ring-progress {
+  fill: none;
+  stroke: url(#pmMatchGrad);
+  stroke-width: 4.5;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ai-ring-progress.low {
+  stroke: #ef4444;
+}
+
+.ai-ring-text {
+  position: absolute;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #f8fafc;
+}
+
+.ai-ring-text.low {
+  color: #fca5a5;
+}
+
+/* Colores de Rango por Tier Competitivo */
+.rank-tier-radiant { color: #fde68a !important; text-shadow: 0 0 12px rgba(251, 191, 36, 0.35); }
+.rank-tier-immortal { color: #fb7185 !important; }
+.rank-tier-ascendant { color: #34d399 !important; }
+.rank-tier-diamond { color: #38bdf8 !important; }
+.rank-tier-platinum { color: #67e8f9 !important; }
+.rank-tier-gold { color: #fbbf24 !important; }
+
+/* Skeleton Shimmer Loaders */
+@keyframes pmShimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeleton-card {
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(13, 19, 33, 0.8);
+  padding: 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 210px;
+}
+
+.skeleton-line,
+.skeleton-avatar {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 25%, rgba(56, 189, 248, 0.12) 50%, rgba(255, 255, 255, 0.04) 75%);
+  background-size: 800px 100%;
+  animation: pmShimmer 1.35s infinite linear;
+  border-radius: 8px;
+}
+
+.skeleton-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  flex-shrink: 0;
+}
+
+/* Bracket Connectors estilo Broadcast */
+.bracket-container {
+  align-items: stretch;
+  gap: 0;
+  padding: 0.5rem 0.25rem;
+}
+
+.bracket-round-column {
+  justify-content: space-around;
+  min-width: 215px;
+}
+
+.bracket-connectors-col {
+  width: 34px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  padding-top: 26px;
+  flex-shrink: 0;
+}
+
+.bracket-connector-pair {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  position: relative;
+  min-height: 76px;
+  margin: 12px 0;
+}
+
+.bracket-connector-pair::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 22%;
+  bottom: 22%;
+  width: 17px;
+  border-top: 2px solid rgba(56, 189, 248, 0.45);
+  border-right: 2px solid rgba(56, 189, 248, 0.45);
+  border-bottom: 2px solid rgba(56, 189, 248, 0.45);
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+
+.bracket-connector-pair::after {
+  content: '';
+  position: absolute;
+  left: 17px;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  background: rgba(56, 189, 248, 0.45);
+}
+
+.bracket-connector-single {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.bracket-connector-single::after {
+  content: '';
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.55), rgba(251, 191, 36, 0.8));
+}
+
+.champion-trophy-card {
+  padding: 1.15rem 0.9rem !important;
+  background: linear-gradient(155deg, rgba(251, 191, 36, 0.16), rgba(16, 185, 129, 0.08)) !important;
+  border: 1.5px solid rgba(251, 191, 36, 0.55) !important;
+  box-shadow: 0 0 28px rgba(251, 191, 36, 0.16);
+}
+
+/* =====================================================================
+   MARCOS DE PERFIL ESTILO LEAGUE OF LEGENDS (TITANIO / ORO / ESMERALDA / RUBÍ / DIAMANTE / RETADOR)
+   ===================================================================== */
+.frame-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(125px, 1fr));
+  gap: 0.65rem;
+}
+
+.frame-swatch {
+  background: rgba(9, 14, 26, 0.92);
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.65rem 0.55rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 0.76rem;
+  font-weight: 700;
+  transition: transform 0.16s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.frame-swatch:hover {
+  transform: translateY(-2px);
+}
+
+.frame-swatch.active {
+  color: #ffffff;
+  transform: translateY(-2px);
+}
+
+.frame-swatch-preview {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: #0f172a;
+  border: 2.5px solid rgba(148, 163, 184, 0.35);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.06);
+}
+
+.frame-swatch.card-frame-gold .frame-swatch-preview { border-color: #fbbf24; box-shadow: 0 0 12px rgba(251, 191, 36, 0.45); }
+.frame-swatch.card-frame-emerald .frame-swatch-preview { border-color: #10b981; box-shadow: 0 0 12px rgba(16, 185, 129, 0.45); }
+.frame-swatch.card-frame-ruby .frame-swatch-preview { border-color: #f43f5e; box-shadow: 0 0 12px rgba(244, 63, 94, 0.45); }
+.frame-swatch.card-frame-diamond .frame-swatch-preview { border-color: #38bdf8; box-shadow: 0 0 12px rgba(56, 189, 248, 0.5); }
+.frame-swatch.card-frame-challenger .frame-swatch-preview {
+  border-color: #fde68a;
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.35), rgba(56, 189, 248, 0.35));
+  box-shadow: 0 0 14px rgba(251, 191, 36, 0.55), 0 0 18px rgba(56, 189, 248, 0.45);
+}
+
+/* Etiqueta compacta del marco en tarjetas y dossier */
+.frame-tier-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.14rem 0.48rem;
+  border-radius: 99px;
+  font-size: 0.64rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.frame-tier-pill.gold { color: #fde68a; background: rgba(245, 158, 11, 0.18); border: 1px solid rgba(251, 191, 36, 0.5); }
+.frame-tier-pill.emerald { color: #6ee7b7; background: rgba(16, 185, 129, 0.18); border: 1px solid rgba(16, 185, 129, 0.5); }
+.frame-tier-pill.ruby { color: #fda4af; background: rgba(244, 63, 94, 0.18); border: 1px solid rgba(244, 63, 94, 0.5); }
+.frame-tier-pill.diamond { color: #bae6fd; background: rgba(56, 189, 248, 0.2); border: 1px solid rgba(56, 189, 248, 0.55); }
+.frame-tier-pill.challenger {
+  color: #fffbeb;
+  background: linear-gradient(90deg, rgba(251, 191, 36, 0.28), rgba(14, 165, 233, 0.28));
+  border: 1px solid rgba(251, 191, 36, 0.68);
+}
+
+/* Marco biselado de tarjeta y avatar por Tier */
+.card-frame-gold {
+  border-color: rgba(251, 191, 36, 0.58) !important;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(251, 191, 36, 0.28), 0 0 22px rgba(245, 158, 11, 0.18) !important;
+}
+.card-frame-gold .player-avatar,
+.card-frame-gold .dossier-avatar,
+.card-frame-gold .profile-avatar-lg,
+.card-frame-gold .ai-rec-user-info img {
+  border: 2.5px solid #fbbf24 !important;
+  box-shadow: 0 0 14px rgba(251, 191, 36, 0.55);
+}
+
+.card-frame-emerald {
+  border-color: rgba(16, 185, 129, 0.58) !important;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(52, 211, 153, 0.28), 0 0 22px rgba(16, 185, 129, 0.18) !important;
+}
+.card-frame-emerald .player-avatar,
+.card-frame-emerald .dossier-avatar,
+.card-frame-emerald .profile-avatar-lg,
+.card-frame-emerald .ai-rec-user-info img {
+  border: 2.5px solid #10b981 !important;
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.55);
+}
+
+.card-frame-ruby {
+  border-color: rgba(244, 63, 94, 0.62) !important;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(251, 113, 133, 0.3), 0 0 22px rgba(244, 63, 94, 0.2) !important;
+}
+.card-frame-ruby .player-avatar,
+.card-frame-ruby .dossier-avatar,
+.card-frame-ruby .profile-avatar-lg,
+.card-frame-ruby .ai-rec-user-info img {
+  border: 2.5px solid #f43f5e !important;
+  box-shadow: 0 0 14px rgba(244, 63, 94, 0.58);
+}
+
+.card-frame-diamond {
+  border-color: rgba(56, 189, 248, 0.66) !important;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(125, 211, 252, 0.32), 0 0 24px rgba(14, 165, 233, 0.24) !important;
+}
+.card-frame-diamond .player-avatar,
+.card-frame-diamond .dossier-avatar,
+.card-frame-diamond .profile-avatar-lg,
+.card-frame-diamond .ai-rec-user-info img {
+  border: 2.5px solid #38bdf8 !important;
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.62);
+}
+
+@keyframes pmChallengerPulse {
+  0%, 100% {
+    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55), inset 0 0 0 1.5px rgba(251, 191, 36, 0.48), 0 0 26px rgba(251, 191, 36, 0.24), 0 0 36px rgba(56, 189, 248, 0.16);
+  }
+  50% {
+    box-shadow: 0 14px 38px rgba(0, 0, 0, 0.55), inset 0 0 0 1.5px rgba(56, 189, 248, 0.58), 0 0 28px rgba(56, 189, 248, 0.28), 0 0 38px rgba(251, 191, 36, 0.2);
+  }
+}
+
+.card-frame-challenger {
+  border: 1.5px solid rgba(251, 191, 36, 0.72) !important;
+  animation: pmChallengerPulse 3.8s ease-in-out infinite;
+}
+.card-frame-challenger .player-avatar,
+.card-frame-challenger .dossier-avatar,
+.card-frame-challenger .profile-avatar-lg,
+.card-frame-challenger .ai-rec-user-info img {
+  border: 2.5px solid #fde68a !important;
+  box-shadow: 0 0 14px rgba(251, 191, 36, 0.7), 0 0 22px rgba(56, 189, 248, 0.45);
+}
+
+/* Filigrana LoL en esquinas de tarjetas personalizadas */
+.player-card[class*="card-frame-"]:not(.card-frame-none)::before,
+.profile-hero-pass[class*="card-frame-"]:not(.card-frame-none)::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 14%;
+  right: 14%;
+  height: 2px;
+  z-index: 4;
+  border-radius: 99px;
+  pointer-events: none;
+}
+
+.player-card.card-frame-gold::before,
+.profile-hero-pass.card-frame-gold::before { background: linear-gradient(90deg, transparent, #fde68a, #f59e0b, #fde68a, transparent); }
+.player-card.card-frame-emerald::before,
+.profile-hero-pass.card-frame-emerald::before { background: linear-gradient(90deg, transparent, #6ee7b7, #10b981, #6ee7b7, transparent); }
+.player-card.card-frame-ruby::before,
+.profile-hero-pass.card-frame-ruby::before { background: linear-gradient(90deg, transparent, #fda4af, #f43f5e, #fda4af, transparent); }
+.player-card.card-frame-diamond::before,
+.profile-hero-pass.card-frame-diamond::before { background: linear-gradient(90deg, transparent, #bae6fd, #38bdf8, #bae6fd, transparent); }
+.player-card.card-frame-challenger::before,
+.profile-hero-pass.card-frame-challenger::before { background: linear-gradient(90deg, transparent, #38bdf8, #fde68a, #38bdf8, transparent); }
+
+/* Mini borde en filas del Leaderboard */
+.leaderboard-row.card-frame-gold { border-left: 3px solid #fbbf24 !important; }
+.leaderboard-row.card-frame-emerald { border-left: 3px solid #10b981 !important; }
+.leaderboard-row.card-frame-ruby { border-left: 3px solid #f43f5e !important; }
+.leaderboard-row.card-frame-diamond { border-left: 3px solid #38bdf8 !important; }
+.leaderboard-row.card-frame-challenger { border-left: 3px solid #fde68a !important; background: linear-gradient(90deg, rgba(251, 191, 36, 0.08), rgba(56, 189, 248, 0.06)) !important; }

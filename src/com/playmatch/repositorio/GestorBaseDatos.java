@@ -226,6 +226,7 @@ public class GestorBaseDatos {
     }
 
     private void migrarColumnasSiFaltan(Connection conn) throws SQLException {
+        boolean marcoRecienAgregado = false;
         if (esPostgreSQL()) {
             try (Statement st = conn.createStatement()) {
                 st.execute("ALTER TABLE player_game_stats ADD COLUMN IF NOT EXISTS is_primary INT DEFAULT 1;");
@@ -241,6 +242,7 @@ public class GestorBaseDatos {
                 st.execute("ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS play_preferences VARCHAR(255) DEFAULT '';");
                 st.execute("ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS star_rating DOUBLE PRECISION DEFAULT 4.8;");
                 st.execute("ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS rating_count INT NOT NULL DEFAULT 1;");
+                st.execute("ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS card_frame VARCHAR(30) NOT NULL DEFAULT 'NONE';");
                 st.execute("ALTER TABLE direct_messages ADD COLUMN IF NOT EXISTS created_ms BIGINT NOT NULL DEFAULT 0;");
                 st.execute("ALTER TABLE direct_messages ADD COLUMN IF NOT EXISTS msg_type VARCHAR(20) NOT NULL DEFAULT 'TEXT';");
                 st.execute("ALTER TABLE direct_messages ADD COLUMN IF NOT EXISTS attachment_url TEXT;");
@@ -251,6 +253,7 @@ public class GestorBaseDatos {
                 st.execute("ALTER TABLE tournament_matches ADD COLUMN IF NOT EXISTS next_slot INT DEFAULT 0;");
             }
         } else {
+            marcoRecienAgregado = !existeColumnaSqlite(conn, "player_profiles", "card_frame");
             String[][] columnasSqlite = {
                 {"player_game_stats", "is_primary", "INT DEFAULT 1"},
                 {"games", "is_active", "INT DEFAULT 1"},
@@ -263,6 +266,7 @@ public class GestorBaseDatos {
                 {"player_profiles", "play_preferences", "VARCHAR(255) DEFAULT ''"},
                 {"player_profiles", "star_rating", "DOUBLE PRECISION DEFAULT 4.8"},
                 {"player_profiles", "rating_count", "INT NOT NULL DEFAULT 1"},
+                {"player_profiles", "card_frame", "VARCHAR(30) NOT NULL DEFAULT 'NONE'"},
                 {"direct_messages", "created_ms", "BIGINT NOT NULL DEFAULT 0"},
                 {"direct_messages", "msg_type", "VARCHAR(20) NOT NULL DEFAULT 'TEXT'"},
                 {"direct_messages", "attachment_url", "TEXT"},
@@ -286,7 +290,54 @@ public class GestorBaseDatos {
             st.execute("UPDATE tournament_matches SET round_index = 2, next_match_order = 0, next_slot = 0 WHERE tournament_id = 't-3' AND match_order = 3 AND round_index = 1;");
             st.execute("UPDATE tournament_matches SET round_index = 1, next_match_order = 3, next_slot = 1 WHERE tournament_id = 't-3' AND match_order = 1 AND next_match_order = 0;");
             st.execute("UPDATE tournament_matches SET round_index = 1, next_match_order = 3, next_slot = 2 WHERE tournament_id = 't-3' AND match_order = 2 AND next_match_order = 0;");
+            if (marcoRecienAgregado) {
+                String[][] marcosDemo = {
+                    {"p-1", "CHALLENGER"}, {"p-2", "EMERALD"}, {"p-3", "DIAMOND"},
+                    {"p-4", "GOLD"}, {"p-5", "RUBY"}, {"p-6", "GOLD"}
+                };
+                try (PreparedStatement pf = conn.prepareStatement("UPDATE player_profiles SET card_frame = ? WHERE id = ? AND (card_frame IS NULL OR card_frame = 'NONE')")) {
+                    for (String[] mf : marcosDemo) {
+                        pf.setString(1, mf[1]);
+                        pf.setString(2, mf[0]);
+                        pf.addBatch();
+                    }
+                    pf.executeBatch();
+                }
+            }
+            // Migrar avatares robots antiguos al nuevo avatar SVG propio /api/avatar
+            try (PreparedStatement pu = conn.prepareStatement("SELECT id, username FROM users WHERE avatar_url IS NULL OR avatar_url = '' OR avatar_url LIKE '%dicebear.com/7.x/bottts%'");
+                 ResultSet rs = pu.executeQuery()) {
+                try (PreparedStatement upd = conn.prepareStatement("UPDATE users SET avatar_url = ? WHERE id = ?")) {
+                    while (rs.next()) {
+                        upd.setString(1, avatarPorDefecto(rs.getString("username")));
+                        upd.setString(2, rs.getString("id"));
+                        upd.addBatch();
+                    }
+                    upd.executeBatch();
+                }
+            }
+            try (PreparedStatement pc = conn.prepareStatement("SELECT id, sender_username FROM chat_messages WHERE sender_avatar IS NULL OR sender_avatar = '' OR sender_avatar LIKE '%dicebear.com/7.x/bottts%'");
+                 ResultSet rs = pc.executeQuery()) {
+                try (PreparedStatement upd = conn.prepareStatement("UPDATE chat_messages SET sender_avatar = ? WHERE id = ?")) {
+                    while (rs.next()) {
+                        String su = rs.getString("sender_username");
+                        upd.setString(1, "PlayMatch Sistema".equals(su) ? "/api/avatar?u=PlayMatch" : avatarPorDefecto(su));
+                        upd.setString(2, rs.getString("id"));
+                        upd.addBatch();
+                    }
+                    upd.executeBatch();
+                }
+            }
         } catch (SQLException ignored) {}
+    }
+
+    private static String avatarPorDefecto(String username) {
+        String clean = (username != null && !username.trim().isEmpty()) ? username.trim().replace(" ", "_") : "PlayMatch";
+        try {
+            return "/api/avatar?u=" + java.net.URLEncoder.encode(clean, "UTF-8");
+        } catch (java.io.UnsupportedEncodingException e) {
+            return "/api/avatar?u=" + clean;
+        }
     }
 
     private boolean existeColumnaSqlite(Connection conn, String tabla, String columna) throws SQLException {
@@ -328,7 +379,7 @@ public class GestorBaseDatos {
                 "discord_id VARCHAR(40) DEFAULT '', discord_connected INT NOT NULL DEFAULT 0, " +
                 "favorite_games VARCHAR(255) DEFAULT '', favorite_genres VARCHAR(255) DEFAULT '', " +
                 "play_preferences VARCHAR(255) DEFAULT '', star_rating DOUBLE PRECISION DEFAULT 4.8, " +
-                "rating_count INT NOT NULL DEFAULT 1, " +
+                "rating_count INT NOT NULL DEFAULT 1, card_frame VARCHAR(30) NOT NULL DEFAULT 'NONE', " +
                 "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE);" +
                 "CREATE TABLE IF NOT EXISTS player_ratings (" +
                 "id VARCHAR(36) PRIMARY KEY, rater_user_id VARCHAR(36) NOT NULL, rated_user_id VARCHAR(36) NOT NULL, " +
@@ -488,15 +539,15 @@ public class GestorBaseDatos {
     };
 
     private static final String[][] MENSAJES_CANALES_INICIALES = {
-        {"msg-1", "u-1", "Jesus_Villasanti", "https://api.dicebear.com/7.x/bottts/svg?seed=Jesus_Villasanti", "global",
+        {"msg-1", "u-1", "Jesus_Villasanti", "/api/avatar?u=Jesus_Villasanti", "global",
          "Bienvenidos a PlayMatch. Todas las partidas, registros y torneos quedan persistidos en base de datos.", "19:00"},
-        {"msg-4", "u-5", "jaeliug", "https://api.dicebear.com/7.x/bottts/svg?seed=jaeliug", "general-duo",
+        {"msg-4", "u-5", "jaeliug", "/api/avatar?u=jaeliug", "general-duo",
          "¡Chat abierto para encontrar dúo! Deja tu juego (Valorant, Marvel Rivals, Fortnite, Apex, etc.), rango y horario.", "19:08"},
-        {"msg-5", "u-2", "Datrikk", "https://api.dicebear.com/7.x/bottts/svg?seed=Datrikk", "general-escuadra",
+        {"msg-5", "u-2", "Datrikk", "/api/avatar?u=Datrikk", "general-escuadra",
          "¿Buscas armar squad o grupo completo? Coordina aquí escuadras para Marvel Rivals, Overwatch 2, Roblox, Minecraft o CS2.", "19:12"},
-        {"msg-2", "u-2", "Datrikk", "https://api.dicebear.com/7.x/bottts/svg?seed=Datrikk", "scrims-valorant",
+        {"msg-2", "u-2", "Datrikk", "/api/avatar?u=Datrikk", "scrims-valorant",
          "Buscamos 1 Duelista o Iniciador rango Ascendente+ para scrim hoy a las 21:00.", "19:15"},
-        {"msg-3", "u-3", "dididong", "https://api.dicebear.com/7.x/bottts/svg?seed=dididong", "duo-lol",
+        {"msg-3", "u-3", "dididong", "/api/avatar?u=dididong", "duo-lol",
          "Disponible para ranked Duo en servidor LAS como Support.", "19:22"}
     };
 
@@ -615,7 +666,7 @@ public class GestorBaseDatos {
                 String hashDef = SeguridadUtil.hashPassword("password123");
                 try (PreparedStatement pu = conn.prepareStatement(
                         "INSERT INTO users (id, username, email, password_hash, avatar_url, telefono, phone_verified, role) " +
-                        "VALUES ('u-8', 'Kuro_Tilt', 'kuro.tilt@playmatch.cl', ?, 'https://api.dicebear.com/7.x/bottts/svg?seed=Kuro_Tilt', '+56 9 1999 0008', 1, 'GAMER') ON CONFLICT DO NOTHING")) {
+                        "VALUES ('u-8', 'Kuro_Tilt', 'kuro.tilt@playmatch.cl', ?, '/api/avatar?u=Kuro_Tilt', '+56 9 1999 0008', 1, 'GAMER') ON CONFLICT DO NOTHING")) {
                     pu.setString(1, hashDef);
                     pu.executeUpdate();
                 }
@@ -796,8 +847,8 @@ public class GestorBaseDatos {
             }
 
             String[][] lobbyChatSeed = {
-                {"lm-msg-1", "u-5", "jaeliug", "https://api.dicebear.com/7.x/bottts/svg?seed=jaeliug", "lobby-lob-1", "Sala grupal lista! Faltan 2 jugadores para completar 5v5 hoy a las 21:30.", "19:25"},
-                {"lm-msg-2", "u-2", "Datrikk", "https://api.dicebear.com/7.x/bottts/svg?seed=Datrikk", "lobby-lob-2", "Armando escuadra para Marvel Rivals, únanse al lobby!", "19:30"}
+                {"lm-msg-1", "u-5", "jaeliug", "/api/avatar?u=jaeliug", "lobby-lob-1", "Sala grupal lista! Faltan 2 jugadores para completar 5v5 hoy a las 21:30.", "19:25"},
+                {"lm-msg-2", "u-2", "Datrikk", "/api/avatar?u=Datrikk", "lobby-lob-2", "Armando escuadra para Marvel Rivals, únanse al lobby!", "19:30"}
             };
             String sqlLc = "INSERT INTO chat_messages (id, sender_id, sender_username, sender_avatar, channel, content, sent_at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING";
             try (PreparedStatement plc = conn.prepareStatement(sqlLc)) {
@@ -818,13 +869,13 @@ public class GestorBaseDatos {
 
         String sqlUser = "INSERT INTO users (id, username, email, password_hash, avatar_url, telefono, phone_verified, role) VALUES (?, ?, ?, ?, ?, ?, 1, ?)";
         Object[][] usersData = {
-            {"u-1", "Jesus_Villasanti", "jesus.villasanti@playmatch.cl", hashAdmin, "https://api.dicebear.com/7.x/bottts/svg?seed=Jesus_Villasanti", "+56 9 8123 4567", "ADMIN"},
-            {"u-2", "Datrikk", "datrikk@playmatch.cl", hashDefault, "https://api.dicebear.com/7.x/bottts/svg?seed=Datrikk", "+56 9 7234 5678", "GAMER"},
-            {"u-3", "dididong", "dididong@playmatch.cl", hashDefault, "https://api.dicebear.com/7.x/bottts/svg?seed=dididong", "+56 9 6345 6789", "GAMER"},
-            {"u-4", "luchi", "luchi@playmatch.cl", hashDefault, "https://api.dicebear.com/7.x/bottts/svg?seed=luchi", "+56 9 5456 7890", "GAMER"},
-            {"u-5", "jaeliug", "jaeliug@playmatch.cl", hashDefault, "https://api.dicebear.com/7.x/bottts/svg?seed=jaeliug", "+56 9 4567 8901", "GAMER"},
-            {"u-6", "pepitogamer67", "pepitogamer67@playmatch.cl", hashDefault, "https://api.dicebear.com/7.x/bottts/svg?seed=pepitogamer67", "+56 9 3678 9012", "GAMER"},
-            {"u-7", "AndesEsports", "contacto@andesesports.cl", hashDefault, "https://api.dicebear.com/7.x/bottts/svg?seed=AndesEsports", "+56 9 2111 2222", "ORGANIZER"}
+            {"u-1", "Jesus_Villasanti", "jesus.villasanti@playmatch.cl", hashAdmin, avatarPorDefecto("Jesus_Villasanti"), "+56 9 8123 4567", "ADMIN"},
+            {"u-2", "Datrikk", "datrikk@playmatch.cl", hashDefault, avatarPorDefecto("Datrikk"), "+56 9 7234 5678", "GAMER"},
+            {"u-3", "dididong", "dididong@playmatch.cl", hashDefault, avatarPorDefecto("dididong"), "+56 9 6345 6789", "GAMER"},
+            {"u-4", "luchi", "luchi@playmatch.cl", hashDefault, avatarPorDefecto("luchi"), "+56 9 5456 7890", "GAMER"},
+            {"u-5", "jaeliug", "jaeliug@playmatch.cl", hashDefault, avatarPorDefecto("jaeliug"), "+56 9 4567 8901", "GAMER"},
+            {"u-6", "pepitogamer67", "pepitogamer67@playmatch.cl", hashDefault, avatarPorDefecto("pepitogamer67"), "+56 9 3678 9012", "GAMER"},
+            {"u-7", "AndesEsports", "contacto@andesesports.cl", hashDefault, avatarPorDefecto("AndesEsports"), "+56 9 2111 2222", "ORGANIZER"}
         };
         try (PreparedStatement ps = conn.prepareStatement(sqlUser)) {
             for (Object[] u : usersData) {
@@ -840,14 +891,14 @@ public class GestorBaseDatos {
             ps.executeBatch();
         }
 
-        String sqlProfile = "INSERT INTO player_profiles (id, user_id, bio, country, region, toxic_level, reputation_score, preferred_schedule, steam_id, riot_id, discord_tag, discord_id, discord_connected) VALUES (?, ?, ?, 'Chile', ?, ?, ?, ?, ?, ?, ?, '', 1)";
+        String sqlProfile = "INSERT INTO player_profiles (id, user_id, bio, country, region, toxic_level, reputation_score, preferred_schedule, steam_id, riot_id, discord_tag, discord_id, discord_connected, card_frame) VALUES (?, ?, ?, 'Chile', ?, ?, ?, ?, ?, ?, ?, '', 1, ?)";
         Object[][] profiles = {
-            {"p-1", "u-1", "Main Controller en Valorant. Busco escuadra seria para competir en torneos comunitarios y subir elo.", "Región Metropolitana (San Joaquín)", "ZERO_TOXIC", 100, "Noches (21:00 - 01:00)", "76561198000000001", "Jesus#CHI", "jesus_villasanti#0001"},
-            {"p-2", "u-2", "Jugador de CS2 y Valorant. Chill, buena onda y comunicativo. Excelente sinergia de equipo.", "Los Lagos (Castro)", "ZERO_TOXIC", 98, "Tardes y Noches (19:00 - 23:30)", "76561198000000002", "Datrikk#SUR", "datrikk_cl#1234"},
-            {"p-3", "u-3", "Soporte y Midlaner en League of Legends. Busco dúo para subir a Diamante esta temporada.", "Valparaíso (Viña del Mar)", "ZERO_TOXIC", 99, "Fines de semana y noches", "76561198000000003", "dididong#LAS", "dididong#5544"},
-            {"p-4", "u-4", "AWPer en CS2. Comunicación clara por Discord, juego limpio y competitivo. Disponible para scrims.", "Biobío (Concepción)", "FRIENDLY", 96, "Noches (22:00 - 02:00)", "76561198000000004", "luchi#AWP", "luchi#8899"},
-            {"p-5", "u-5", "Main Duelista en Valorant. Rango Inmortal 2, busco compañeros para torneos 5v5 con micro activo.", "Región Metropolitana (La Florida)", "ZERO_TOXIC", 97, "Tardes (18:00 - 22:30)", "76561198000000005", "jaeliug#CL1", "jaeliug#7711"},
-            {"p-6", "u-6", "Toplaner en League of Legends. Buen macrogame, splitpush y rotaciones a objetivos. Cero flameo.", "Región Metropolitana (Maipú)", "FRIENDLY", 95, "Noches (21:30 - 01:30)", "76561198000000006", "pepito#LAS", "pepitogamer67#3322"}
+            {"p-1", "u-1", "Main Controller en Valorant. Busco escuadra seria para competir en torneos comunitarios y subir elo.", "Región Metropolitana (San Joaquín)", "ZERO_TOXIC", 100, "Noches (21:00 - 01:00)", "76561198000000001", "Jesus#CHI", "jesus_villasanti#0001", "CHALLENGER"},
+            {"p-2", "u-2", "Jugador de CS2 y Valorant. Chill, buena onda y comunicativo. Excelente sinergia de equipo.", "Los Lagos (Castro)", "ZERO_TOXIC", 98, "Tardes y Noches (19:00 - 23:30)", "76561198000000002", "Datrikk#SUR", "datrikk_cl#1234", "EMERALD"},
+            {"p-3", "u-3", "Soporte y Midlaner en League of Legends. Busco dúo para subir a Diamante esta temporada.", "Valparaíso (Viña del Mar)", "ZERO_TOXIC", 99, "Fines de semana y noches", "76561198000000003", "dididong#LAS", "dididong#5544", "DIAMOND"},
+            {"p-4", "u-4", "AWPer en CS2. Comunicación clara por Discord, juego limpio y competitivo. Disponible para scrims.", "Biobío (Concepción)", "FRIENDLY", 96, "Noches (22:00 - 02:00)", "76561198000000004", "luchi#AWP", "luchi#8899", "GOLD"},
+            {"p-5", "u-5", "Main Duelista en Valorant. Rango Inmortal 2, busco compañeros para torneos 5v5 con micro activo.", "Región Metropolitana (La Florida)", "ZERO_TOXIC", 97, "Tardes (18:00 - 22:30)", "76561198000000005", "jaeliug#CL1", "jaeliug#7711", "RUBY"},
+            {"p-6", "u-6", "Toplaner en League of Legends. Buen macrogame, splitpush y rotaciones a objetivos. Cero flameo.", "Región Metropolitana (Maipú)", "FRIENDLY", 95, "Noches (21:30 - 01:30)", "76561198000000006", "pepito#LAS", "pepitogamer67#3322", "GOLD"}
         };
         try (PreparedStatement ps = conn.prepareStatement(sqlProfile)) {
             for (Object[] p : profiles) {
@@ -861,6 +912,7 @@ public class GestorBaseDatos {
                 ps.setString(8, (String) p[7]);
                 ps.setString(9, (String) p[8]);
                 ps.setString(10, (String) p[9]);
+                ps.setString(11, (String) p[10]);
                 ps.addBatch();
             }
             ps.executeBatch();
@@ -1193,7 +1245,7 @@ public class GestorBaseDatos {
         String cleanEmail = email.trim().toLowerCase(Locale.ROOT);
         String cleanTel = telefono != null ? telefono.trim() : "";
         String userId = UUID.randomUUID().toString();
-        String avatar = "https://api.dicebear.com/7.x/bottts/svg?seed=" + cleanUser.replace(" ", "_");
+        String avatar = avatarPorDefecto(cleanUser);
         String passwordHash = SeguridadUtil.hashPassword(password);
 
         try (Connection conn = abrirConexion()) {
@@ -1356,6 +1408,7 @@ public class GestorBaseDatos {
             "COALESCE(pp.play_preferences, '') AS play_preferences, " +
             "COALESCE(pp.star_rating, 4.8) AS star_rating, " +
             "COALESCE(pp.rating_count, 0) AS rating_count, " +
+            "COALESCE(pp.card_frame, 'NONE') AS card_frame, " +
             "COALESCE(g.code, 'valorant') AS game_code, COALESCE(g.name, 'Valorant') AS game_name, " +
             "COALESCE(pgs.in_game_rank, 'Sin Rango') AS in_game_rank, COALESCE(pgs.preferred_role, 'Flex') AS preferred_role, " +
             "COALESCE(pgs.playstyle, 'COMPETITIVE') AS playstyle " +
@@ -1459,7 +1512,7 @@ public class GestorBaseDatos {
             try {
                 String sqlProf = "UPDATE player_profiles SET bio = ?, region = ?, preferred_schedule = ?, " +
                                  "steam_id = ?, riot_id = ?, discord_tag = ?, toxic_level = COALESCE(?, toxic_level), " +
-                                 "favorite_games = ?, favorite_genres = ?, play_preferences = ? " +
+                                 "favorite_games = ?, favorite_genres = ?, play_preferences = ?, card_frame = ? " +
                                  "WHERE user_id = ?";
                 try (PreparedStatement ps = conn.prepareStatement(sqlProf)) {
                     ps.setString(1, nullSafe(actualizado.getBiografia()));
@@ -1476,7 +1529,8 @@ public class GestorBaseDatos {
                     ps.setString(8, nullSafe(actualizado.getFavoriteGames()));
                     ps.setString(9, nullSafe(actualizado.getFavoriteGenres()));
                     ps.setString(10, nullSafe(actualizado.getPlayPreferences()));
-                    ps.setString(11, u.getId());
+                    ps.setString(11, SeguridadUtil.normalizarMarcoPerfil(actualizado.getCardFrame()));
+                    ps.setString(12, u.getId());
                     ps.executeUpdate();
                 }
 
@@ -1608,6 +1662,7 @@ public class GestorBaseDatos {
         p.setPlayPreferences(nullSafe(rs.getString("play_preferences")));
         p.setStarRating(rs.getDouble("star_rating"));
         p.setRatingCount(rs.getInt("rating_count"));
+        p.setCardFrame(nullSafe(rs.getString("card_frame")).isEmpty() ? "NONE" : rs.getString("card_frame"));
         return p;
     }
 
@@ -2085,6 +2140,7 @@ public class GestorBaseDatos {
                 ? obtenerIdsBloqueadosMutuos(viewerUsername) : Collections.emptySet();
         String sql =
             "SELECT u.id, u.username, u.avatar_url, pp.star_rating, pp.rating_count, pp.reputation_score, " +
+            "COALESCE(pp.card_frame, 'NONE') AS card_frame, " +
             "g.code AS game_code, g.name AS game_name, pgs.in_game_rank " +
             "FROM player_profiles pp " +
             "JOIN users u ON pp.user_id = u.id " +
@@ -2101,13 +2157,14 @@ public class GestorBaseDatos {
                 Map<String, Object> row = new LinkedHashMap<>();
                 String uname = rs.getString("username");
                 String av = rs.getString("avatar_url");
-                if (av == null || av.isEmpty()) av = "https://api.dicebear.com/7.x/bottts/svg?seed=" + uname;
+                if (av == null || av.isEmpty()) av = avatarPorDefecto(uname);
                 row.put("position", rankPos++);
                 row.put("username", uname);
                 row.put("avatarUrl", av);
                 row.put("starRating", Math.round(rs.getDouble("star_rating") * 10.0) / 10.0);
                 row.put("ratingCount", rs.getInt("rating_count"));
                 row.put("reputationScore", rs.getInt("reputation_score"));
+                row.put("cardFrame", nullSafe(rs.getString("card_frame")).isEmpty() ? "NONE" : rs.getString("card_frame"));
                 row.put("game", nullSafe(rs.getString("game_code")));
                 row.put("gameName", nullSafe(rs.getString("game_name")).isEmpty() ? "Multi-Juego" : rs.getString("game_name"));
                 row.put("rank", nullSafe(rs.getString("in_game_rank")).isEmpty() ? "Competitivo" : rs.getString("in_game_rank"));
@@ -2348,7 +2405,7 @@ public class GestorBaseDatos {
                         String partnerUser = rs.getString("username");
                         String avatar = rs.getString("avatar_url");
                         if (avatar == null || avatar.isEmpty()) {
-                            avatar = "https://api.dicebear.com/7.x/bottts/svg?seed=" + partnerUser;
+                            avatar = avatarPorDefecto(partnerUser);
                         }
                         String status = nullSafe(rs.getString("status")).toUpperCase(Locale.ROOT);
                         boolean iAmRequester = me.getId().equals(rs.getString("requester_id"));
@@ -2618,7 +2675,7 @@ public class GestorBaseDatos {
                         String sUser = rs.getString("sender_username");
                         String avatar = rs.getString("sender_avatar");
                         if (avatar == null || avatar.isEmpty()) {
-                            avatar = "https://api.dicebear.com/7.x/bottts/svg?seed=" + sUser;
+                            avatar = avatarPorDefecto(sUser);
                         }
                         m.put("id", rs.getString("id"));
                         m.put("sender", sUser);
@@ -2641,7 +2698,7 @@ public class GestorBaseDatos {
             friendInfo.put("username", friend.getUsername());
             friendInfo.put("avatarUrl", (friend.getAvatarUrl() != null && !friend.getAvatarUrl().isEmpty())
                     ? friend.getAvatarUrl()
-                    : "https://api.dicebear.com/7.x/bottts/svg?seed=" + friend.getUsername());
+                    : avatarPorDefecto(friend.getUsername()));
             PerfilJugador p = buscarPerfilPorUsername(friend.getUsername());
             if (p != null) {
                 friendInfo.put("game", nullSafe(p.getJuego()));
@@ -2649,6 +2706,7 @@ public class GestorBaseDatos {
                 friendInfo.put("rank", nullSafe(p.getRango()));
                 friendInfo.put("role", nullSafe(p.getRol()));
                 friendInfo.put("starRating", Math.round(p.getStarRating() * 10.0) / 10.0);
+                friendInfo.put("cardFrame", p.getCardFrame());
                 friendInfo.put("discordTag", nullSafe(p.getDiscordTag()));
                 friendInfo.put("discordConnected", p.isDiscordConnected());
             }
@@ -2767,7 +2825,7 @@ public class GestorBaseDatos {
             dm.put("receiver", receiver.getUsername());
             dm.put("avatar", (sender.getAvatarUrl() != null && !sender.getAvatarUrl().isEmpty())
                     ? sender.getAvatarUrl()
-                    : "https://api.dicebear.com/7.x/bottts/svg?seed=" + sender.getUsername());
+                    : avatarPorDefecto(sender.getUsername()));
             dm.put("content", limpio);
             dm.put("msgType", tipo);
             dm.put("attachmentUrl", attach);
@@ -2955,7 +3013,7 @@ public class GestorBaseDatos {
                     Map<String, Object> m = new LinkedHashMap<>();
                     String uname = rs.getString("username");
                     String av = rs.getString("avatar_url");
-                    if (av == null || av.isEmpty()) av = "https://api.dicebear.com/7.x/bottts/svg?seed=" + uname;
+                    if (av == null || av.isEmpty()) av = avatarPorDefecto(uname);
                     m.put("username", uname);
                     m.put("avatarUrl", av);
                     m.put("blockedAt", limpiarTimestamp(rs.getString("created_at")));
@@ -3045,7 +3103,7 @@ public class GestorBaseDatos {
         Map<String, Object> out = new LinkedHashMap<>();
         String avatar = (targetUser.getAvatarUrl() != null && !targetUser.getAvatarUrl().isEmpty())
                 ? targetUser.getAvatarUrl()
-                : "https://api.dicebear.com/7.x/bottts/svg?seed=" + targetUser.getUsername();
+                : avatarPorDefecto(targetUser.getUsername());
 
         out.put("username", targetUser.getUsername());
         out.put("rolePlatform", targetUser.getRol());
@@ -3066,6 +3124,7 @@ public class GestorBaseDatos {
             out.put("reputationScore", p.getPuntajeReputacion());
             out.put("starRating", Math.round(p.getStarRating() * 10.0) / 10.0);
             out.put("ratingCount", p.getRatingCount());
+            out.put("cardFrame", p.getCardFrame());
             out.put("favoriteGames", nullSafe(p.getFavoriteGames()));
             out.put("favoriteGenres", nullSafe(p.getFavoriteGenres()));
             out.put("playPreferences", nullSafe(p.getPlayPreferences()));
@@ -3080,6 +3139,7 @@ public class GestorBaseDatos {
             out.put("gameName", "PlayMatch");
             out.put("starRating", 4.8);
             out.put("ratingCount", 0);
+            out.put("cardFrame", "NONE");
         }
 
         List<Map<String, Object>> reviews = new ArrayList<>();
@@ -3096,7 +3156,7 @@ public class GestorBaseDatos {
                         Map<String, Object> rv = new LinkedHashMap<>();
                         String rName = rs.getString("rater_username");
                         String rAv = rs.getString("rater_avatar");
-                        if (rAv == null || rAv.isEmpty()) rAv = "https://api.dicebear.com/7.x/bottts/svg?seed=" + rName;
+                        if (rAv == null || rAv.isEmpty()) rAv = avatarPorDefecto(rName);
                         rv.put("rater", rName);
                         rv.put("raterAvatar", rAv);
                         rv.put("stars", rs.getInt("stars"));
@@ -3213,7 +3273,7 @@ public class GestorBaseDatos {
                     item.put("status", rs.getString("status"));
                     item.put("hostUsername", rs.getString("host_username"));
                     String hAv = rs.getString("host_avatar");
-                    if (hAv == null || hAv.isEmpty()) hAv = "https://api.dicebear.com/7.x/bottts/svg?seed=" + rs.getString("host_username");
+                    if (hAv == null || hAv.isEmpty()) hAv = avatarPorDefecto(rs.getString("host_username"));
                     item.put("hostAvatar", hAv);
                     item.put("game", rs.getString("game_code"));
                     item.put("gameName", rs.getString("game_name"));
@@ -3230,7 +3290,7 @@ public class GestorBaseDatos {
                                 Map<String, Object> mem = new LinkedHashMap<>();
                                 String mu = rm.getString("username");
                                 String ma = rm.getString("avatar_url");
-                                if (ma == null || ma.isEmpty()) ma = "https://api.dicebear.com/7.x/bottts/svg?seed=" + mu;
+                                if (ma == null || ma.isEmpty()) ma = avatarPorDefecto(mu);
                                 mem.put("username", mu);
                                 mem.put("avatarUrl", ma);
                                 mem.put("roleNote", nullSafe(rm.getString("role_note")));
@@ -3382,7 +3442,7 @@ public class GestorBaseDatos {
                     }
                 }
                 try (PreparedStatement pch = conn.prepareStatement(
-                        "INSERT INTO chat_messages (id, sender_id, sender_username, sender_avatar, channel, content, sent_at) VALUES (?, NULL, 'PlayMatch Sistema', 'https://api.dicebear.com/7.x/bottts/svg?seed=SystemBot', ?, ?, ?)")) {
+                        "INSERT INTO chat_messages (id, sender_id, sender_username, sender_avatar, channel, content, sent_at) VALUES (?, NULL, 'PlayMatch Sistema', '/api/avatar?u=PlayMatch', ?, ?, ?)")) {
                     pch.setString(1, UUID.randomUUID().toString());
                     pch.setString(2, "lobby-" + lobbyId.trim());
                     pch.setString(3, "@" + u.getUsername() + " se unió al lobby (" + currentCount + "/" + maxSlots + ").");

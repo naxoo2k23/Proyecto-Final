@@ -157,6 +157,7 @@ public class ServidorPlayMatch {
         servidor.createContext("/api/chat", new ManejadorChat(db));
         servidor.createContext("/api/friends", new ManejadorAmigos(db));
         servidor.createContext("/api/match", new ManejadorEmparejamiento(db));
+        servidor.createContext("/api/avatar", new ManejadorAvatares());
         servidor.createContext("/", new ManejadorArchivosEstaticos());
 
         servidor.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
@@ -837,6 +838,7 @@ public class ServidorPlayMatch {
                     if (datos.containsKey("favoriteGames")) perfil.setFavoriteGames(datos.get("favoriteGames"));
                     if (datos.containsKey("favoriteGenres")) perfil.setFavoriteGenres(datos.get("favoriteGenres"));
                     if (datos.containsKey("playPreferences")) perfil.setPlayPreferences(datos.get("playPreferences"));
+                    if (datos.containsKey("cardFrame")) perfil.setCardFrame(SeguridadUtil.normalizarMarcoPerfil(datos.get("cardFrame")));
 
                     db.actualizarPerfil(perfil);
                     PerfilJugador actualizado = db.buscarPerfilPorUsername(username);
@@ -1591,7 +1593,7 @@ public class ServidorPlayMatch {
                     }
 
                     MensajeChat alert = new MensajeChat(null, "PlayMatch Sistema",
-                            "https://api.dicebear.com/7.x/bottts/svg?seed=SystemBot", "global",
+                            "/api/avatar?u=PlayMatch", "global",
                             "[Invitación] @" + sender + " invitó a @" + receiver + " a jugar " + game +
                             (message != null && !message.trim().isEmpty() ? ": \"" + message.trim() + "\"" : ""),
                             null);
@@ -1793,6 +1795,65 @@ public class ServidorPlayMatch {
         }
     }
 
+    static class ManejadorAvatares implements HttpHandler {
+        private static final String[][] PALETTES = {
+            {"#0ea5e9", "#0369a1", "#38bdf8"},
+            {"#f59e0b", "#b45309", "#fde68a"},
+            {"#10b981", "#047857", "#6ee7b7"},
+            {"#f43f5e", "#be123c", "#fda4af"},
+            {"#06b6d4", "#0e7490", "#67e8f9"},
+            {"#3b82f6", "#1d4ed8", "#93c5fd"}
+        };
+
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            agregarCabecerasCors(exchange);
+            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                enviarRespuesta(exchange, 204, "");
+                return;
+            }
+            Map<String, String> params = parseQueryParams(exchange.getRequestURI().getRawQuery());
+            String u = params.getOrDefault("u", params.getOrDefault("seed", "PM"));
+            String clean = u != null ? u.trim().replaceAll("[^A-Za-z0-9_.-]", "") : "PM";
+            if (clean.isEmpty()) clean = "PM";
+            String[] parts = clean.split("[_.-]+");
+            String initials;
+            if (parts.length >= 2 && !parts[0].isEmpty() && !parts[1].isEmpty()) {
+                initials = ("" + parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase(Locale.ROOT);
+            } else {
+                initials = clean.substring(0, Math.min(2, clean.length())).toUpperCase(Locale.ROOT);
+            }
+            int idx = Math.abs(clean.toLowerCase(Locale.ROOT).hashCode()) % PALETTES.length;
+            String[] pal = PALETTES[idx];
+            String svg =
+                "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120' fill='none'>" +
+                "<defs>" +
+                "<linearGradient id='g1' x1='0' y1='0' x2='120' y2='120' gradientUnits='userSpaceOnUse'>" +
+                "<stop offset='0%' stop-color='" + pal[0] + "'/>" +
+                "<stop offset='100%' stop-color='" + pal[1] + "'/>" +
+                "</linearGradient>" +
+                "<linearGradient id='bg' x1='0' y1='0' x2='120' y2='120' gradientUnits='userSpaceOnUse'>" +
+                "<stop offset='0%' stop-color='#0d1629'/>" +
+                "<stop offset='100%' stop-color='#060a14'/>" +
+                "</linearGradient>" +
+                "</defs>" +
+                "<rect width='120' height='120' rx='26' fill='url(#bg)'/>" +
+                "<circle cx='60' cy='52' r='44' fill='url(#g1)' fill-opacity='0.14'/>" +
+                "<path d='M60 14L99 35V85L60 106L21 85V35L60 14Z' fill='#0a1224' stroke='url(#g1)' stroke-width='4' stroke-linejoin='round'/>" +
+                "<path d='M60 22L92 39.5V80.5L60 98L28 80.5V39.5L60 22Z' stroke='" + pal[2] + "' stroke-opacity='0.3' stroke-width='1.5'/>" +
+                "<path d='M52 29L60 23L68 29L60 35L52 29Z' fill='" + pal[2] + "'/>" +
+                "<text x='60' y='71' text-anchor='middle' font-family='Plus Jakarta Sans,Inter,Segoe UI,sans-serif' font-size='32' font-weight='800' letter-spacing='1' fill='#f8fafc'>" + initials + "</text>" +
+                "</svg>";
+            byte[] bytes = svg.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "image/svg+xml; charset=UTF-8");
+            exchange.getResponseHeaders().set("Cache-Control", "public, max-age=86400");
+            exchange.sendResponseHeaders(200, bytes.length);
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(bytes);
+            }
+        }
+    }
+
     static class ManejadorArchivosEstaticos implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
@@ -1919,6 +1980,7 @@ public class ServidorPlayMatch {
                 "\"playPreferences\":\"" + JsonUtils.escape(p.getPlayPreferences()) + "\"," +
                 "\"starRating\":" + String.format(Locale.US, "%.1f", p.getStarRating()) + "," +
                 "\"ratingCount\":" + p.getRatingCount() + "," +
+                "\"cardFrame\":\"" + JsonUtils.escape(p.getCardFrame()) + "\"," +
                 "\"lowRatedPenalty\":" + (p.getStarRating() < 2.0) + "," +
                 "\"game\":\"" + JsonUtils.escape(p.getJuego()) + "\"," +
                 "\"gameName\":\"" + JsonUtils.escape(p.getNombreJuego()) + "\"," +

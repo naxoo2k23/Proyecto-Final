@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS player_profiles (
     play_preferences VARCHAR(255) DEFAULT '',
     star_rating DOUBLE PRECISION DEFAULT 4.8,
     rating_count INT NOT NULL DEFAULT 1,
+    card_frame VARCHAR(30) NOT NULL DEFAULT 'NONE',
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 

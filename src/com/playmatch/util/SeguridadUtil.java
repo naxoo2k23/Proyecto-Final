@@ -117,7 +117,17 @@ public class SeguridadUtil {
         if (lower.startsWith("https://") || lower.startsWith("http://")) {
             return true;
         }
-        return clean.startsWith("/assets/") && !clean.contains("..");
+        return (clean.startsWith("/assets/") || clean.startsWith("/api/avatar?")) && !clean.contains("..");
+    }
+
+    public static String normalizarMarcoPerfil(String raw) {
+        if (raw == null || raw.trim().isEmpty()) return "NONE";
+        String up = raw.trim().toUpperCase(Locale.ROOT);
+        if ("GOLD".equals(up) || "EMERALD".equals(up) || "RUBY".equals(up)
+                || "DIAMOND".equals(up) || "CHALLENGER".equals(up)) {
+            return up;
+        }
+        return "NONE";
     }
 
     public static String normalizarDiscordTag(String raw) {

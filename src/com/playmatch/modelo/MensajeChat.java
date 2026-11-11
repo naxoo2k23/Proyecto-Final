@@ -20,7 +20,7 @@ public class MensajeChat {
     public MensajeChat(String id, String remitenteUsername, String remitenteAvatar, String canal, String contenido, String horaEnvio) {
         this.id = id != null ? id : UUID.randomUUID().toString();
         this.remitenteUsername = remitenteUsername;
-        this.remitenteAvatar = remitenteAvatar != null ? remitenteAvatar : "https://api.dicebear.com/7.x/bottts/svg?seed=" + remitenteUsername;
+        this.remitenteAvatar = remitenteAvatar != null ? remitenteAvatar : "/api/avatar?u=" + remitenteUsername;
         this.canal = canal != null ? canal : "global";
         this.contenido = contenido;
         this.horaEnvio = horaEnvio != null ? horaEnvio : LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm"));

@@ -171,7 +171,7 @@
               telefono: res.user.telefono || '',
               phoneVerified: Boolean(res.user.phoneVerified),
               role: res.user.role || 'GAMER',
-              avatar: res.user.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${res.user.username}`,
+              avatar: res.user.avatarUrl || `/api/avatar?u=${encodeURIComponent(res.user.username)}`,
               reputation: (res.profile && res.profile.reputationScore) || 100,
               toxicLevel: (res.profile && res.profile.toxicLevel) || 'ZERO_TOXIC'
             };
