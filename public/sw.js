@@ -1,4 +1,4 @@
-const CACHE_NAME = 'playmatch-shell-v9';
+const CACHE_NAME = 'playmatch-shell-v10';
 const SHELL_URLS = [
   '/',
   '/index.html',
