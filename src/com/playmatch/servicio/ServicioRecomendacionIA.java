@@ -124,6 +124,7 @@ public class ServicioRecomendacionIA {
               .append("\"starRating\":").append(String.format(Locale.US, "%.1f", p.getStarRating())).append(",")
               .append("\"ratingCount\":").append(p.getRatingCount()).append(",")
               .append("\"cardFrame\":\"").append(JsonUtils.escape(p.getCardFrame())).append("\",")
+              .append("\"equippedTitle\":\"").append(JsonUtils.escape(p.getEquippedTitle())).append("\",")
               .append("\"lowRatedPenalty\":").append(p.getStarRating() < 2.0).append(",")
               .append("\"discordTag\":\"").append(JsonUtils.escape(p.getDiscordTag())).append("\",")
               .append("\"discordConnected\":").append(p.isDiscordConnected()).append(",")
@@ -239,33 +240,27 @@ public class ServicioRecomendacionIA {
             String reason;
 
             String resumenMotivo = motivos.isEmpty()
-                    ? "perfil activo con intereses de comunidad afines"
-                    : String.join(", ", motivos);
+                    ? "perfil compatible en comunidad"
+                    : String.join(" · ", motivos);
 
             if (stars < 2.0) {
                 scoreFinal = Math.max(8, Math.min(34, (int) Math.round(puntajeGustos * 0.28)));
                 tier = "REDUCIDA";
                 reason = String.format(Locale.US,
-                        "Visibilidad reducida por baja valoración (%.1f★ < 2.0★). Aunque %s, se recomienda con menor prioridad.",
+                        "Baja valoración (%.1f★) · %s",
                         stars, resumenMotivo);
             } else if (stars >= 4.5) {
                 scoreFinal = Math.min(99, (int) Math.round(puntajeGustos * 1.10) + 5);
                 tier = "DESTACADA";
-                reason = String.format(Locale.US,
-                        "Excelente valoración (%.1f★) y gran afinidad: %s.",
-                        stars, resumenMotivo);
+                reason = Character.toUpperCase(resumenMotivo.charAt(0)) + resumenMotivo.substring(1);
             } else if (stars >= 3.5) {
                 scoreFinal = Math.min(95, (int) Math.round(puntajeGustos * 1.02) + 2);
                 tier = "ALTA";
-                reason = String.format(Locale.US,
-                        "Buena valoración (%.1f★) y compatibilidad: %s.",
-                        stars, resumenMotivo);
+                reason = Character.toUpperCase(resumenMotivo.charAt(0)) + resumenMotivo.substring(1);
             } else {
                 scoreFinal = Math.min(82, (int) Math.round(puntajeGustos * 0.88));
                 tier = "NORMAL";
-                reason = String.format(Locale.US,
-                        "Valoración moderada (%.1f★): %s.",
-                        stars, resumenMotivo);
+                reason = Character.toUpperCase(resumenMotivo.charAt(0)) + resumenMotivo.substring(1);
             }
 
             resultados.add(new ResultadoCandidato(cand, scoreFinal, tier, reason, sharedTags));
@@ -534,14 +529,14 @@ public class ServicioRecomendacionIA {
                                                 List<ResultadoCandidato> base,
                                                 List<String> juegosSugeridos) {
         String avisoPropio = actual.getStarRating() < 2.0
-                ? String.format(Locale.US, " Tu valoración actual (%.1f★) está bajo 2.0★, por lo que tu perfil recibe menor visibilidad en las recomendaciones de otros jugadores.", actual.getStarRating())
-                : String.format(Locale.US, " Tu valoración (%.1f★) te mantiene elegible para emparejamiento prioritario.", actual.getStarRating());
+                ? String.format(Locale.US, " Tu valoración (%.1f★) reduce prioridad hasta superar 2.0★.", actual.getStarRating())
+                : "";
         if (base.isEmpty()) {
             return "Aún no hay suficientes jugadores para comparar." + avisoPropio;
         }
         ResultadoCandidato top = base.get(0);
-        return "Sugerencias calculadas según tus juegos (" + String.join(", ", juegosSugeridos) +
-                ") y preferencias de perfil. Mejor coincidencia: @" + top.perfil.getUsername() +
+        return "Afinidad por juegos (" + String.join(", ", juegosSugeridos) +
+                "), horario y valoración. Mejor match: @" + top.perfil.getUsername() +
                 " (" + top.matchScore + "%)." + avisoPropio;
     }
 

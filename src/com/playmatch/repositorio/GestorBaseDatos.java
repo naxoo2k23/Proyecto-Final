@@ -243,6 +243,7 @@ public class GestorBaseDatos {
                 st.execute("ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS star_rating DOUBLE PRECISION DEFAULT 4.8;");
                 st.execute("ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS rating_count INT NOT NULL DEFAULT 1;");
                 st.execute("ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS card_frame VARCHAR(30) NOT NULL DEFAULT 'NONE';");
+                st.execute("ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS equipped_title VARCHAR(60) NOT NULL DEFAULT '';");
                 st.execute("ALTER TABLE direct_messages ADD COLUMN IF NOT EXISTS created_ms BIGINT NOT NULL DEFAULT 0;");
                 st.execute("ALTER TABLE direct_messages ADD COLUMN IF NOT EXISTS msg_type VARCHAR(20) NOT NULL DEFAULT 'TEXT';");
                 st.execute("ALTER TABLE direct_messages ADD COLUMN IF NOT EXISTS attachment_url TEXT;");
@@ -267,6 +268,7 @@ public class GestorBaseDatos {
                 {"player_profiles", "star_rating", "DOUBLE PRECISION DEFAULT 4.8"},
                 {"player_profiles", "rating_count", "INT NOT NULL DEFAULT 1"},
                 {"player_profiles", "card_frame", "VARCHAR(30) NOT NULL DEFAULT 'NONE'"},
+                {"player_profiles", "equipped_title", "VARCHAR(60) NOT NULL DEFAULT ''"},
                 {"direct_messages", "created_ms", "BIGINT NOT NULL DEFAULT 0"},
                 {"direct_messages", "msg_type", "VARCHAR(20) NOT NULL DEFAULT 'TEXT'"},
                 {"direct_messages", "attachment_url", "TEXT"},
@@ -302,6 +304,31 @@ public class GestorBaseDatos {
                         pf.addBatch();
                     }
                     pf.executeBatch();
+                }
+            }
+            if (!existeTablaSql(conn, "player_clips") || contarFilas(conn, "player_clips") == 0) {
+                st.execute("CREATE TABLE IF NOT EXISTS player_clips (" +
+                           "id VARCHAR(36) PRIMARY KEY, user_id VARCHAR(36) NOT NULL, title VARCHAR(120) NOT NULL, " +
+                           "clip_url TEXT NOT NULL, game_code VARCHAR(40) NOT NULL DEFAULT 'valorant', " +
+                           "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
+                           "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE);");
+                if (contarFilas(conn, "users") > 0) {
+                    sembrarClipsIniciales(conn);
+                }
+            }
+            // Asignar titulos desbloqueados de muestra si recien se migro equipped_title
+            if (contarFilasConTitulo(conn) == 0 && contarFilas(conn, "users") > 0) {
+                String[][] titulosDemo = {
+                    {"p-1", "Cero Tilt"}, {"p-2", "Dúo Confiable"},
+                    {"p-4", "Cero Tilt"}, {"p-5", "Comandante Social"}
+                };
+                try (PreparedStatement pt = conn.prepareStatement("UPDATE player_profiles SET equipped_title = ? WHERE id = ? AND (equipped_title IS NULL OR equipped_title = '')")) {
+                    for (String[] td : titulosDemo) {
+                        pt.setString(1, td[1]);
+                        pt.setString(2, td[0]);
+                        pt.addBatch();
+                    }
+                    pt.executeBatch();
                 }
             }
             // Migrar avatares robots antiguos al nuevo avatar SVG propio /api/avatar
@@ -352,6 +379,52 @@ public class GestorBaseDatos {
         return false;
     }
 
+    private boolean existeTablaSql(Connection conn, String tabla) {
+        try (ResultSet rs = conn.getMetaData().getTables(null, null, tabla, null)) {
+            if (rs.next()) return true;
+        } catch (SQLException ignored) {}
+        try (ResultSet rs = conn.getMetaData().getTables(null, null, tabla.toUpperCase(Locale.ROOT), null)) {
+            return rs.next();
+        } catch (SQLException e) {
+            return false;
+        }
+    }
+
+    private int contarFilasConTitulo(Connection conn) {
+        try (Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery("SELECT COUNT(*) FROM player_profiles WHERE equipped_title IS NOT NULL AND equipped_title <> ''")) {
+            return rs.next() ? rs.getInt(1) : 0;
+        } catch (SQLException e) {
+            return 0;
+        }
+    }
+
+    private void sembrarClipsIniciales(Connection conn) {
+        String sql = "INSERT INTO player_clips (id, user_id, title, clip_url, game_code) VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING";
+        Object[][] demoClips = {
+            {"clip-1", "u-1", "Clutch Controlador en Ascent · Defensa 1v3", "https://www.youtube.com/watch?v=e_E9W2vsRbQ", "valorant"},
+            {"clip-2", "u-4", "AWP Ace en Mirage · Master Series CS2", "https://www.youtube.com/watch?v=edYCtaNueQY", "cs2"},
+            {"clip-3", "u-5", "Entry Jett Double Kill · Ranked LAS", "https://www.youtube.com/watch?v=lWr6dhTcu-E", "valorant"}
+        };
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            for (Object[] c : demoClips) {
+                try (PreparedStatement chk = conn.prepareStatement("SELECT 1 FROM users WHERE id = ?")) {
+                    chk.setString(1, (String) c[1]);
+                    try (ResultSet rs = chk.executeQuery()) {
+                        if (!rs.next()) continue;
+                    }
+                }
+                ps.setString(1, (String) c[0]);
+                ps.setString(2, (String) c[1]);
+                ps.setString(3, (String) c[2]);
+                ps.setString(4, (String) c[3]);
+                ps.setString(5, (String) c[4]);
+                ps.addBatch();
+            }
+            ps.executeBatch();
+        } catch (SQLException ignored) {}
+    }
+
     private String cargarSchemaDesdeArchivo() {
         File schemaFile = new File("database/schema.sql");
         if (schemaFile.exists() && schemaFile.isFile()) {
@@ -380,6 +453,7 @@ public class GestorBaseDatos {
                 "favorite_games VARCHAR(255) DEFAULT '', favorite_genres VARCHAR(255) DEFAULT '', " +
                 "play_preferences VARCHAR(255) DEFAULT '', star_rating DOUBLE PRECISION DEFAULT 4.8, " +
                 "rating_count INT NOT NULL DEFAULT 1, card_frame VARCHAR(30) NOT NULL DEFAULT 'NONE', " +
+                "equipped_title VARCHAR(60) NOT NULL DEFAULT '', " +
                 "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE);" +
                 "CREATE TABLE IF NOT EXISTS player_ratings (" +
                 "id VARCHAR(36) PRIMARY KEY, rater_user_id VARCHAR(36) NOT NULL, rated_user_id VARCHAR(36) NOT NULL, " +
@@ -466,7 +540,11 @@ public class GestorBaseDatos {
                 "CREATE TABLE IF NOT EXISTS player_reports (" +
                 "id VARCHAR(36) PRIMARY KEY, reporter_id VARCHAR(36) NOT NULL, reported_id VARCHAR(36) NOT NULL, " +
                 "reason VARCHAR(80) NOT NULL, details VARCHAR(300) DEFAULT '', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
-                "FOREIGN KEY (reporter_id) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (reported_id) REFERENCES users(id) ON DELETE CASCADE);";
+                "FOREIGN KEY (reporter_id) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (reported_id) REFERENCES users(id) ON DELETE CASCADE);" +
+                "CREATE TABLE IF NOT EXISTS player_clips (" +
+                "id VARCHAR(36) PRIMARY KEY, user_id VARCHAR(36) NOT NULL, title VARCHAR(120) NOT NULL, " +
+                "clip_url TEXT NOT NULL, game_code VARCHAR(40) NOT NULL DEFAULT 'valorant', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
+                "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE);";
     }
 
     private void sembrarDatosInicialesSiVacio(Connection conn) throws SQLException {
@@ -1409,6 +1487,7 @@ public class GestorBaseDatos {
             "COALESCE(pp.star_rating, 4.8) AS star_rating, " +
             "COALESCE(pp.rating_count, 0) AS rating_count, " +
             "COALESCE(pp.card_frame, 'NONE') AS card_frame, " +
+            "COALESCE(pp.equipped_title, '') AS equipped_title, " +
             "COALESCE(g.code, 'valorant') AS game_code, COALESCE(g.name, 'Valorant') AS game_name, " +
             "COALESCE(pgs.in_game_rank, 'Sin Rango') AS in_game_rank, COALESCE(pgs.preferred_role, 'Flex') AS preferred_role, " +
             "COALESCE(pgs.playstyle, 'COMPETITIVE') AS playstyle " +
@@ -1512,7 +1591,7 @@ public class GestorBaseDatos {
             try {
                 String sqlProf = "UPDATE player_profiles SET bio = ?, region = ?, preferred_schedule = ?, " +
                                  "steam_id = ?, riot_id = ?, discord_tag = ?, toxic_level = COALESCE(?, toxic_level), " +
-                                 "favorite_games = ?, favorite_genres = ?, play_preferences = ?, card_frame = ? " +
+                                 "favorite_games = ?, favorite_genres = ?, play_preferences = ?, card_frame = ?, equipped_title = ? " +
                                  "WHERE user_id = ?";
                 try (PreparedStatement ps = conn.prepareStatement(sqlProf)) {
                     ps.setString(1, nullSafe(actualizado.getBiografia()));
@@ -1530,7 +1609,8 @@ public class GestorBaseDatos {
                     ps.setString(9, nullSafe(actualizado.getFavoriteGenres()));
                     ps.setString(10, nullSafe(actualizado.getPlayPreferences()));
                     ps.setString(11, SeguridadUtil.normalizarMarcoPerfil(actualizado.getCardFrame()));
-                    ps.setString(12, u.getId());
+                    ps.setString(12, nullSafe(actualizado.getEquippedTitle()).trim());
+                    ps.setString(13, u.getId());
                     ps.executeUpdate();
                 }
 
@@ -1663,6 +1743,7 @@ public class GestorBaseDatos {
         p.setStarRating(rs.getDouble("star_rating"));
         p.setRatingCount(rs.getInt("rating_count"));
         p.setCardFrame(nullSafe(rs.getString("card_frame")).isEmpty() ? "NONE" : rs.getString("card_frame"));
+        p.setEquippedTitle(nullSafe(rs.getString("equipped_title")));
         return p;
     }
 
@@ -2140,7 +2221,7 @@ public class GestorBaseDatos {
                 ? obtenerIdsBloqueadosMutuos(viewerUsername) : Collections.emptySet();
         String sql =
             "SELECT u.id, u.username, u.avatar_url, pp.star_rating, pp.rating_count, pp.reputation_score, " +
-            "COALESCE(pp.card_frame, 'NONE') AS card_frame, " +
+            "COALESCE(pp.card_frame, 'NONE') AS card_frame, COALESCE(pp.equipped_title, '') AS equipped_title, " +
             "g.code AS game_code, g.name AS game_name, pgs.in_game_rank " +
             "FROM player_profiles pp " +
             "JOIN users u ON pp.user_id = u.id " +
@@ -2165,6 +2246,7 @@ public class GestorBaseDatos {
                 row.put("ratingCount", rs.getInt("rating_count"));
                 row.put("reputationScore", rs.getInt("reputation_score"));
                 row.put("cardFrame", nullSafe(rs.getString("card_frame")).isEmpty() ? "NONE" : rs.getString("card_frame"));
+                row.put("equippedTitle", nullSafe(rs.getString("equipped_title")));
                 row.put("game", nullSafe(rs.getString("game_code")));
                 row.put("gameName", nullSafe(rs.getString("game_name")).isEmpty() ? "Multi-Juego" : rs.getString("game_name"));
                 row.put("rank", nullSafe(rs.getString("in_game_rank")).isEmpty() ? "Competitivo" : rs.getString("in_game_rank"));
@@ -3125,6 +3207,7 @@ public class GestorBaseDatos {
             out.put("starRating", Math.round(p.getStarRating() * 10.0) / 10.0);
             out.put("ratingCount", p.getRatingCount());
             out.put("cardFrame", p.getCardFrame());
+            out.put("equippedTitle", p.getEquippedTitle());
             out.put("favoriteGames", nullSafe(p.getFavoriteGames()));
             out.put("favoriteGenres", nullSafe(p.getFavoriteGenres()));
             out.put("playPreferences", nullSafe(p.getPlayPreferences()));
@@ -3140,6 +3223,7 @@ public class GestorBaseDatos {
             out.put("starRating", 4.8);
             out.put("ratingCount", 0);
             out.put("cardFrame", "NONE");
+            out.put("equippedTitle", "");
         }
 
         List<Map<String, Object>> reviews = new ArrayList<>();
@@ -3202,6 +3286,7 @@ public class GestorBaseDatos {
 
         out.put("reviews", reviews);
         out.put("trophies", cargarTrofeosJugador(targetUser.getId()));
+        out.put("clips", listarClipsPorUserId(targetUser.getId()));
         out.put("isBlocked", isBlockedByViewer);
         out.put("friendshipStatus", friendshipStatus);
         return out;
@@ -3496,6 +3581,300 @@ public class GestorBaseDatos {
         } catch (SQLException e) {
             throw new RuntimeException("Error saliendo del lobby", e);
         }
+    }
+
+    // =========================================================================
+    // 9. LOGROS DESBLOQUEABLES, TÍTULOS, CLIPS Y ANALÍTICAS DE RENDIMIENTO
+    // =========================================================================
+
+    public Map<String, Object> obtenerLogrosYTitulos(String username) {
+        PerfilJugador p = buscarPerfilPorUsername(username);
+        if (p == null) return null;
+        String userId = p.getUsuarioId();
+
+        int friendsCount = 0;
+        int tournamentsJoined = 0;
+        int messagesSent = 0;
+
+        try (Connection conn = abrirConexion()) {
+            try (PreparedStatement pf = conn.prepareStatement(
+                    "SELECT COUNT(*) FROM friendships WHERE status = 'ACCEPTED' AND (requester_id = ? OR addressee_id = ?)")) {
+                pf.setString(1, userId);
+                pf.setString(2, userId);
+                try (ResultSet rs = pf.executeQuery()) {
+                    if (rs.next()) friendsCount = rs.getInt(1);
+                }
+            }
+            try (PreparedStatement pt = conn.prepareStatement(
+                    "SELECT COUNT(DISTINCT tr.tournament_id) FROM tournament_registrations tr JOIN teams tm ON tr.team_id = tm.id WHERE tm.captain_id = ?")) {
+                pt.setString(1, userId);
+                try (ResultSet rs = pt.executeQuery()) {
+                    if (rs.next()) tournamentsJoined = rs.getInt(1);
+                }
+            }
+            try (PreparedStatement pm = conn.prepareStatement(
+                    "SELECT (SELECT COUNT(*) FROM chat_messages WHERE sender_id = ?) + (SELECT COUNT(*) FROM direct_messages WHERE sender_id = ?)")) {
+                pm.setString(1, userId);
+                pm.setString(2, userId);
+                try (ResultSet rs = pm.executeQuery()) {
+                    if (rs.next()) messagesSent = rs.getInt(1);
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error consultando logros del jugador", e);
+        }
+
+        int trophiesCount = cargarTrofeosJugador(userId).size();
+        boolean starterOk = !nullSafe(p.getBiografia()).trim().isEmpty();
+        boolean cleanOk = p.getStarRating() >= 4.5 && (p.getRatingCount() >= 1 || p.getPuntajeReputacion() >= 95);
+        boolean duoOk = friendsCount >= 2;
+        boolean socialOk = messagesSent >= 2 || p.isDiscordConnected();
+        boolean tourneyOk = tournamentsJoined >= 1;
+        boolean champOk = trophiesCount >= 1;
+
+        List<Map<String, Object>> achievements = new ArrayList<>();
+        achievements.add(crearLogro("starter", "Perfil Activo", "Jugador Activo",
+                "Completa tu biografía y juego principal en tu perfil.", starterOk, starterOk ? "1 / 1" : "0 / 1"));
+        achievements.add(crearLogro("clean", "Conducta Ejemplar", "Cero Tilt",
+                "Mantén 4.5★+ con valoraciones positivas en comunidad.", cleanOk,
+                String.format(Locale.US, "%.1f★", p.getStarRating())));
+        achievements.add(crearLogro("duo", "Red de Escuadra", "Dúo Confiable",
+                "Conecta con al menos 2 amigos aceptados en PlayMatch.", duoOk, Math.min(2, friendsCount) + " / 2"));
+        achievements.add(crearLogro("social", "Voz de Arena", "Comandante Social",
+                "Envía 2 mensajes o vincula tu cuenta de Discord.", socialOk,
+                p.isDiscordConnected() ? "Discord OK" : Math.min(2, messagesSent) + " / 2"));
+        achievements.add(crearLogro("tourney", "Veterano de Llaves", "Competidor Oficial",
+                "Inscribe un equipo en un torneo oficial.", tourneyOk, Math.min(1, tournamentsJoined) + " / 1"));
+        achievements.add(crearLogro("champ", "Gloria de Torneo", "Campeón de Arena",
+                "Gana la Gran Final de cualquier torneo oficial.", champOk, Math.min(1, trophiesCount) + " / 1"));
+
+        Map<String, Object> res = new LinkedHashMap<>();
+        res.put("username", p.getUsername());
+        res.put("equippedTitle", nullSafe(p.getEquippedTitle()));
+        res.put("achievements", achievements);
+        return res;
+    }
+
+    private static Map<String, Object> crearLogro(String id, String badge, String title,
+                                                  String description, boolean unlocked, String progress) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", id);
+        m.put("badge", badge);
+        m.put("title", title);
+        m.put("description", description);
+        m.put("unlocked", unlocked);
+        m.put("progress", progress);
+        return m;
+    }
+
+    public List<Map<String, Object>> listarClipsPorUserId(String userId) {
+        List<Map<String, Object>> out = new ArrayList<>();
+        String sql = "SELECT c.id, c.title, c.clip_url, c.game_code, COALESCE(g.name, c.game_code) AS game_name, c.created_at " +
+                     "FROM player_clips c LEFT JOIN games g ON LOWER(g.code) = LOWER(c.game_code) " +
+                     "WHERE c.user_id = ? ORDER BY c.created_at DESC LIMIT 8";
+        try (Connection conn = abrirConexion();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("id", rs.getString("id"));
+                    row.put("title", rs.getString("title"));
+                    row.put("clipUrl", rs.getString("clip_url"));
+                    row.put("gameCode", rs.getString("game_code"));
+                    row.put("gameName", rs.getString("game_name"));
+                    row.put("createdAt", limpiarTimestamp(rs.getString("created_at")));
+                    out.add(row);
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error cargando clips del jugador", e);
+        }
+        return out;
+    }
+
+    public List<Map<String, Object>> listarClipsPorUsername(String username) {
+        Usuario u = buscarUsuarioPorUsername(username);
+        if (u == null) return Collections.emptyList();
+        return listarClipsPorUserId(u.getId());
+    }
+
+    public synchronized Map<String, Object> agregarClipJugador(String username, String title, String clipUrl, String gameCode) {
+        Usuario u = buscarUsuarioPorUsername(username);
+        if (u == null) return null;
+        String cleanTitle = title != null ? title.trim() : "";
+        String cleanUrl = clipUrl != null ? clipUrl.trim() : "";
+        String cleanGame = (gameCode != null && !gameCode.trim().isEmpty()) ? gameCode.trim().toLowerCase(Locale.ROOT) : "valorant";
+        if (cleanTitle.isEmpty()) throw new IllegalArgumentException("Ingresa un título para tu jugada.");
+        if (cleanTitle.length() > 110) cleanTitle = cleanTitle.substring(0, 110);
+        if (!SeguridadUtil.isValidClipUrl(cleanUrl)) {
+            throw new IllegalArgumentException("Enlace inválido. Usa una URL HTTPS de YouTube, Twitch, Medal o Streamable.");
+        }
+        List<Map<String, Object>> existing = listarClipsPorUserId(u.getId());
+        if (existing.size() >= 8) {
+            throw new IllegalArgumentException("Alcanzaste el límite de 8 highlights. Elimina uno antes de agregar otro.");
+        }
+        String clipId = "clip-" + UUID.randomUUID().toString().substring(0, 8);
+        try (Connection conn = abrirConexion();
+             PreparedStatement ps = conn.prepareStatement(
+                     "INSERT INTO player_clips (id, user_id, title, clip_url, game_code) VALUES (?, ?, ?, ?, ?)")) {
+            ps.setString(1, clipId);
+            ps.setString(2, u.getId());
+            ps.setString(3, cleanTitle);
+            ps.setString(4, cleanUrl);
+            ps.setString(5, cleanGame);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Error guardando clip de jugador", e);
+        }
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("id", clipId);
+        out.put("clips", listarClipsPorUserId(u.getId()));
+        return out;
+    }
+
+    public synchronized boolean eliminarClipJugador(String username, String clipId) {
+        Usuario u = buscarUsuarioPorUsername(username);
+        if (u == null || clipId == null || clipId.trim().isEmpty()) return false;
+        try (Connection conn = abrirConexion();
+             PreparedStatement ps = conn.prepareStatement(
+                     "DELETE FROM player_clips WHERE id = ? AND user_id = ?")) {
+            ps.setString(1, clipId.trim());
+            ps.setString(2, u.getId());
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            throw new RuntimeException("Error eliminando clip de jugador", e);
+        }
+    }
+
+    public Map<String, Object> obtenerAnaliticasJugador(String username) {
+        PerfilJugador p = buscarPerfilPorUsername(username);
+        if (p == null) return null;
+        String userId = p.getUsuarioId();
+
+        int tournamentsJoined = 0;
+        int matchesPlayed = 0;
+        int matchesWon = 0;
+        int friendsCount = 0;
+        int lobbiesHosted = 0;
+        int messagesSent = 0;
+        Map<String, Integer> starBreakdown = new LinkedHashMap<>();
+        for (int s = 5; s >= 1; s--) starBreakdown.put(String.valueOf(s), 0);
+        List<Map<String, Object>> recentTeammates = new ArrayList<>();
+
+        try (Connection conn = abrirConexion()) {
+            try (PreparedStatement pt = conn.prepareStatement(
+                    "SELECT COUNT(DISTINCT tr.tournament_id) FROM tournament_registrations tr JOIN teams tm ON tr.team_id = tm.id WHERE tm.captain_id = ?")) {
+                pt.setString(1, userId);
+                try (ResultSet rs = pt.executeQuery()) {
+                    if (rs.next()) tournamentsJoined = rs.getInt(1);
+                }
+            }
+            try (PreparedStatement pm = conn.prepareStatement(
+                    "SELECT m.winner_name, tm.name AS team_name FROM tournament_matches m " +
+                    "JOIN tournament_registrations tr ON tr.tournament_id = m.tournament_id " +
+                    "JOIN teams tm ON tr.team_id = tm.id " +
+                    "WHERE tm.captain_id = ? AND m.status = 'FINISHED' AND (LOWER(m.team1_name) = LOWER(tm.name) OR LOWER(m.team2_name) = LOWER(tm.name))")) {
+                pm.setString(1, userId);
+                try (ResultSet rs = pm.executeQuery()) {
+                    while (rs.next()) {
+                        matchesPlayed++;
+                        String winner = nullSafe(rs.getString("winner_name"));
+                        String team = nullSafe(rs.getString("team_name"));
+                        if (!team.isEmpty() && team.equalsIgnoreCase(winner)) {
+                            matchesWon++;
+                        }
+                    }
+                }
+            }
+            try (PreparedStatement pf = conn.prepareStatement(
+                    "SELECT COUNT(*) FROM friendships WHERE status = 'ACCEPTED' AND (requester_id = ? OR addressee_id = ?)")) {
+                pf.setString(1, userId);
+                pf.setString(2, userId);
+                try (ResultSet rs = pf.executeQuery()) {
+                    if (rs.next()) friendsCount = rs.getInt(1);
+                }
+            }
+            try (PreparedStatement pl = conn.prepareStatement("SELECT COUNT(*) FROM squad_lobbies WHERE host_user_id = ?")) {
+                pl.setString(1, userId);
+                try (ResultSet rs = pl.executeQuery()) {
+                    if (rs.next()) lobbiesHosted = rs.getInt(1);
+                }
+            }
+            try (PreparedStatement pmsg = conn.prepareStatement(
+                    "SELECT (SELECT COUNT(*) FROM chat_messages WHERE sender_id = ?) + (SELECT COUNT(*) FROM direct_messages WHERE sender_id = ?)")) {
+                pmsg.setString(1, userId);
+                pmsg.setString(2, userId);
+                try (ResultSet rs = pmsg.executeQuery()) {
+                    if (rs.next()) messagesSent = rs.getInt(1);
+                }
+            }
+            try (PreparedStatement pr = conn.prepareStatement(
+                    "SELECT stars, COUNT(*) AS cnt FROM player_ratings WHERE rated_user_id = ? GROUP BY stars")) {
+                pr.setString(1, userId);
+                try (ResultSet rs = pr.executeQuery()) {
+                    while (rs.next()) {
+                        int st = rs.getInt("stars");
+                        if (st >= 1 && st <= 5) {
+                            starBreakdown.put(String.valueOf(st), rs.getInt("cnt"));
+                        }
+                    }
+                }
+            }
+            String sqlMate =
+                "SELECT u.username, u.avatar_url, COALESCE(pp.card_frame, 'NONE') AS card_frame, " +
+                "COALESCE(g.name, 'PlayMatch') AS game_name " +
+                "FROM friendships f " +
+                "JOIN users u ON u.id = CASE WHEN f.requester_id = ? THEN f.addressee_id ELSE f.requester_id END " +
+                "LEFT JOIN player_profiles pp ON pp.user_id = u.id " +
+                "LEFT JOIN player_game_stats pgs ON pgs.user_id = u.id AND pgs.is_primary = 1 " +
+                "LEFT JOIN games g ON g.id = pgs.game_id " +
+                "WHERE f.status = 'ACCEPTED' AND (f.requester_id = ? OR f.addressee_id = ?) " +
+                "ORDER BY f.updated_at DESC LIMIT 5";
+            try (PreparedStatement pmate = conn.prepareStatement(sqlMate)) {
+                pmate.setString(1, userId);
+                pmate.setString(2, userId);
+                pmate.setString(3, userId);
+                try (ResultSet rs = pmate.executeQuery()) {
+                    while (rs.next()) {
+                        Map<String, Object> mate = new LinkedHashMap<>();
+                        String mn = rs.getString("username");
+                        String mav = rs.getString("avatar_url");
+                        if (mav == null || mav.isEmpty()) mav = avatarPorDefecto(mn);
+                        mate.put("username", mn);
+                        mate.put("avatarUrl", mav);
+                        mate.put("cardFrame", rs.getString("card_frame"));
+                        mate.put("gameName", rs.getString("game_name"));
+                        recentTeammates.add(mate);
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error calculando analíticas del jugador", e);
+        }
+
+        int trophiesCount = cargarTrofeosJugador(userId).size();
+        List<Map<String, Object>> clips = listarClipsPorUserId(userId);
+        int winRate = matchesPlayed > 0 ? (int) Math.round((matchesWon * 100.0) / matchesPlayed) : 0;
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("username", p.getUsername());
+        out.put("tournamentsJoined", tournamentsJoined);
+        out.put("matchesPlayed", matchesPlayed);
+        out.put("matchesWon", matchesWon);
+        out.put("winRate", winRate);
+        out.put("trophiesCount", trophiesCount);
+        out.put("friendsCount", friendsCount);
+        out.put("lobbiesHosted", lobbiesHosted);
+        out.put("messagesSent", messagesSent);
+        out.put("clipsCount", clips.size());
+        out.put("starRating", Math.round(p.getStarRating() * 10.0) / 10.0);
+        out.put("ratingCount", p.getRatingCount());
+        out.put("reputationScore", p.getPuntajeReputacion());
+        out.put("starBreakdown", starBreakdown);
+        out.put("recentTeammates", recentTeammates);
+        out.put("clips", clips);
+        return out;
     }
 
     public boolean verificarSaludConexion() {

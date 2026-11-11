@@ -699,6 +699,46 @@ public class ServidorPlayMatch {
                         return;
                     }
 
+                    if (ruta.endsWith("/achievements")) {
+                        String user = params.get("username");
+                        if (user == null || user.trim().isEmpty()) {
+                            enviarError(exchange, 400, "Falta parámetro username.");
+                            return;
+                        }
+                        Map<String, Object> achievements = db.obtenerLogrosYTitulos(user);
+                        if (achievements == null) {
+                            enviarError(exchange, 404, "Jugador no encontrado.");
+                            return;
+                        }
+                        enviarRespuestaJson(exchange, 200, JsonUtils.toJson(achievements));
+                        return;
+                    }
+
+                    if (ruta.endsWith("/analytics")) {
+                        String user = params.get("username");
+                        if (user == null || user.trim().isEmpty()) {
+                            enviarError(exchange, 400, "Falta parámetro username.");
+                            return;
+                        }
+                        Map<String, Object> stats = db.obtenerAnaliticasJugador(user);
+                        if (stats == null) {
+                            enviarError(exchange, 404, "Jugador no encontrado.");
+                            return;
+                        }
+                        enviarRespuestaJson(exchange, 200, JsonUtils.toJson(stats));
+                        return;
+                    }
+
+                    if (ruta.endsWith("/clips")) {
+                        String user = params.get("username");
+                        if (user == null || user.trim().isEmpty()) {
+                            enviarError(exchange, 400, "Falta parámetro username.");
+                            return;
+                        }
+                        enviarRespuestaJson(exchange, 200, JsonUtils.toJson(db.listarClipsPorUsername(user)));
+                        return;
+                    }
+
                     if (ruta.endsWith("/leaderboard")) {
                         String viewer = params.get("viewer");
                         List<Map<String, Object>> board = db.obtenerLeaderboard(viewer);
@@ -740,6 +780,38 @@ public class ServidorPlayMatch {
                     }
                     sb.append("]");
                     enviarRespuestaJson(exchange, 200, sb.toString());
+
+                } else if ("POST".equalsIgnoreCase(metodo) && ruta.endsWith("/clips")) {
+                    String cuerpo = leerCuerpo(exchange);
+                    Map<String, String> datos = JsonUtils.parseSimpleJsonObject(cuerpo);
+                    String username = datos.get("username");
+                    if (username == null || username.trim().isEmpty()) {
+                        enviarError(exchange, 400, "Falta nombre de usuario.");
+                        return;
+                    }
+                    try {
+                        Map<String, Object> res = db.agregarClipJugador(
+                                username, datos.get("title"), datos.get("clipUrl"), datos.get("game"));
+                        if (res == null) {
+                            enviarError(exchange, 404, "Jugador no encontrado.");
+                            return;
+                        }
+                        enviarRespuestaJson(exchange, 201, JsonUtils.toJson(res));
+                    } catch (IllegalArgumentException iae) {
+                        enviarError(exchange, 400, iae.getMessage());
+                    }
+
+                } else if ("DELETE".equalsIgnoreCase(metodo) && ruta.endsWith("/clips")) {
+                    Map<String, String> params = parseQueryParams(exchange.getRequestURI().getRawQuery());
+                    String username = params.get("username");
+                    String clipId = params.get("id");
+                    if (username == null || clipId == null) {
+                        enviarError(exchange, 400, "Debes indicar username e id del clip.");
+                        return;
+                    }
+                    boolean deleted = db.eliminarClipJugador(username, clipId);
+                    enviarRespuestaJson(exchange, deleted ? 200 : 404,
+                            deleted ? "{\"deleted\":true}" : "{\"error\":\"Clip no encontrado.\"}");
 
                 } else if ("POST".equalsIgnoreCase(metodo) && ruta.endsWith("/rate")) {
                     String cuerpo = leerCuerpo(exchange);
@@ -839,6 +911,33 @@ public class ServidorPlayMatch {
                     if (datos.containsKey("favoriteGenres")) perfil.setFavoriteGenres(datos.get("favoriteGenres"));
                     if (datos.containsKey("playPreferences")) perfil.setPlayPreferences(datos.get("playPreferences"));
                     if (datos.containsKey("cardFrame")) perfil.setCardFrame(SeguridadUtil.normalizarMarcoPerfil(datos.get("cardFrame")));
+                    if (datos.containsKey("equippedTitle")) {
+                        String reqTitle = datos.get("equippedTitle") != null ? datos.get("equippedTitle").trim() : "";
+                        if (reqTitle.isEmpty()) {
+                            perfil.setEquippedTitle("");
+                        } else {
+                            Map<String, Object> achData = db.obtenerLogrosYTitulos(username);
+                            boolean allowed = false;
+                            if (achData != null && achData.get("achievements") instanceof List<?>) {
+                                for (Object item : (List<?>) achData.get("achievements")) {
+                                    if (item instanceof Map<?, ?>) {
+                                        Map<?, ?> row = (Map<?, ?>) item;
+                                        if (Boolean.TRUE.equals(row.get("unlocked"))
+                                                && reqTitle.equalsIgnoreCase(String.valueOf(row.get("title")))) {
+                                            reqTitle = String.valueOf(row.get("title"));
+                                            allowed = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            if (!allowed) {
+                                enviarError(exchange, 400, "Este título aún está bloqueado para tu cuenta.");
+                                return;
+                            }
+                            perfil.setEquippedTitle(reqTitle);
+                        }
+                    }
 
                     db.actualizarPerfil(perfil);
                     PerfilJugador actualizado = db.buscarPerfilPorUsername(username);
@@ -1797,12 +1896,12 @@ public class ServidorPlayMatch {
 
     static class ManejadorAvatares implements HttpHandler {
         private static final String[][] PALETTES = {
-            {"#0ea5e9", "#0369a1", "#38bdf8"},
+            {"#e11d48", "#9f1239", "#fda4af"},
             {"#f59e0b", "#b45309", "#fde68a"},
             {"#10b981", "#047857", "#6ee7b7"},
-            {"#f43f5e", "#be123c", "#fda4af"},
-            {"#06b6d4", "#0e7490", "#67e8f9"},
-            {"#3b82f6", "#1d4ed8", "#93c5fd"}
+            {"#dc2626", "#7f1d1d", "#fca5a5"},
+            {"#38bdf8", "#0369a1", "#bae6fd"},
+            {"#d97706", "#78350f", "#fcd34d"}
         };
 
         @Override
@@ -1833,16 +1932,16 @@ public class ServidorPlayMatch {
                 "<stop offset='100%' stop-color='" + pal[1] + "'/>" +
                 "</linearGradient>" +
                 "<linearGradient id='bg' x1='0' y1='0' x2='120' y2='120' gradientUnits='userSpaceOnUse'>" +
-                "<stop offset='0%' stop-color='#0d1629'/>" +
-                "<stop offset='100%' stop-color='#060a14'/>" +
+                "<stop offset='0%' stop-color='#191116'/>" +
+                "<stop offset='100%' stop-color='#0a070b'/>" +
                 "</linearGradient>" +
                 "</defs>" +
                 "<rect width='120' height='120' rx='26' fill='url(#bg)'/>" +
                 "<circle cx='60' cy='52' r='44' fill='url(#g1)' fill-opacity='0.14'/>" +
-                "<path d='M60 14L99 35V85L60 106L21 85V35L60 14Z' fill='#0a1224' stroke='url(#g1)' stroke-width='4' stroke-linejoin='round'/>" +
-                "<path d='M60 22L92 39.5V80.5L60 98L28 80.5V39.5L60 22Z' stroke='" + pal[2] + "' stroke-opacity='0.3' stroke-width='1.5'/>" +
+                "<path d='M60 14L99 35V85L60 106L21 85V35L60 14Z' fill='#140d13' stroke='url(#g1)' stroke-width='4' stroke-linejoin='round'/>" +
+                "<path d='M60 22L92 39.5V80.5L60 98L28 80.5V39.5L60 22Z' stroke='" + pal[2] + "' stroke-opacity='0.28' stroke-width='1.5'/>" +
                 "<path d='M52 29L60 23L68 29L60 35L52 29Z' fill='" + pal[2] + "'/>" +
-                "<text x='60' y='71' text-anchor='middle' font-family='Plus Jakarta Sans,Inter,Segoe UI,sans-serif' font-size='32' font-weight='800' letter-spacing='1' fill='#f8fafc'>" + initials + "</text>" +
+                "<text x='60' y='71' text-anchor='middle' font-family='Plus Jakarta Sans,Inter,Segoe UI,sans-serif' font-size='32' font-weight='800' letter-spacing='1' fill='#fafafa'>" + initials + "</text>" +
                 "</svg>";
             byte[] bytes = svg.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set("Content-Type", "image/svg+xml; charset=UTF-8");
@@ -1981,6 +2080,7 @@ public class ServidorPlayMatch {
                 "\"starRating\":" + String.format(Locale.US, "%.1f", p.getStarRating()) + "," +
                 "\"ratingCount\":" + p.getRatingCount() + "," +
                 "\"cardFrame\":\"" + JsonUtils.escape(p.getCardFrame()) + "\"," +
+                "\"equippedTitle\":\"" + JsonUtils.escape(p.getEquippedTitle()) + "\"," +
                 "\"lowRatedPenalty\":" + (p.getStarRating() < 2.0) + "," +
                 "\"game\":\"" + JsonUtils.escape(p.getJuego()) + "\"," +
                 "\"gameName\":\"" + JsonUtils.escape(p.getNombreJuego()) + "\"," +

@@ -130,6 +130,14 @@ public class SeguridadUtil {
         return "NONE";
     }
 
+    public static boolean isValidClipUrl(String url) {
+        if (url == null) return false;
+        String clean = url.trim();
+        if (clean.isEmpty() || clean.length() > 600 || clean.matches(".*[\\s<>\"'].*")) return false;
+        String lower = clean.toLowerCase(Locale.ROOT);
+        return lower.startsWith("https://") || lower.startsWith("http://");
+    }
+
     public static String normalizarDiscordTag(String raw) {
         if (raw == null) return "";
         String clean = raw.trim();

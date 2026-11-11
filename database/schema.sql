@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS player_profiles (
     star_rating DOUBLE PRECISION DEFAULT 4.8,
     rating_count INT NOT NULL DEFAULT 1,
     card_frame VARCHAR(30) NOT NULL DEFAULT 'NONE',
+    equipped_title VARCHAR(60) NOT NULL DEFAULT '',
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -267,3 +268,15 @@ CREATE INDEX IF NOT EXISTS idx_dm_pair ON direct_messages(sender_id, receiver_id
 CREATE INDEX IF NOT EXISTS idx_dm_receiver_read ON direct_messages(receiver_id, is_read);
 CREATE INDEX IF NOT EXISTS idx_lobbies_status ON squad_lobbies(status);
 CREATE INDEX IF NOT EXISTS idx_blocks_pair ON user_blocks(blocker_id, blocked_id);
+
+-- 15. CLIPS Y HIGHLIGHTS DE JUGADORES
+CREATE TABLE IF NOT EXISTS player_clips (
+    id VARCHAR(36) PRIMARY KEY,
+    user_id VARCHAR(36) NOT NULL,
+    title VARCHAR(120) NOT NULL,
+    clip_url TEXT NOT NULL,
+    game_code VARCHAR(40) NOT NULL DEFAULT 'valorant',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_clips_user ON player_clips(user_id);

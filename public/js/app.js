@@ -597,7 +597,7 @@ function syncGameDropdowns(games) {
     }
   }
 
-  ['prof-game', 'new-t-game', 'match-target-game', 'lobby-game'].forEach(selId => {
+  ['prof-game', 'new-t-game', 'match-target-game', 'lobby-game', 'clip-game-select'].forEach(selId => {
     const sel = document.getElementById(selId);
     if (!sel) return;
     const prev = sel.value;
@@ -723,6 +723,23 @@ async function loadRecommendations(showFeedback = false) {
   }
 }
 
+function extractClipMeta(url) {
+  const clean = String(url || '').trim();
+  let ytId = '';
+  const m1 = clean.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([A-Za-z0-9_-]{6,15})/i);
+  if (m1) ytId = m1[1];
+  let platform = 'Video';
+  if (ytId || /youtube\.com|youtu\.be/i.test(clean)) platform = 'YouTube';
+  else if (/twitch\.tv/i.test(clean)) platform = 'Twitch';
+  else if (/medal\.tv/i.test(clean)) platform = 'Medal';
+  else if (/streamable\.com/i.test(clean)) platform = 'Streamable';
+  return {
+    platform,
+    ytId,
+    thumbUrl: ytId ? `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg` : ''
+  };
+}
+
 function renderRecommendations(data) {
   state.lastRecommendationsData = data;
   const summaryEl = document.getElementById('ai-rec-summary');
@@ -732,12 +749,12 @@ function renderRecommendations(data) {
   if (!grid) return;
 
   if (summaryEl) {
-    summaryEl.innerText = data.summary || 'Sugerencias calculadas según tus juegos, gustos y valoración.';
+    summaryEl.innerText = data.summary || 'Afinidad calculada según juego principal, horario y valoraciones.';
   }
   if (warnEl) {
     if (data.currentUserLowVisibility) {
       warnEl.style.display = 'block';
-      warnEl.innerText = `Aviso de visibilidad: Tu cuenta tiene ${Number(data.currentUserRating || 0).toFixed(1)}★ (menos de 2.0★), por lo que otros jugadores te verán recomendado con mucha menor frecuencia.`;
+      warnEl.innerText = `Aviso: Con ${Number(data.currentUserRating || 0).toFixed(1)}★ tu perfil recibe menor visibilidad hasta superar 2.0★.`;
     } else {
       warnEl.style.display = 'none';
     }
@@ -749,13 +766,11 @@ function renderRecommendations(data) {
 
   const recs = Array.isArray(data.recommendations) ? data.recommendations : [];
   if (recs.length === 0) {
-    grid.innerHTML = '<div style="color:var(--text-secondary);font-size:0.84rem;">No hay otros jugadores para recomendar todavía.</div>';
+    grid.innerHTML = '<div style="color:var(--text-secondary);font-size:0.84rem;">No hay otros jugadores disponibles todavía.</div>';
     return;
   }
 
   grid.innerHTML = '';
-  const ringR = 20;
-  const ringCirc = 2 * Math.PI * ringR;
   recs.slice(0, 6).forEach(rec => {
     const isLow = Boolean(rec.lowRatedPenalty || Number(rec.starRating) < 2.0 || rec.visibilityTier === 'REDUCIDA');
     const frameInfo = getFrameInfo(rec.cardFrame);
@@ -772,41 +787,32 @@ function renderRecommendations(data) {
       seenTags.add(k);
       const formatted = String(rawT).trim().replace(/\b\w/g, c => c.toUpperCase());
       cleanTags.push(formatted);
-      if (cleanTags.length >= 3) break;
+      if (cleanTags.length >= 2) break;
     }
 
     const scoreNum = Math.max(0, Math.min(100, Number(rec.matchScore || 0)));
-    const dashOffset = ringCirc * (1 - scoreNum / 100);
-    const strokeCol = isLow ? '#ef4444' : (scoreNum >= 85 ? '#38bdf8' : '#10b981');
 
     card.innerHTML = `
       <div class="ai-rec-card-top">
         <div class="ai-rec-user-info">
-          <img src="${escapeHtml(rec.avatarUrl)}" alt="${escapeHtml(rec.username)}" class="clickable-player-handle" data-profile-user="${escapeHtml(rec.username)}">
+          <img src="${escapeHtml(rec.avatarUrl || defaultAvatarUrl(rec.username))}" alt="${escapeHtml(rec.username)}" class="clickable-player-handle" data-profile-user="${escapeHtml(rec.username)}">
           <div style="min-width:0;">
             <strong class="clickable-player-handle" data-profile-user="${escapeHtml(rec.username)}" style="color:#fff;font-size:0.9rem;display:flex;align-items:center;gap:0.35rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
               <span class="presence-dot-mini ${getPresenceInfo(rec.username).cls}" data-presence-user="${escapeHtml(rec.username)}"></span>
               @${escapeHtml(rec.username)}
             </strong>
-            <span class="star-rating-pill ${isLow ? 'low' : ''}">
-              ${Number(rec.starRating || 0).toFixed(1)} ★ (${Number(rec.ratingCount) || 0}) ${isLow ? '· Reducida' : ''}
-            </span>
+            <div style="font-size:0.72rem;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+              ${escapeHtml(rec.gameName || rec.game)} · <span class="${getRankTierClass(rec.rank)}">${escapeHtml(rec.rank || 'Competitivo')}</span> · ${Number(rec.starRating || 0).toFixed(1)}★
+              ${isLow ? '<span style="color:#fca5a5;"> · Reducida</span>' : ''}
+            </div>
           </div>
         </div>
-        <div class="ai-ring-wrap" title="${isLow ? 'Visibilidad reducida por valoración < 2.0★' : `${scoreNum}% de compatibilidad`}">
-          <svg class="ai-ring-svg" viewBox="0 0 52 52">
-            <circle class="ai-ring-track" cx="26" cy="26" r="${ringR}"></circle>
-            <circle class="ai-ring-progress ${isLow ? 'low' : ''}" cx="26" cy="26" r="${ringR}"
-              style="stroke:${strokeCol};stroke-dasharray:${ringCirc.toFixed(1)};stroke-dashoffset:${dashOffset.toFixed(1)};"></circle>
-          </svg>
-          <span class="ai-ring-text ${isLow ? 'low' : ''}">${scoreNum}%</span>
-        </div>
+        <span class="rec-match-badge ${isLow ? 'low' : ''}">${scoreNum}%</span>
       </div>
 
-      <p class="ai-rec-reason">${escapeHtml(rec.reason)}</p>
+      <p class="ai-rec-reason">${escapeHtml(rec.equippedTitle ? `${rec.equippedTitle} · ${rec.reason}` : rec.reason)}</p>
 
-      <div class="player-chips-row" style="margin-bottom:0.2rem;">
-        <span class="badge-game ${escapeHtml(rec.game)}">${escapeHtml(rec.gameName || rec.game)}</span>
+      <div class="player-chips-row" style="margin-bottom:0.15rem;">
         ${frameInfo.pillCls ? `<span class="frame-tier-pill ${frameInfo.pillCls}">${escapeHtml(frameInfo.label)}</span>` : ''}
         ${cleanTags.map(t => `<span class="chip-plat">${escapeHtml(t)}</span>`).join('')}
       </div>
@@ -814,7 +820,7 @@ function renderRecommendations(data) {
       <div class="ai-rec-actions">
         <button type="button" class="btn btn-primary btn-sm btn-ai-invite" data-user="${escapeHtml(rec.username)}" data-game="${escapeHtml(rec.gameName || rec.game)}" style="flex:1;">Invitar</button>
         ${buildFriendActionButtonHtml(rec.username)}
-        <button type="button" class="btn btn-secondary btn-sm btn-ai-rate" data-user="${escapeHtml(rec.username)}">Valorar ★</button>
+        <button type="button" class="btn btn-secondary btn-sm btn-ai-rate" data-user="${escapeHtml(rec.username)}">★</button>
       </div>
     `;
 
@@ -976,6 +982,15 @@ async function openPublicProfile(username) {
     const dot = document.getElementById('dossier-presence-dot');
     dot.className = `presence-dot-lg ${pres.cls}`;
     document.getElementById('dossier-username').innerText = `@${data.username}`;
+    const dossierTitleEl = document.getElementById('dossier-title-pill');
+    if (dossierTitleEl) {
+      if (data.equippedTitle) {
+        dossierTitleEl.innerText = data.equippedTitle;
+        dossierTitleEl.style.display = 'inline-flex';
+      } else {
+        dossierTitleEl.style.display = 'none';
+      }
+    }
     document.getElementById('dossier-presence-label').innerText = pres.label;
     const verPill = document.getElementById('dossier-verified-pill');
     if (verPill) {
@@ -1056,6 +1071,36 @@ async function openPublicProfile(username) {
     const blkBtn = document.getElementById('dossier-btn-block');
     if (blkBtn) blkBtn.innerText = data.isBlocked ? 'Desbloquear' : 'Bloquear';
 
+    const clipsSec = document.getElementById('dossier-clips-section');
+    const clipsList = document.getElementById('dossier-clips-list');
+    if (clipsSec && clipsList) {
+      const clips = Array.isArray(data.clips) ? data.clips : [];
+      if (clips.length === 0) {
+        clipsSec.style.display = 'none';
+        clipsList.innerHTML = '';
+      } else {
+        clipsSec.style.display = 'block';
+        clipsList.innerHTML = clips.map(cl => {
+          const meta = extractClipMeta(cl.clipUrl);
+          return `
+            <div class="dossier-clip-card">
+              ${meta.thumbUrl ? `
+                <div class="clip-thumb-wrap">
+                  <img src="${escapeHtml(meta.thumbUrl)}" alt="${escapeHtml(cl.title)}" onerror="this.style.display='none'">
+                </div>
+              ` : ''}
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:0.4rem;">
+                <span class="clip-play-tag">${escapeHtml(meta.platform)}</span>
+                <span style="font-size:0.7rem;color:var(--text-muted);">${escapeHtml(cl.gameName || cl.gameCode)}</span>
+              </div>
+              <strong style="font-size:0.82rem;color:#fff;display:block;">${escapeHtml(cl.title)}</strong>
+              <a href="${escapeHtml(cl.clipUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="width:100%;justify-content:center;">Ver Highlight</a>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
     const revWrap = document.getElementById('dossier-reviews-list');
     const reviews = Array.isArray(data.reviews) ? data.reviews : [];
     if (reviews.length === 0) {
@@ -1126,7 +1171,7 @@ function createPlayerCard(player) {
   const rankTierCls = getRankTierClass(player.rank);
 
   div.innerHTML = `
-    <div class="player-card-cover" data-game="${escapeHtml(player.game)}" style="background-image: linear-gradient(180deg, rgba(10, 15, 27, 0.25), rgba(10, 15, 27, 0.88)), url('${escapeHtml(coverUrl)}');">
+    <div class="player-card-cover" data-game="${escapeHtml(player.game)}" style="background-image: linear-gradient(180deg, rgba(16, 11, 18, 0.42), rgba(16, 11, 18, 0.94)), url('${escapeHtml(coverUrl)}');">
       <span class="badge-game ${escapeHtml(player.game)}">${escapeHtml(player.gameName || player.game)}</span>
       <div style="display:flex;align-items:center;gap:0.35rem;flex-wrap:wrap;justify-content:flex-end;">
         ${frameInfo.pillCls ? `<span class="frame-tier-pill ${frameInfo.pillCls}">${escapeHtml(frameInfo.label)}</span>` : ''}
@@ -1144,38 +1189,31 @@ function createPlayerCard(player) {
         </div>
         <div style="min-width:0;">
           <h3 class="clickable-player-handle" data-profile-user="${escapeHtml(player.username)}">${escapeHtml(player.username)}</h3>
+          ${player.equippedTitle ? `<span class="title-pill-inline">${escapeHtml(player.equippedTitle)}</span>` : ''}
           <p class="player-meta-text">${escapeHtml(player.region || 'Chile')} · ${getPresenceInfo(player.username).label}</p>
         </div>
       </div>
 
-      <div class="player-data-table">
-        <div class="player-data-cell">
+      <div class="player-specs-minimal">
+        <div class="player-spec-item">
           <span>Rango</span>
           <strong class="${rankTierCls}">${escapeHtml(player.rank)}</strong>
         </div>
-        <div class="player-data-cell">
+        <div class="player-spec-item">
           <span>Rol</span>
           <strong>${escapeHtml(player.role)}</strong>
         </div>
-        <div class="player-data-cell">
+        <div class="player-spec-item">
           <span>Horario</span>
           <strong>${escapeHtml(player.preferredSchedule || 'Noches')}</strong>
         </div>
-        <div class="player-data-cell">
-          <span>Reputación</span>
-          <strong style="color:${isLowRating ? 'var(--color-danger)' : 'var(--color-success)'};">
-            ${isLowRating ? 'Reducida (<2★)' : (player.toxicLevel === 'ZERO_TOXIC' ? 'Alta Reputación' : 'Amigable · Normal')}
-          </strong>
-        </div>
       </div>
 
-      <p class="player-bio-snippet">"${escapeHtml(player.bio || 'Jugador activo buscando formar equipo.')}"</p>
+      <p class="player-bio-snippet">${escapeHtml(player.bio || 'Disponible para coordinar partida.')}</p>
 
       <div class="player-chips-row">
-        ${player.favoriteGenres ? `<span class="chip-plat">${escapeHtml(player.favoriteGenres.split(',')[0])}</span>` : ''}
         ${player.riotId ? `<span class="chip-plat">ID: ${escapeHtml(player.riotId)}</span>` : ''}
         ${(player.discordConnected || player.discordTag) ? `<button type="button" class="chip-discord" data-copy-discord="${escapeHtml(player.discordTag)}">Discord: @${escapeHtml(player.discordTag)}</button>` : ''}
-        ${player.steamId ? `<span class="chip-plat">Steam Vinculado</span>` : ''}
       </div>
 
       ${!isCurrentUser ? `
@@ -1185,7 +1223,7 @@ function createPlayerCard(player) {
           </button>
           ${buildFriendActionButtonHtml(player.username)}
           <button type="button" class="btn btn-secondary btn-sm btn-rate-player" data-user="${escapeHtml(player.username)}">
-            Valorar ★
+            ★
           </button>
         </div>
       ` : `
@@ -1477,10 +1515,11 @@ async function loadLeaderboard() {
           <div style="display:flex;align-items:center;gap:0.6rem;min-width:0;">
             <img src="${escapeHtml(row.avatarUrl || defaultAvatarUrl(row.username))}" alt="${escapeHtml(row.username)}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;">
             <div style="min-width:0;">
-              <strong class="clickable-player-handle" data-profile-user="${escapeHtml(row.username)}" style="color:#fff;font-size:0.88rem;display:flex;align-items:center;gap:0.35rem;">
+              <strong class="clickable-player-handle" data-profile-user="${escapeHtml(row.username)}" style="color:#fff;font-size:0.88rem;display:flex;align-items:center;gap:0.35rem;flex-wrap:wrap;">
                 <span class="presence-dot-mini ${pInfo.cls}" data-presence-user="${escapeHtml(row.username)}"></span>
                 @${escapeHtml(row.username)}
                 ${frameInfo.pillCls ? `<span class="frame-tier-pill ${frameInfo.pillCls}">${escapeHtml(frameInfo.label)}</span>` : ''}
+                ${row.equippedTitle ? `<span class="title-pill">${escapeHtml(row.equippedTitle)}</span>` : ''}
               </strong>
               <span class="${rankCls}" style="font-size:0.74rem;color:var(--text-muted);">${escapeHtml(row.rank)}</span>
             </div>
@@ -2587,7 +2626,28 @@ function renderProfileIdentityBadges(profile = null) {
       passSub.innerText = `${profile.region || 'Chile'} · ${profile.preferredSchedule || 'Horario flexible'}`;
     }
     syncProfileCardFrameUi(profile.cardFrame || 'NONE');
+    syncProfileTitleUi(profile.equippedTitle || '');
   }
+}
+
+function syncProfileTitleUi(rawTitle) {
+  const clean = String(rawTitle || '').trim();
+  const valEl = document.getElementById('prof-equipped-title-value');
+  if (valEl) valEl.value = clean;
+  const lblEl = document.getElementById('prof-equipped-title-label');
+  if (lblEl) lblEl.innerText = `Título activo: ${clean || 'Ninguno'}`;
+  const passPill = document.getElementById('prof-pass-title-pill');
+  if (passPill) {
+    if (clean) {
+      passPill.innerText = clean;
+      passPill.style.display = 'inline-flex';
+    } else {
+      passPill.style.display = 'none';
+    }
+  }
+  document.querySelectorAll('#prof-title-picker .achievement-card').forEach(card => {
+    card.classList.toggle('active', Boolean(clean) && String(card.dataset.title || '') === clean);
+  });
 }
 
 function applyTasteChipsSelection(containerId, csvValues) {
@@ -2665,9 +2725,162 @@ async function loadProfileData() {
       renderProfileIdentityBadges(myProfile);
     }
 
-    await Promise.all([loadBlockedUsers(), loadIntegrationsStatus()]);
+    await Promise.all([loadBlockedUsers(), loadIntegrationsStatus(), loadProfileAchievementsAndAnalytics()]);
   } catch (err) {
     console.error('Error cargando perfil:', err);
+  }
+}
+
+async function loadProfileAchievementsAndAnalytics() {
+  if (!state.currentUser) return;
+  try {
+    const [achRes, statsRes] = await Promise.all([
+      API.getPlayerAchievements(state.currentUser.username).catch(() => ({ ok: false })),
+      API.getPlayerAnalytics(state.currentUser.username).catch(() => ({ ok: false }))
+    ]);
+
+    if (achRes && achRes.ok && achRes.data) {
+      renderProfileAchievements(achRes.data);
+    }
+    if (statsRes && statsRes.ok && statsRes.data) {
+      renderProfileAnalyticsAndClips(statsRes.data);
+    }
+  } catch (err) {
+    console.error('Error cargando logros y analíticas:', err);
+  }
+}
+
+function renderProfileAchievements(data) {
+  const grid = document.getElementById('prof-title-picker');
+  if (!grid) return;
+  const list = Array.isArray(data.achievements) ? data.achievements : [];
+  const activeTitle = String(data.equippedTitle || '').trim();
+  syncProfileTitleUi(activeTitle);
+
+  grid.innerHTML = list.map(ach => {
+    const unlocked = Boolean(ach.unlocked);
+    const isActive = unlocked && activeTitle === ach.title;
+    return `
+      <button type="button" class="achievement-card ${unlocked ? '' : 'locked'} ${isActive ? 'active' : ''}" data-title="${escapeHtml(ach.title)}" data-unlocked="${unlocked ? '1' : '0'}">
+        <div class="achievement-card-top">
+          <span class="achievement-title">${escapeHtml(ach.title)}</span>
+          <span class="achievement-state ${unlocked ? 'unlocked' : 'locked'}">${unlocked ? (isActive ? 'Equipado' : 'Desbloqueado') : escapeHtml(ach.progress || 'Bloqueado')}</span>
+        </div>
+        <div class="achievement-desc">${escapeHtml(ach.description)}</div>
+      </button>
+    `;
+  }).join('');
+
+  grid.querySelectorAll('.achievement-card').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (btn.dataset.unlocked !== '1') {
+        showToast('Aún no cumples el requisito para este título.', true);
+        return;
+      }
+      const clickedTitle = String(btn.dataset.title || '');
+      const currentTitle = document.getElementById('prof-equipped-title-value')?.value || '';
+      const nextTitle = (currentTitle === clickedTitle) ? '' : clickedTitle;
+      try {
+        const { ok, data: res } = await API.updateProfile({
+          username: state.currentUser.username,
+          equippedTitle: nextTitle
+        });
+        if (!ok) {
+          showToast((res && res.error) || 'No se pudo equipar el título.', true);
+          return;
+        }
+        renderProfileAchievements({ equippedTitle: nextTitle, achievements: list });
+        showToast(nextTitle ? `Título "${nextTitle}" equipado en tu perfil.` : 'Título removido de tu perfil.');
+        loadLfgPlayers();
+        loadRecommendations();
+        loadLeaderboard();
+      } catch (err) {
+        showToast('Error al actualizar título.', true);
+      }
+    });
+  });
+}
+
+function renderProfileAnalyticsAndClips(stats) {
+  const setText = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.innerText = val;
+  };
+  setText('stat-kpi-tourneys', String(Number(stats.tournamentsJoined || 0)));
+  setText('stat-kpi-wins', String(Number(stats.matchesWon || 0)));
+  setText('stat-kpi-friends', String(Number(stats.friendsCount || 0)));
+  setText('stat-kpi-clips', String(Number(stats.clipsCount || 0)));
+  setText('analytics-winrate-pill', `${Number(stats.winRate || 0)}% Win Rate`);
+
+  const bdWrap = document.getElementById('prof-star-breakdown');
+  if (bdWrap && stats.starBreakdown) {
+    const breakdown = stats.starBreakdown;
+    const total = [5, 4, 3, 2, 1].reduce((acc, s) => acc + Number(breakdown[String(s)] || 0), 0);
+    bdWrap.innerHTML = [5, 4, 3, 2, 1].map(star => {
+      const cnt = Number(breakdown[String(star)] || 0);
+      const pct = total > 0 ? Math.round((cnt * 100) / total) : 0;
+      return `
+        <div class="star-bar-row">
+          <span>${star} ★</span>
+          <div class="star-bar-track"><div class="star-bar-fill" style="width:${pct}%"></div></div>
+          <span style="text-align:right;color:var(--text-muted);">${cnt}</span>
+        </div>
+      `;
+    }).join('');
+  }
+
+  const matesWrap = document.getElementById('prof-recent-teammates');
+  if (matesWrap) {
+    const mates = Array.isArray(stats.recentTeammates) ? stats.recentTeammates : [];
+    if (mates.length === 0) {
+      matesWrap.innerHTML = '<span style="font-size:0.75rem;color:var(--text-muted);">Aún no agregas compañeros en tu escuadra.</span>';
+    } else {
+      matesWrap.innerHTML = mates.map(m => `
+        <span class="mate-chip clickable-player-handle" data-profile-user="${escapeHtml(m.username)}">
+          <img src="${escapeHtml(m.avatarUrl || defaultAvatarUrl(m.username))}" alt="${escapeHtml(m.username)}">
+          <span>@${escapeHtml(m.username)}</span>
+        </span>
+      `).join('');
+      matesWrap.querySelectorAll('[data-profile-user]').forEach(el => {
+        el.addEventListener('click', () => openPublicProfile(el.dataset.profileUser));
+      });
+    }
+  }
+
+  const clipsWrap = document.getElementById('prof-clips-list');
+  if (clipsWrap) {
+    const clips = Array.isArray(stats.clips) ? stats.clips : [];
+    if (clips.length === 0) {
+      clipsWrap.innerHTML = '<div style="font-size:0.78rem;color:var(--text-muted);">No has subido clips o highlights todavía.</div>';
+    } else {
+      clipsWrap.innerHTML = clips.map(cl => {
+        const meta = extractClipMeta(cl.clipUrl);
+        return `
+          <div class="clip-item-card">
+            <div style="min-width:0;flex:1;">
+              <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.15rem;">
+                <span class="clip-play-tag">${escapeHtml(meta.platform)}</span>
+                <span style="font-size:0.7rem;color:var(--text-muted);">${escapeHtml(cl.gameName || cl.gameCode)}</span>
+              </div>
+              <strong style="font-size:0.82rem;color:#fff;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(cl.title)}</strong>
+            </div>
+            <div style="display:flex;gap:0.35rem;flex-shrink:0;">
+              <a href="${escapeHtml(cl.clipUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm">Ver</a>
+              <button type="button" class="btn btn-danger btn-sm btn-del-clip" data-cid="${escapeHtml(cl.id)}">&times;</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+      clipsWrap.querySelectorAll('.btn-del-clip').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const res = await API.deletePlayerClip(state.currentUser.username, btn.dataset.cid);
+          if (res.ok) {
+            showToast('Clip eliminado.');
+            loadProfileAchievementsAndAnalytics();
+          }
+        });
+      });
+    }
   }
 }
 
@@ -2978,6 +3191,7 @@ function setupProfileForm() {
       playstyle: document.getElementById('prof-playstyle')?.value || 'COMPETITIVE',
       preferredSchedule: document.getElementById('prof-schedule').value.trim(),
       cardFrame: document.getElementById('prof-card-frame-value')?.value || 'NONE',
+      equippedTitle: document.getElementById('prof-equipped-title-value')?.value || '',
       favoriteGames: [...state.favGamesSelected].join(','),
       favoriteGenres: collectTasteChipsSelection('prof-fav-genres-chips'),
       playPreferences: collectTasteChipsSelection('prof-play-prefs-chips')
@@ -2993,12 +3207,41 @@ function setupProfileForm() {
       if (data && data.user) syncProfileSession(data.user);
       if (data && data.profile) renderProfileIdentityBadges(data.profile);
 
-      showToast('Perfil, gustos y datos privados guardados; recalculando IA...');
+      showToast('Perfil, gustos y preferencias guardados.');
       loadLfgPlayers();
       loadRecommendations();
       loadGames();
+      loadProfileAchievementsAndAnalytics();
     } catch (err) {
       showToast('Error al conectar con el servidor Java.', true);
+    }
+  });
+
+  // 6. Subir Highlight / Clip al Dossier Público
+  document.getElementById('btn-add-clip')?.addEventListener('click', async () => {
+    if (!state.currentUser) return;
+    const titleInp = document.getElementById('clip-title-input');
+    const urlInp = document.getElementById('clip-url-input');
+    const gameSel = document.getElementById('clip-game-select');
+    const title = titleInp?.value?.trim() || '';
+    const clipUrl = urlInp?.value?.trim() || '';
+    const game = gameSel?.value || 'valorant';
+    if (!title || !clipUrl) {
+      showToast('Ingresa el título y el enlace del clip antes de agregar.', true);
+      return;
+    }
+    try {
+      const { ok, data } = await API.addPlayerClip(state.currentUser.username, title, clipUrl, game);
+      if (!ok) {
+        showToast((data && data.error) || 'No se pudo guardar el highlight.', true);
+        return;
+      }
+      if (titleInp) titleInp.value = '';
+      if (urlInp) urlInp.value = '';
+      showToast('Highlight agregado a tu dossier público.');
+      loadProfileAchievementsAndAnalytics();
+    } catch (err) {
+      showToast('Error al agregar clip.', true);
     }
   });
 }

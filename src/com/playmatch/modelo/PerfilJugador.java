@@ -21,6 +21,7 @@ public class PerfilJugador {
     private double starRating = 4.8;
     private int ratingCount = 0;
     private String cardFrame = "NONE";
+    private String equippedTitle = "";
     private String juego;          // "valorant", "lol", "cs2"
     private String nombreJuego;    // "Valorant", "League of Legends", "CS2"
     private String rango;          // ej. "Inmortal 1", "Diamante IV"
@@ -94,6 +95,8 @@ public class PerfilJugador {
     public void setRatingCount(int ratingCount) { this.ratingCount = ratingCount; }
     public String getCardFrame() { return cardFrame != null ? cardFrame : "NONE"; }
     public void setCardFrame(String cardFrame) { this.cardFrame = cardFrame; }
+    public String getEquippedTitle() { return equippedTitle != null ? equippedTitle : ""; }
+    public void setEquippedTitle(String equippedTitle) { this.equippedTitle = equippedTitle; }
     public String getJuego() { return juego; }
     public void setJuego(String juego) { this.juego = juego; }
     public String getNombreJuego() { return nombreJuego; }

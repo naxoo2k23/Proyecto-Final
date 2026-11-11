@@ -188,6 +188,33 @@ const API = {
     });
   },
 
+  async getPlayerAchievements(username) {
+    return this.requestJson(`/api/players/achievements?username=${encodeURIComponent(username)}`);
+  },
+
+  async getPlayerAnalytics(username) {
+    return this.requestJson(`/api/players/analytics?username=${encodeURIComponent(username)}`);
+  },
+
+  async getPlayerClips(username) {
+    const { data } = await this.requestJson(`/api/players/clips?username=${encodeURIComponent(username)}`);
+    return Array.isArray(data) ? data : [];
+  },
+
+  async addPlayerClip(username, title, clipUrl, game = 'valorant') {
+    return this.requestJson('/api/players/clips', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, title, clipUrl, game })
+    });
+  },
+
+  async deletePlayerClip(username, clipId) {
+    return this.requestJson(`/api/players/clips?username=${encodeURIComponent(username)}&id=${encodeURIComponent(clipId)}`, {
+      method: 'DELETE'
+    });
+  },
+
   // TORNEOS
   async getTournaments() {
     const { data } = await this.requestJson('/api/tournaments');
